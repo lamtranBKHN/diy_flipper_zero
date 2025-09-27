@@ -12,6 +12,7 @@ typedef enum {
     InternalLayerMessage,
     SaveSettingsMessage,
     LoadSettingsMessage,
+  //  ResetDisplayTimerMessage,
 } NotificationAppMessageType;
 
 typedef struct {
@@ -50,6 +51,8 @@ struct NotificationApp {
     FuriMessageQueue* queue;
     FuriPubSub* event_record;
     FuriTimer* display_timer;
+
+    bool settings_dirty;
 
     NotificationLedLayer display;
     NotificationLedLayer led[NOTIFICATION_LED_COUNT];

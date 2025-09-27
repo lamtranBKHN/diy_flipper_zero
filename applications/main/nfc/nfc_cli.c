@@ -199,12 +199,12 @@ static void execute(PipeSide* pipe, FuriString* args, void* context) {
             nfc_cli_apdu(pipe, args);
             break;
         }
-        if(furi_hal_rtc_is_flag_set(FuriHalRtcFlagDebug)) {
-            if(furi_string_cmp_str(cmd, "field") == 0) {
+       // if(furi_hal_rtc_is_flag_set(FuriHalRtcFlagDebug)) {
+            if(furi_string_cmp_str(cmd, "run") == 0) {
                 nfc_cli_field(pipe, args);
                 break;
             }
-        }
+        //}
 
         nfc_cli_print_usage();
     } while(false);

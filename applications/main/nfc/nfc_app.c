@@ -5,6 +5,7 @@
 #include <dolphin/dolphin.h>
 #include <loader/firmware_api/firmware_api.h>
 #include <applications/main/archive/helpers/archive_helpers_ext.h>
+#include <furi.h>
 
 bool nfc_custom_event_callback(void* context, uint32_t event) {
     furi_assert(context);
@@ -43,6 +44,7 @@ NfcApp* nfc_app_alloc(void) {
     NfcApp* instance = malloc(sizeof(NfcApp));
 
     instance->view_dispatcher = view_dispatcher_alloc();
+        view_dispatcher_enable_queue(instance->view_dispatcher);
     instance->scene_manager = scene_manager_alloc(&nfc_scene_handlers, instance);
     view_dispatcher_set_event_callback_context(instance->view_dispatcher, instance);
     view_dispatcher_set_custom_event_callback(
@@ -65,66 +67,68 @@ NfcApp* nfc_app_alloc(void) {
 
     // Nfc device
     instance->nfc_device = nfc_device_alloc();
-    nfc_device_set_loading_callback(instance->nfc_device, nfc_show_loading_popup, instance);
+  //  nfc_device_set_loading_callback(instance->nfc_device, nfc_show_loading_popup, instance);
 
     // Open GUI record
     instance->gui = furi_record_open(RECORD_GUI);
-
+         FURI_LOG_E("rdrd", "Alocated");
     // Open Notification record
     instance->notifications = furi_record_open(RECORD_NOTIFICATION);
-
+        FURI_LOG_E("rdrd", "notification");
     // Open Storage record
     instance->storage = furi_record_open(RECORD_STORAGE);
-
+        FURI_LOG_E("rdrd", "storage");
     // Open Dialogs record
     instance->dialogs = furi_record_open(RECORD_DIALOGS);
-
+        FURI_LOG_E("rdrd", "dialogs");
     // Submenu
     instance->submenu = submenu_alloc();
+    FURI_LOG_E("rdrd", "submenu");
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewMenu, submenu_get_view(instance->submenu));
-
+        FURI_LOG_E("rdrd", "dialog");
     // Dialog
     instance->dialog_ex = dialog_ex_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewDialogEx, dialog_ex_get_view(instance->dialog_ex));
-
+FURI_LOG_E("rdrd", "popup");
     // Popup
     instance->popup = popup_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewPopup, popup_get_view(instance->popup));
-
+FURI_LOG_E("rdrd", "loading");
     // Loading
     instance->loading = loading_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewLoading, loading_get_view(instance->loading));
-
+FURI_LOG_E("rdrd", "text");
     // Text Input
     instance->text_input = text_input_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewTextInput, text_input_get_view(instance->text_input));
-
+FURI_LOG_E("rdrd", "Byte");
     // Byte Input
     instance->byte_input = byte_input_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewByteInput, byte_input_get_view(instance->byte_input));
-
+FURI_LOG_E("rdrd", "TextBox");
     // TextBox
     instance->text_box = text_box_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewTextBox, text_box_get_view(instance->text_box));
     instance->text_box_store = furi_string_alloc();
+FURI_LOG_E("rdrd", "Widget");
 
     // Custom Widget
     instance->widget = widget_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewWidget, widget_get_view(instance->widget));
-
+FURI_LOG_E("rdrd", "Dict");
     // Dict attack
     instance->dict_attack = dict_attack_alloc();
     view_dispatcher_add_view(
         instance->view_dispatcher, NfcViewDictAttack, dict_attack_get_view(instance->dict_attack));
-
+FURI_LOG_E("rdrd", "Detect Reader");
     // Detect Reader
     instance->detect_reader = detect_reader_alloc();
     view_dispatcher_add_view(
@@ -135,7 +139,7 @@ NfcApp* nfc_app_alloc(void) {
     instance->iso14443_3a_edit_data = iso14443_3a_alloc();
     instance->file_path = furi_string_alloc_set(NFC_APP_FOLDER);
     instance->file_name = furi_string_alloc();
-
+FURI_LOG_E("rdrd", " done");
     return instance;
 }
 
@@ -518,6 +522,7 @@ int32_t nfc_app(void* p) {
     const char* args = p;
 
     bool is_favorite = process_favorite_launch((char**)&args);
+
     if(args && strlen(args)) {
         if(sscanf(args, "RPC %p", &nfc->rpc_ctx) == 1) {
             rpc_system_app_set_callback(nfc->rpc_ctx, nfc_app_rpc_command_callback, nfc);
@@ -543,8 +548,16 @@ int32_t nfc_app(void* p) {
         scene_manager_next_scene(nfc->scene_manager, NfcSceneStart);
     }
 
+    // --- THIS IS THE MISSING PIECE OF BOILERPLATE ---
+    // Signal to the OS that the application has started and is ready to draw.
+    // This allows the GUI to finally release the loader screen.
+    dolphin_deed(DolphinDeedPluginStart);
+    // ----------------------------------------------
+
+    // Now, when the event loop starts, the GUI is ready for it.
     view_dispatcher_run(nfc->view_dispatcher);
 
+    // This code runs after the app exits
     nfc_app_free(nfc);
 
     return 0;

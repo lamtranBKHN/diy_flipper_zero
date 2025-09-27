@@ -17,7 +17,24 @@ void nfc_scene_start_submenu_callback(void* context, uint32_t index) {
 }
 
 void nfc_scene_start_on_enter(void* context) {
+    
+     FURI_LOG_E("NFC_SCENE_START", "On Enter event for Start Scene has fired!");
     NfcApp* nfc = context;
+
+    // ====================================================================
+    // --- NEW TEST CODE: Try to show a simple popup ---
+    // This will tell us if the view_dispatcher can draw ANYTHING.
+    // ====================================================================
+
+    popup_set_header(nfc->popup, "Debug Test", 64, 12, AlignCenter, AlignBottom);
+    popup_set_text(nfc->popup, "Can you see me?", 64, 24, AlignCenter, AlignTop);
+    view_dispatcher_switch_to_view(nfc->view_dispatcher, NfcViewPopup);
+
+
+    // ====================================================================
+    // --- OLD CODE: Comment this out for the test ---
+    // ====================================================================
+    /*
     Submenu* submenu = nfc->submenu;
 
     // Clear file name and device contents
@@ -56,6 +73,7 @@ void nfc_scene_start_on_enter(void* context) {
         submenu, scene_manager_get_scene_state(nfc->scene_manager, NfcSceneStart));
 
     view_dispatcher_switch_to_view(nfc->view_dispatcher, NfcViewMenu);
+    */
 }
 
 bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
