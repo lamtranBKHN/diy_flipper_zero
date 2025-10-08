@@ -26,7 +26,7 @@ uint32_t furi_hal_nfc_get_irq(const FuriHalSpiBusHandle* handle) {
 void furi_hal_nfc_init_gpio_isr(void) {
     FURI_LOG_D(TAG, "Initializing NFC GPIO ISR");
     furi_hal_gpio_init(
-        &gpio_nfc_irq_rfid_pull, GpioModeInterruptRise, GpioPullDown, GpioSpeedVeryHigh);
+        &gpio_nfc_irq_rfid_pull, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedVeryHigh);
     furi_hal_gpio_add_int_callback(&gpio_nfc_irq_rfid_pull, furi_hal_nfc_int_callback, NULL);
     furi_hal_gpio_enable_int_callback(&gpio_nfc_irq_rfid_pull);
     FURI_LOG_D(TAG, "NFC GPIO ISR Initialized");

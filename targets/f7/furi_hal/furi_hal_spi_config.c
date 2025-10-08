@@ -32,7 +32,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_2EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV64,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -45,7 +45,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_2edge_low_8m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_2EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV8,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -58,7 +58,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV8,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -84,7 +84,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_4m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -97,7 +97,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_16m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV4,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV64,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -139,6 +139,8 @@ void furi_hal_spi_config_init(void) {
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_fast);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_slow);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_button_sr);
+    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external);
+    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external_extra);
 
     //   FURI_LOG_I(TAG, "Init OK");
 }
@@ -495,5 +497,5 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external_extra = {
     .miso = &gpio_spi_miso, // Use shared pin
     .mosi = &gpio_spi_mosi, // Use shared pin
     .sck = &gpio_spi_sck, // Use shared pin
-    .cs = &gpio_ext_pa4, // Ensure this pin is defined and unique
+    .cs = &gpio_ext_pc1, // Ensure this pin is defined and unique
 };

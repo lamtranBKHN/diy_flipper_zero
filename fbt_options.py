@@ -14,7 +14,6 @@ TARGET_HW = 7
 COMPACT = 1
 ## Optimize for debugging experience
 DEBUG = 1
-
 # Suffix to add to files when building distribution
 # If OS environment has DIST_SUFFIX set, it will be used instead
 

@@ -1,7 +1,13 @@
 #include <furi_hal_nfc_i.h>
 #include <furi.h>
+#include <lib/drivers/st25r3916.h> // Include for st25r3916 IRQ masks
 
 #define TAG "FuriHalNfcEvent"
+
+// --- ADD THIS ---
+// Forward declaration for the logging helper function defined in furi_hal_nfc.c
+void furi_hal_nfc_log_irq(const char* action, uint32_t irq_mask);
+// --- END ---
 
 FuriHalNfcEventInternal* furi_hal_nfc_event = NULL;
 
@@ -31,7 +37,7 @@ FuriHalNfcError furi_hal_nfc_event_stop(void) {
 
 void furi_hal_nfc_event_set(FuriHalNfcEventInternalType event) {
     furi_check(furi_hal_nfc_event);
-   
+
     if(furi_hal_nfc_event->thread) {
         furi_thread_flags_set(furi_hal_nfc_event->thread, event);
     }
@@ -60,6 +66,14 @@ FuriHalNfcEvent furi_hal_nfc_wait_event_common(uint32_t timeout_ms) {
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeIrq);
             const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
             uint32_t irq = furi_hal_nfc_get_irq(handle);
+
+            // --- ADD THIS ---
+            // Log the exact IRQ that was fired from the chip
+            if(irq != 0) {
+                furi_hal_nfc_log_irq("IRQ Fired!", irq);
+            }
+            // --- END ---
+
             FURI_LOG_T(TAG, "NFC chip IRQ mask: 0x%08lX", irq);
             if(irq & ST25R3916_IRQ_MASK_OSC) {
                 event |= FuriHalNfcEventOscOn;
@@ -128,6 +142,14 @@ bool furi_hal_nfc_event_wait_for_specific_irq(
         furi_thread_flags_wait(FuriHalNfcEventInternalTypeIrq, FuriFlagWaitAny, timeout_ms);
     if(event_flag == FuriHalNfcEventInternalTypeIrq) {
         uint32_t irq = furi_hal_nfc_get_irq(handle);
+
+        // --- ADD THIS ---
+        // Log the exact IRQ that was fired from the chip
+        if(irq != 0) {
+            furi_hal_nfc_log_irq("IRQ Fired!", irq);
+        }
+        // --- END ---
+
         FURI_LOG_T(TAG, "IRQ event received, chip IRQ mask: 0x%08lX", irq);
         irq_received = ((irq & mask) == mask);
         furi_thread_flags_clear(FuriHalNfcEventInternalTypeIrq);
