@@ -4,6 +4,8 @@
 
 Here I will soon put the **complete fucking cheap Flipper Zero project**.
 
+**LOW PRICE HOBBY DIY FEASABLE FORCED OPEN SOURCE HARDWARE OF FLIPPER ZERO**
+
 **Stay tuned**
 
 ## Bill of Materials (BOM)
