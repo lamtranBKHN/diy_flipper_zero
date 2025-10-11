@@ -1,6 +1,6 @@
 # Hi, I'm Nucleus Dark
 
-> For the world that punished me by preventing me from living the life I was born for, as punishment for me simply living it, not you, this is my middle finger
+> For the world that punished me by preventing me from living the life I was born for, as punishment for me simply livint for it instead of you, this is my middle finger
 
 Here I will soon put the **complete fucking cheap Flipper Zero project**.
 
