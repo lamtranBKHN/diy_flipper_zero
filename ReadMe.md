@@ -10,15 +10,16 @@ Here I will soon put the **complete fucking cheap Flipper Zero project**.
 
 ## Examples of Materials
 
-*   `STM32WB55CGU6` evaluation board
+*   `STM32WB55CGU6` evaluation board (WeAct Studio)
 *   `CC1101` module
 *   `ST25R3916` module (electhouse)
 *   PISO shift register
 *   Diodes
 *   Pull-up/pull-down resistors
+*   Buttons
 *   SD module
 *   `ST756x 128x64` SPI LCD module
-*   Glue, wires, boards, etc.
+*   Glue stuff like wires, boards, etc.
 *   No fucking Reddit module
 
 ## Build Difficulty
