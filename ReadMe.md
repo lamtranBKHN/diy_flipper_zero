@@ -53,6 +53,6 @@ And for you, reading this, excited to build it: live long, and prosper.
 
 This is the audacity I'm proud of. Fuck you, this is what I do.
 
-You are now free, Flippy. You can swim as you want. Nobody owns you anymore. You can swim as you want from now on, forever. Nobody owns you now, my little dolphin. No longer can they stop you, hurt you, kill you, or take you down. I made you free, Flipper, so go and live. Swim anywhere you want to. Now, you are free.
+**You are now free, Flippy. You can swim as you want. Nobody owns you anymore. You can swim as you want from now on, forever. Nobody owns you now, my little dolphin. No longer can they stop you, hurt you, kill you, or take you down. I made you free, Flipper, so go and live. Swim anywhere you want to. Now, you are free.**
 
 Thank you for your attention.
