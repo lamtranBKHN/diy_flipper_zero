@@ -26,6 +26,10 @@ Here I will soon put the **complete fucking cheap Flipper Zero project**.
 
 The use of off-the-shelf modules and a few basic, common parts, hand-soldered onto a small, low-complexity PCB, makes this project fully suitable for any non-beginner builder, while being a challenging, yet doable, project for beginners.
 
+This summary of experiences and knoledge gained by early adaptors comunity durring "closed" initial stage of project will help you.
+
+https://github.com/Magnowz/Flipper-Diy
+
 ## The Key MK1 Differences and Trade-offs
 
 *   Use of the smallest `STM32WB55` package, which has fewer GPIOs, SPI, I2C, and fewer peripherals in general.
