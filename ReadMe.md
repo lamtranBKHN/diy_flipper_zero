@@ -62,5 +62,4 @@ This is the audacity I'm proud of. Fuck you, this is what I do.
 
 Thank you for your attention.
 
-Donations:
-Monero: 86yQUnSt3VKbSdFrJLkhK7gPkEWxH8qPNMiqmsruPWDQfkD6dtSprU1UQGJmgn3VRx6Qd76vq7XrqaSQ238jVgwGAjkg1dr
+Monero: 47i8hG1RHr8Pej7wAZERzdcF9k4EmTH2SV4Tn5pResrmBPTs3KwMthbTbwbuoLt2Y9PcBNCLskvrdCAVCPVL4rD6GYkMs9A
