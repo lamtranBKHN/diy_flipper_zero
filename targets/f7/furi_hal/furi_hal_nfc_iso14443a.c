@@ -69,7 +69,7 @@ static FuriHalNfcError furi_hal_nfc_iso14443a_poller_deinit(const FuriHalSpiBusH
 
 static FuriHalNfcError furi_hal_nfc_iso14443a_listener_init(const FuriHalSpiBusHandle* handle) {
     furi_check(iso14443_3a_signal == NULL);
-    iso14443_3a_signal = iso14443_3a_signal_alloc(&gpio_spi_r_mosi);
+    iso14443_3a_signal = iso14443_3a_signal_alloc(&gpio_spi_mosi);
 
     st25r3916_write_reg(
         handle,
@@ -294,7 +294,7 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_tx_custom_parity(
     iso14443_3a_signal_tx(iso14443_3a_signal, tx_data, tx_parity, tx_bits);
 
     // Exit transparent mode
-    furi_hal_gpio_write(&gpio_spi_r_mosi, false);
+    furi_hal_gpio_write(&gpio_spi_mosi, false);
 
     // Configure gpio back to SPI and exit transparent
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);

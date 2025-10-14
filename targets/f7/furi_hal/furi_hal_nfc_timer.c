@@ -6,6 +6,7 @@
 #include <furi_hal_interrupt.h>
 #include <furi_hal_resources.h>
 #include <furi_hal_bus.h>
+#include <furi.h>
 
 #define TAG "FuriHalNfcTimer"
 
@@ -65,6 +66,8 @@ static void furi_hal_nfc_timer_irq_callback(void* context) {
     const FuriHalNfcTimerConfig* config = context;
     if(LL_TIM_IsActiveFlag_UPDATE(config->timer)) {
         LL_TIM_ClearFlag_UPDATE(config->timer);
+        // ADDED: Log when the interrupt fires
+        FURI_LOG_D(TAG, "ISR for event %d", config->event);
         furi_hal_nfc_event_set(config->event);
 #ifdef FURI_HAL_NFC_TIMER_DEBUG
         furi_hal_gpio_write(timer_config->pin, false);
@@ -136,6 +139,9 @@ static inline bool furi_hal_nfc_timer_is_running(FuriHalNfcTimer timer) {
 static void furi_hal_nfc_timer_start_core_ticks(FuriHalNfcTimer timer, uint64_t core_ticks) {
     furi_check(!furi_hal_nfc_timer_is_running(timer));
 
+    // ADDED: Log timer start with parameters
+    FURI_LOG_D(TAG, "Timer %d start, ticks: %llu", timer, core_ticks);
+
     const FuriHalNfcTimerConfig* config = &furi_hal_nfc_timers[timer];
     furi_check(furi_hal_bus_is_enabled(config->bus));
 
@@ -170,13 +176,21 @@ static void furi_hal_nfc_timer_start_us(FuriHalNfcTimer timer, uint32_t time_us)
 static void furi_hal_nfc_timer_start_fc(FuriHalNfcTimer timer, uint32_t time_fc) {
     const int32_t comp_fc = furi_hal_nfc_timer_get_compensation(timer);
     // Not starting the timer if the compensation value is greater than the requested delay
-    if(comp_fc >= (int32_t)time_fc) return;
+    if(comp_fc >= (int32_t)time_fc) {
+        // ADDED: Log why the timer is not being started
+        FURI_LOG_D(
+            TAG, "Timer %d skip start: comp %ld >= time %ld", timer, comp_fc, (int32_t)time_fc);
+        return;
+    }
 
     furi_hal_nfc_timer_start_core_ticks(
         timer, ((uint64_t)SystemCoreClock * (time_fc - comp_fc)) / FURI_HAL_NFC_CARRIER_HZ);
 }
 
 static void furi_hal_nfc_timer_stop(FuriHalNfcTimer timer) {
+    // ADDED: Log timer stop
+    FURI_LOG_D(TAG, "Timer %d stop", timer);
+
     const FuriHalNfcTimerConfig* config = &furi_hal_nfc_timers[timer];
 
     LL_TIM_DisableIT_UPDATE(config->timer);
@@ -193,12 +207,16 @@ static void furi_hal_nfc_timer_stop(FuriHalNfcTimer timer) {
 }
 
 void furi_hal_nfc_timers_init(void) {
+    // ADDED: Log module init
+    FURI_LOG_D(TAG, "Init");
     for(size_t i = 0; i < FuriHalNfcTimerCount; i++) {
         furi_hal_nfc_timer_init(i);
     }
 }
 
 void furi_hal_nfc_timers_deinit(void) {
+    // ADDED: Log module deinit
+    FURI_LOG_D(TAG, "Deinit");
     for(size_t i = 0; i < FuriHalNfcTimerCount; i++) {
         furi_hal_nfc_timer_deinit(i);
     }
