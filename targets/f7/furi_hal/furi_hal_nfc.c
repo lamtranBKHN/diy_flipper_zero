@@ -563,9 +563,15 @@ bool furi_hal_nfc_field_is_present(void) {
 
 FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
     FURI_LOG_I(TAG, "Turning poller field on");
+
+    // --- THE FIX: Acquire the lock before this transaction begins ---
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
+
     FuriHalNfcError error = FuriHalNfcErrorNone;
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
+    // This is the call that leads to the furi_check that was failing.
+    // It is now protected by the acquire() call above.
     if(!st25r3916_check_reg(
            handle,
            ST25R3916_REG_OP_CONTROL,
@@ -580,6 +586,9 @@ FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
             ST25R3916_REG_OP_CONTROL,
             (ST25R3916_REG_OP_CONTROL_rx_en | ST25R3916_REG_OP_CONTROL_tx_en));
     }
+
+    // --- THE FIX: Release the lock now that the transaction is complete ---
+    furi_hal_nfc_release();
 
     return error;
 }
