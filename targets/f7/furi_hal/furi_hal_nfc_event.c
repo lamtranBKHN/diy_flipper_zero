@@ -1,7 +1,6 @@
 #include <furi_hal_nfc_i.h>
 #include <furi.h>
 #include <lib/drivers/st25r3916.h> // Include for st25r3916 IRQ masks
-#include <furi_hal_spi.h>
 
 #define TAG "FuriHalNfcEvent"
 
@@ -10,7 +9,7 @@
 FuriHalNfcEventInternal* furi_hal_nfc_event = NULL;
 
 void furi_hal_nfc_event_init(void) {
-    //FURI_LOG_D(TAG, "Initializing NFC event system");
+    FURI_LOG_D(TAG, "Initializing NFC event system");
     furi_hal_nfc_event = malloc(sizeof(FuriHalNfcEventInternal));
 }
 
@@ -18,7 +17,7 @@ FuriHalNfcError furi_hal_nfc_event_start(void) {
     furi_check(furi_hal_nfc_event);
 
     furi_hal_nfc_event->thread = furi_thread_get_current_id();
-    //FURI_LOG_D(TAG, "Event system started for thread ID: %p", furi_hal_nfc_event->thread);
+    FURI_LOG_D(TAG, "Event system started for thread ID: %p", furi_hal_nfc_event->thread);
     furi_thread_flags_clear(FURI_HAL_NFC_EVENT_INTERNAL_ALL);
 
     return FuriHalNfcErrorNone;
@@ -26,7 +25,7 @@ FuriHalNfcError furi_hal_nfc_event_start(void) {
 
 FuriHalNfcError furi_hal_nfc_event_stop(void) {
     furi_check(furi_hal_nfc_event);
-    //FURI_LOG_D(TAG, "Event system stopped for thread ID: %p", furi_hal_nfc_event->thread);
+    FURI_LOG_D(TAG, "Event system stopped for thread ID: %p", furi_hal_nfc_event->thread);
 
     furi_hal_nfc_event->thread = NULL;
 
@@ -42,7 +41,7 @@ void furi_hal_nfc_event_set(FuriHalNfcEventInternalType event) {
 }
 
 FuriHalNfcError furi_hal_nfc_abort(void) {
-    //FURI_LOG_D(TAG, "Abort requested");
+    FURI_LOG_D(TAG, "Abort requested");
     furi_hal_nfc_event_set(FuriHalNfcEventInternalTypeAbort);
     return FuriHalNfcErrorNone;
 }
@@ -63,10 +62,9 @@ FuriHalNfcEvent furi_hal_nfc_wait_event_common(uint32_t timeout_ms) {
             //FURI_LOG_T(TAG, "Processing IRQ event");
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeIrq);
             const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-            // Acquire SPI bus while reading IRQs to avoid bus contention and blocking
-            furi_hal_spi_acquire(handle);
             uint32_t irq = furi_hal_nfc_get_irq(handle);
-            furi_hal_spi_release(handle);
+
+        
 
             //FURI_LOG_T(TAG, "NFC chip IRQ mask: 0x%08lX", irq);
             if(irq & ST25R3916_IRQ_MASK_OSC) {
@@ -111,7 +109,7 @@ FuriHalNfcEvent furi_hal_nfc_wait_event_common(uint32_t timeout_ms) {
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeTimerBlockTxExpired);
         }
         if(event_flag & FuriHalNfcEventInternalTypeAbort) {
-            //FURI_LOG_D(TAG, "Processing Abort Request event");
+            FURI_LOG_D(TAG, "Processing Abort Request event");
             event |= FuriHalNfcEventAbortRequest;
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeAbort);
         }
@@ -135,10 +133,9 @@ bool furi_hal_nfc_event_wait_for_specific_irq(
     uint32_t event_flag =
         furi_thread_flags_wait(FuriHalNfcEventInternalTypeIrq, FuriFlagWaitAny, timeout_ms);
     if(event_flag == FuriHalNfcEventInternalTypeIrq) {
-        // Acquire SPI bus while reading IRQs to avoid bus contention and blocking
-        furi_hal_spi_acquire(handle);
         uint32_t irq = furi_hal_nfc_get_irq(handle);
-        furi_hal_spi_release(handle);
+
+  
 
         //FURI_LOG_T(TAG, "IRQ event received, chip IRQ mask: 0x%08lX", irq);
         irq_received = ((irq & mask) == mask);

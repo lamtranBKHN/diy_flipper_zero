@@ -65,8 +65,9 @@ void furi_hal_nfc_log_irq(const char* action, uint32_t irq_mask) {
 static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handle) {
     FURI_LOG_I(TAG, "Turning on oscillator");
     FuriHalNfcError error = FuriHalNfcErrorNone;
+   
     furi_hal_nfc_event_start();
-
+   //  furi_hal_nfc_acquire();
     if(!st25r3916_check_reg(
            handle,
            ST25R3916_REG_OP_CONTROL,
@@ -99,6 +100,7 @@ static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handl
     }
 
     FURI_LOG_I(TAG, "Turn on oscillator complete, status: %d", error);
+  //  furi_hal_nfc_relase();
     return error;
 }
 
@@ -332,8 +334,9 @@ FuriHalNfcError furi_hal_nfc_init(void) {
         }
 
         FURI_LOG_I(TAG, "Initialization successful, entering low power mode");
-        furi_hal_nfc_low_power_mode_start();
         furi_hal_nfc_release();
+        furi_hal_nfc_low_power_mode_start();
+        
     } while(false);
 
     return error;
@@ -373,6 +376,7 @@ FuriHalNfcError furi_hal_nfc_release(void) {
 FuriHalNfcError furi_hal_nfc_low_power_mode_start(void) {
     FURI_LOG_I(TAG, "Entering low power mode");
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     st25r3916_direct_cmd(handle, ST25R3916_CMD_STOP);
@@ -385,13 +389,16 @@ FuriHalNfcError furi_hal_nfc_low_power_mode_start(void) {
     furi_hal_nfc_deinit_gpio_isr();
     furi_hal_nfc_timers_deinit();
     furi_hal_nfc_event_stop();
+        furi_hal_nfc_release();
 
     return error;
 }
 
 FuriHalNfcError furi_hal_nfc_low_power_mode_stop(void) {
+    furi_hal_nfc_acquire();
     FURI_LOG_I(TAG, "Exiting low power mode");
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    //furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     do {
@@ -408,27 +415,48 @@ FuriHalNfcError furi_hal_nfc_low_power_mode_stop(void) {
     } while(false);
 
     FURI_LOG_I(TAG, "Exit low power mode complete, status: %d", error);
+        furi_hal_nfc_release();
     return error;
 }
 
 static FuriHalNfcError furi_hal_nfc_poller_init_common(const FuriHalSpiBusHandle* handle) {
-    FURI_LOG_I(TAG, "Common poller initialization");
+    FURI_LOG_I(TAG, "npi_c 1: Common poller initialization start");
+
+ //  furi_hal_nfc_acquire();
+   // FURI_LOG_I(TAG, "npi_c 2: furi_hal_nfc_acquire success");
+    
     // Disable wake up
     st25r3916_clear_reg_bits(handle, ST25R3916_REG_OP_CONTROL, ST25R3916_REG_OP_CONTROL_wu);
+    FURI_LOG_I(TAG, "npi_c 3: ST25R3916_REG_OP_CONTROL written");
+
     // Enable correlator
     st25r3916_change_reg_bits(
         handle,
         ST25R3916_REG_AUX,
         ST25R3916_REG_AUX_dis_corr,
         ST25R3916_REG_AUX_dis_corr_correlator);
+    FURI_LOG_I(TAG, "npi_c 4: ST25R3916_REG_AUX written (correlator)");
 
     st25r3916_change_reg_bits(handle, ST25R3916_REG_ANT_TUNE_A, 0xff, 0x82);
+    FURI_LOG_I(TAG, "npi_c 5: ST25R3916_REG_ANT_TUNE_A written");
+
     st25r3916_change_reg_bits(handle, ST25R3916_REG_ANT_TUNE_B, 0xFF, 0x82);
+    FURI_LOG_I(TAG, "npi_c 6: ST25R3916_REG_ANT_TUNE_B written");
 
     st25r3916_write_reg(handle, ST25R3916_REG_OVERSHOOT_CONF1, 0x00);
+    FURI_LOG_I(TAG, "npi_c 7: ST25R3916_REG_OVERSHOOT_CONF1 written");
+
     st25r3916_write_reg(handle, ST25R3916_REG_OVERSHOOT_CONF2, 0x00);
+    FURI_LOG_I(TAG, "npi_c 8: ST25R3916_REG_OVERSHOOT_CONF2 written");
+
     st25r3916_write_reg(handle, ST25R3916_REG_UNDERSHOOT_CONF1, 0x00);
+    FURI_LOG_I(TAG, "npi_c 9: ST25R3916_REG_UNDERSHOOT_CONF1 written");
+
     st25r3916_write_reg(handle, ST25R3916_REG_UNDERSHOOT_CONF2, 0x00);
+    FURI_LOG_I(TAG, "npi_c 10: ST25R3916_REG_UNDERSHOOT_CONF2 written");
+
+  //   furi_hal_nfc_release();
+     FURI_LOG_I(TAG, "npi_c 11: furi_hal_nfc_release success");
 
     return FuriHalNfcErrorNone;
 }
@@ -444,19 +472,23 @@ FuriHalNfcError furi_hal_nfc_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech) 
     furi_check(mode < FuriHalNfcModeNum);
     furi_check(tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Setting mode: %d, tech: %d", mode, tech);
-
+  //  furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
+ furi_hal_nfc_acquire();
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     FuriHalNfcError error = FuriHalNfcErrorNone;
-
+            error = furi_hal_nfc_poller_init_common(handle);
     if(mode == FuriHalNfcModePoller) {
         FURI_LOG_I(TAG, "Initializing as Poller");
         do {
-            error = furi_hal_nfc_poller_init_common(handle);
-            if(error != FuriHalNfcErrorNone) break;
+
+            if(error != FuriHalNfcErrorNone) {
+                FURI_LOG_I(TAG, "break");                
+                break;}
+               
             error = furi_hal_nfc_tech[tech]->poller.init(handle);
         } while(false);
-
+        
     } else if(mode == FuriHalNfcModeListener) {
         FURI_LOG_I(TAG, "Initializing as Listener");
         do {
@@ -469,12 +501,14 @@ FuriHalNfcError furi_hal_nfc_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech) 
     furi_hal_nfc.mode = mode;
     furi_hal_nfc.tech = tech;
     FURI_LOG_I(TAG, "Set mode finished, status: %d", error);
+        furi_hal_nfc_release();
     return error;
 }
 
 FuriHalNfcError furi_hal_nfc_reset_mode(void) {
-    FURI_LOG_I(TAG, "Resetting mode");
+    FURI_LOG_I(TAG, "Resetting mode"); 
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     st25r3916_direct_cmd(handle, ST25R3916_CMD_STOP);
@@ -512,13 +546,14 @@ FuriHalNfcError furi_hal_nfc_reset_mode(void) {
         ST25R3916_REG_CORR_CONF1_corr_s7 | ST25R3916_REG_CORR_CONF1_corr_s4 |
             ST25R3916_REG_CORR_CONF1_corr_s1 | ST25R3916_REG_CORR_CONF1_corr_s0);
     st25r3916_write_reg(handle, ST25R3916_REG_CORR_CONF2, 0);
-
+            furi_hal_nfc_release();
     return error;
 }
 
 FuriHalNfcError furi_hal_nfc_field_detect_start(void) {
     FURI_LOG_I(TAG, "Starting field detection");
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     st25r3916_write_reg(
@@ -527,26 +562,28 @@ FuriHalNfcError furi_hal_nfc_field_detect_start(void) {
         ST25R3916_REG_OP_CONTROL_en | ST25R3916_REG_OP_CONTROL_en_fd_mask);
     st25r3916_write_reg(
         handle, ST25R3916_REG_MODE, ST25R3916_REG_MODE_targ | ST25R3916_REG_MODE_om0);
-
+            furi_hal_nfc_release();
     return error;
 }
 
 FuriHalNfcError furi_hal_nfc_field_detect_stop(void) {
     FURI_LOG_I(TAG, "Stopping field detection");
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     st25r3916_clear_reg_bits(
         handle,
         ST25R3916_REG_OP_CONTROL,
         (ST25R3916_REG_OP_CONTROL_en | ST25R3916_REG_OP_CONTROL_en_fd_mask));
-
+            furi_hal_nfc_release();
     return error;
 }
 
 bool furi_hal_nfc_field_is_present(void) {
     FURI_LOG_T(TAG, "Checking for external field presence");
     bool is_present = false;
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
     if(st25r3916_check_reg(
@@ -558,26 +595,27 @@ bool furi_hal_nfc_field_is_present(void) {
     }
 
     FURI_LOG_T(TAG, "Field is present: %s", is_present ? "true" : "false");
+        furi_hal_nfc_release();
     return is_present;
 }
 
+
 FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
-    FURI_LOG_I(TAG, "Turning poller field on");
-
-    // --- THE FIX: Acquire the lock before this transaction begins ---
-    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
-
+    FURI_LOG_T(TAG, "Turning poller field on");
     FuriHalNfcError error = FuriHalNfcErrorNone;
-    const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
-    // This is the call that leads to the furi_check that was failing.
-    // It is now protected by the acquire() call above.
+    // Acquire the lock ONCE at the beginning of the function
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone); 
+
+    const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
+    
+    // The second, problematic acquire has been removed.
+
     if(!st25r3916_check_reg(
            handle,
            ST25R3916_REG_OP_CONTROL,
            ST25R3916_REG_OP_CONTROL_tx_en,
            ST25R3916_REG_OP_CONTROL_tx_en)) {
-        FURI_LOG_I(TAG, "Field not on, enabling TX and RX");
         // Set min guard time
         st25r3916_write_reg(handle, ST25R3916_REG_FIELD_ON_GT, 0);
         // Enable tx rx
@@ -587,11 +625,42 @@ FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
             (ST25R3916_REG_OP_CONTROL_rx_en | ST25R3916_REG_OP_CONTROL_tx_en));
     }
 
-    // --- THE FIX: Release the lock now that the transaction is complete ---
-    furi_hal_nfc_release();
-
+    // Release the lock ONCE at the end of the function
+    furi_hal_nfc_release(); 
     return error;
 }
+
+// FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
+//     FURI_LOG_I(TAG, "Turning poller field on");
+
+//     // --- THE FIX: Acquire the lock before this transaction begins ---
+//     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
+
+//     FuriHalNfcError error = FuriHalNfcErrorNone;
+//     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
+
+//     // This is the call that leads to the furi_check that was failing.
+//     // It is now protected by the acquire() call above.
+//     if(!st25r3916_check_reg(
+//            handle,
+//            ST25R3916_REG_OP_CONTROL,
+//            ST25R3916_REG_OP_CONTROL_tx_en,
+//            ST25R3916_REG_OP_CONTROL_tx_en)) {
+//         FURI_LOG_I(TAG, "Field not on, enabling TX and RX");
+//         // Set min guard time
+//         st25r3916_write_reg(handle, ST25R3916_REG_FIELD_ON_GT, 0);
+//         // Enable tx rx
+//         st25r3916_set_reg_bits(
+//             handle,
+//             ST25R3916_REG_OP_CONTROL,
+//             (ST25R3916_REG_OP_CONTROL_rx_en | ST25R3916_REG_OP_CONTROL_tx_en));
+//     }
+
+//     // --- THE FIX: Release the lock now that the transaction is complete ---
+//     furi_hal_nfc_release();
+
+//     return error;
+// }
 
 FuriHalNfcError furi_hal_nfc_poller_tx_common(
     const FuriHalSpiBusHandle* handle,
@@ -601,7 +670,7 @@ FuriHalNfcError furi_hal_nfc_poller_tx_common(
     FURI_LOG_T(TAG, "Poller common TX, %zu bits", tx_bits);
 
     FuriHalNfcError err = FuriHalNfcErrorNone;
-
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     // Prepare tx
     st25r3916_direct_cmd(handle, ST25R3916_CMD_CLEAR_FIFO);
     st25r3916_clear_reg_bits(
@@ -624,7 +693,7 @@ FuriHalNfcError furi_hal_nfc_poller_tx_common(
 
     st25r3916_write_fifo(handle, tx_data, tx_bits);
     st25r3916_direct_cmd(handle, ST25R3916_CMD_TRANSMIT_WITHOUT_CRC);
-
+    furi_hal_nfc_release();
     return err;
 }
 
@@ -634,11 +703,11 @@ FuriHalNfcError furi_hal_nfc_common_fifo_tx(
     size_t tx_bits) {
     FURI_LOG_T(TAG, "Common FIFO TX, %zu bits", tx_bits);
     FuriHalNfcError err = FuriHalNfcErrorNone;
-
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     st25r3916_direct_cmd(handle, ST25R3916_CMD_CLEAR_FIFO);
     st25r3916_write_fifo(handle, tx_data, tx_bits);
     st25r3916_direct_cmd(handle, ST25R3916_CMD_TRANSMIT_WITHOUT_CRC);
-
+            furi_hal_nfc_release();
     return err;
 }
 
@@ -646,8 +715,9 @@ FuriHalNfcError furi_hal_nfc_poller_tx(const uint8_t* tx_data, size_t tx_bits) {
     furi_check(furi_hal_nfc.mode == FuriHalNfcModePoller);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Poller TX for tech %d", furi_hal_nfc.tech);
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-
+        furi_hal_nfc_release();
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->poller.tx(handle, tx_data, tx_bits);
 }
 
@@ -655,7 +725,10 @@ FuriHalNfcError furi_hal_nfc_poller_rx(uint8_t* rx_data, size_t rx_data_size, si
     furi_check(furi_hal_nfc.mode == FuriHalNfcModePoller);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Poller RX for tech %d", furi_hal_nfc.tech);
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
+    
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
+        furi_hal_nfc_release();
 
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->poller.rx(handle, rx_data, rx_data_size, rx_bits);
 }
@@ -682,8 +755,12 @@ FuriHalNfcError furi_hal_nfc_listener_tx(const uint8_t* tx_data, size_t tx_bits)
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Listener TX for tech %d", furi_hal_nfc.tech);
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
 
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
+
+        furi_hal_nfc_release();
+
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->listener.tx(handle, tx_data, tx_bits);
 }
 
@@ -694,13 +771,13 @@ FuriHalNfcError furi_hal_nfc_common_fifo_rx(
     size_t* rx_bits) {
     FURI_LOG_T(TAG, "Common FIFO RX");
     FuriHalNfcError error = FuriHalNfcErrorNone;
-
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     if(!st25r3916_read_fifo(handle, rx_data, rx_data_size, rx_bits)) {
         FURI_LOG_W(TAG, "FIFO RX buffer overflow");
         error = FuriHalNfcErrorBufferOverflow;
     }
     FURI_LOG_T(TAG, "Read %zu bits from FIFO", *rx_bits);
-
+        furi_hal_nfc_release();
     return error;
 }
 
@@ -711,18 +788,23 @@ FuriHalNfcError furi_hal_nfc_listener_rx(uint8_t* rx_data, size_t rx_data_size, 
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Listener RX for tech %d", furi_hal_nfc.tech);
-
+    furi_hal_nfc_acquire();
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
+    furi_hal_nfc_release();
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->listener.rx(
         handle, rx_data, rx_data_size, rx_bits);
 }
 
+
 FuriHalNfcError furi_hal_nfc_trx_reset(void) {
     FURI_LOG_I(TAG, "Resetting TRX");
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-
+    furi_hal_nfc_acquire();
+    FURI_LOG_I(TAG, "Resetting TRX");
     st25r3916_direct_cmd(handle, ST25R3916_CMD_STOP);
-
+    FURI_LOG_I(TAG, "Resetting TRX");
+    furi_hal_nfc_release();
+    FURI_LOG_I(TAG, "Resetting TRX");
     return FuriHalNfcErrorNone;
 }
 
@@ -730,9 +812,9 @@ FuriHalNfcError furi_hal_nfc_listener_sleep(void) {
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Listener entering sleep state for tech %d", furi_hal_nfc.tech);
-
+    furi_hal_nfc_acquire();
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-
+    furi_hal_nfc_release();
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->listener.sleep(handle);
 }
 
@@ -740,17 +822,17 @@ FuriHalNfcError furi_hal_nfc_listener_idle(void) {
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Listener entering idle state for tech %d", furi_hal_nfc.tech);
-
+    furi_hal_nfc_acquire();
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-
+    furi_hal_nfc_release();
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->listener.idle(handle);
 }
 
 FuriHalNfcError furi_hal_nfc_listener_enable_rx(void) {
     FURI_LOG_I(TAG, "Listener enabling RX (unmasking)");
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
-
+    furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     st25r3916_direct_cmd(handle, ST25R3916_CMD_UNMASK_RECEIVE_DATA);
-
+    furi_hal_nfc_release();
     return FuriHalNfcErrorNone;
 }

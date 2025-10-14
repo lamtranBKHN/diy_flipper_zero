@@ -26,13 +26,13 @@ extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_2m;
 /** Furi Hal Spi Bus D (Display, SdCard) */
 extern FuriHalSpiBus furi_hal_spi_bus;
 
-/** CC1101 on `furi_hal_spi_bus_r` */
+/** CC1101 on `furi_hal_spi_bus` */
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_subghz;
 
-/** ST25R3916 on `furi_hal_spi_bus_r` */
+/** ST25R3916 on `furi_hal_spi_bus` */
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc;
 
-/** External on `furi_hal_spi_bus_r`
+/** External on `furi_hal_spi_bus`
  * Preset: `furi_hal_spi_preset_1edge_low_2m`
  * 
  * miso: pa6

@@ -207,13 +207,17 @@ static int32_t nfc_scanner_worker(void* context) {
     furi_assert(context);
 
     NfcScanner* instance = context;
+    FURI_LOG_I(TAG, "Scanner Worker: Started. Initial Session State: %d", instance->session_state); // <-- NEW LOG
 
     while(instance->session_state == NfcScannerSessionStateActive) {
+        FURI_LOG_I(TAG, "Scanner Worker: Running handler for State: %d", instance->state); // <-- NEW LOG
         nfc_scanner_state_handlers[instance->state](instance);
+        FURI_LOG_I(TAG, "Scanner Worker: Handler finished. Session State: %d", instance->session_state); // <-- NEW LOG
     }
 
     nfc_scanner_reset(instance);
 
+    FURI_LOG_I(TAG, "Scanner Worker: Exiting."); // <-- NEW LOG
     return 0;
 }
 
@@ -235,21 +239,43 @@ void nfc_scanner_free(NfcScanner* instance) {
 
 void nfc_scanner_start(NfcScanner* instance, NfcScannerCallback callback, void* context) {
     furi_check(instance);
+    FURI_LOG_I(TAG, "nsc_start 1: instance checked");
+
     furi_check(callback);
+    FURI_LOG_I(TAG, "nsc_start 2: callback checked");
+
     furi_check(instance->state == NfcScannerStateIdle);
+    FURI_LOG_I(TAG, "nsc_start 3: state checked (Idle)");
+
     furi_check(instance->scan_worker == NULL);
+    FURI_LOG_I(TAG, "nsc_start 4: worker checked (NULL)");
 
     instance->callback = callback;
+    FURI_LOG_I(TAG, "nsc_start 5: callback set");
+
     instance->context = context;
+    FURI_LOG_I(TAG, "nsc_start 6: context set");
+
     instance->session_state = NfcScannerSessionStateActive;
+    FURI_LOG_I(TAG, "nsc_start 7: session state set (Active)");
 
     instance->scan_worker = furi_thread_alloc();
+    FURI_LOG_I(TAG, "nsc_start 8: worker allocated");
+
     furi_thread_set_name(instance->scan_worker, "NfcScanWorker");
+    FURI_LOG_I(TAG, "nsc_start 9: worker name set");
+
     furi_thread_set_context(instance->scan_worker, instance);
+    FURI_LOG_I(TAG, "nsc_start 10: worker context set");
+
     furi_thread_set_stack_size(instance->scan_worker, 4 * 1024);
+    FURI_LOG_I(TAG, "nsc_start 11: worker stack size set");
+
     furi_thread_set_callback(instance->scan_worker, nfc_scanner_worker);
+    FURI_LOG_I(TAG, "nsc_start 12: worker callback set");
 
     furi_thread_start(instance->scan_worker);
+    FURI_LOG_I(TAG, "nsc_start 13: worker started");
 }
 
 void nfc_scanner_stop(NfcScanner* instance) {
