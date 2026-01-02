@@ -276,7 +276,7 @@ void u8g2_Setup_st756x_flipper(
     u8x8_msg_cb gpio_and_delay_cb) {
     uint8_t tile_buf_height;
     uint8_t* buf;
-    u8g2_SetupDisplay(u8g2, u8x8_d_st756x_flipper, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+    u8g2_SetupDisplay(u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
     buf = u8g2_m_16_8_f(&tile_buf_height);
     u8g2_SetupBuffer(u8g2, buf, tile_buf_height, u8g2_ll_hvline_vertical_top_lsb, rotation);
 }
