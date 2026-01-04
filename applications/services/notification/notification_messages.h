@@ -50,7 +50,9 @@ extern const NotificationMessage message_delay_1000;
 // Sound
 extern const NotificationMessage message_sound_off;
 
-
+// Vibration (dummy - no vibration hardware on this DIY device)
+extern const NotificationMessage message_vibro_on;
+extern const NotificationMessage message_vibro_off;
 
 // Reset
 extern const NotificationMessage message_do_not_reset;

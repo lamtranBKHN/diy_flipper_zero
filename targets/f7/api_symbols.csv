@@ -648,8 +648,8 @@ Function,+,archive_favorites_handle_setting_pin_unpin,void,"const char*, const c
 Function,+,args_char_to_hex,_Bool,"char, char, uint8_t*"
 Function,+,args_get_first_word_length,size_t,FuriString*
 Function,+,args_length,size_t,FuriString*
-Function,+,args_read_float_and_trim,_Bool,"FuriString*, float*"
 Function,+,args_read_duration,_Bool,"FuriString*, uint32_t*, const char*"
+Function,+,args_read_float_and_trim,_Bool,"FuriString*, float*"
 Function,+,args_read_hex_bytes,_Bool,"FuriString*, uint8_t*, size_t"
 Function,+,args_read_int_and_trim,_Bool,"FuriString*, int*"
 Function,+,args_read_probably_quoted_string_and_trim,_Bool,"FuriString*, FuriString*"
@@ -4537,6 +4537,8 @@ Variable,+,message_note_gs8,const NotificationMessage,
 Variable,+,message_red_0,const NotificationMessage,
 Variable,+,message_red_255,const NotificationMessage,
 Variable,+,message_sound_off,const NotificationMessage,
+Variable,+,message_vibro_off,const NotificationMessage,
+Variable,+,message_vibro_on,const NotificationMessage,
 Variable,+,momentum_settings,MomentumSettings,
 Variable,-,nfc_device_emv,const NfcDeviceBase,
 Variable,-,nfc_device_felica,const NfcDeviceBase,

@@ -160,7 +160,14 @@ const NotificationMessage message_sound_off = {
     .type = NotificationMessageTypeSoundOff,
 };
 
+// Vibration (dummy - no vibration hardware on this DIY device)
+const NotificationMessage message_vibro_on = {
+    .type = NotificationMessageTypeDoNotReset,
+};
 
+const NotificationMessage message_vibro_off = {
+    .type = NotificationMessageTypeDoNotReset,
+};
 
 // Reset
 const NotificationMessage message_do_not_reset = {

@@ -32,7 +32,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_2EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV8,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -97,7 +97,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_16m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV2,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -110,7 +110,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_2m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV256,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -134,13 +134,13 @@ void furi_hal_spi_config_deinit_early(void) {
 void furi_hal_spi_config_init(void) {
     furi_hal_spi_bus_init(&furi_hal_spi_bus);
 
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_fast);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_slow);
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_button_sr);
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external);
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external_extra);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_button_sr);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external_extra);
 
     //   FURI_LOG_I(TAG, "Init OK");
 }
