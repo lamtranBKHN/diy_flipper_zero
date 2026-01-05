@@ -30,14 +30,12 @@ const GpioPin gpio_sdcard_cs = {.port = SD_CS_GPIO_Port, .pin = SD_CS_Pin};
 //const GpioPin gpio_sdcard_cd = {.port = SD_CD_GPIO_Port, .pin = SD_CD_Pin};
 const GpioPin gpio_nfc_cs = {.port = NFC_CS_GPIO_Port, .pin = NFC_CS_Pin};
 
-const GpioPin gpio_button_up = {.port = GPIOC, .pin = LL_GPIO_PIN_10};
-const GpioPin gpio_button_down = {.port = GPIOC, .pin = LL_GPIO_PIN_6};
-const GpioPin gpio_button_right = {.port = GPIOC, .pin = LL_GPIO_PIN_12};
-const GpioPin gpio_button_left = {.port = GPIOC, .pin = LL_GPIO_PIN_11};
-const GpioPin gpio_button_ok = {.port = GPIOC, .pin = LL_GPIO_PIN_0};
-const GpioPin gpio_button_back = {.port = GPIOC, .pin = LL_GPIO_PIN_13};
-const GpioPin gpio_button_back1 = {.port = GPIOC, .pin = LL_GPIO_PIN_13};
-const GpioPin gpio_button_back2 = {.port = GPIOC, .pin = LL_GPIO_PIN_13};
+const GpioPin gpio_button_up = {.port = BUTTON_UP_GPIO_Port, .pin = BUTTON_UP_Pin};
+const GpioPin gpio_button_down = {.port = BUTTON_DOWN_GPIO_Port, .pin = BUTTON_DOWN_Pin};
+const GpioPin gpio_button_right = {.port = BUTTON_RIGHT_GPIO_Port, .pin = BUTTON_RIGHT_Pin};
+const GpioPin gpio_button_left = {.port = BUTTON_LEFT_GPIO_Port, .pin = BUTTON_LEFT_Pin};
+const GpioPin gpio_button_ok = {.port = BUTTON_OK_GPIO_Port, .pin = BUTTON_OK_Pin};
+const GpioPin gpio_button_back = {.port = BUTTON_BACK_GPIO_Port, .pin = BUTTON_BACK_Pin};
 
 const GpioPin gpio_spi_miso = {.port = SPI_MISO_GPIO_Port, .pin = SPI_MISO_Pin};
 const GpioPin gpio_spi_mosi = {.port = SPI_MOSI_GPIO_Port, .pin = SPI_MOSI_Pin};
@@ -164,31 +162,39 @@ const GpioPinRecord gpio_pins[] = {
 
 const size_t gpio_pins_count = COUNT_OF(gpio_pins);
 
+// const InputPin input_pins[] = {
+//     {.gpio = &gpio_button_back1, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
+//     {.gpio = &gpio_button_back2, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
+//     {.gpio = &gpio_button_back, .key = InputKeyBack, .inverted = true, .name = "Back"},    
+//     {.gpio = &gpio_button_right, .key = InputKeyRight, .inverted = true, .name = "Right"}, 
+//     {.gpio = &gpio_button_down, .key = InputKeyDown, .inverted = true, .name = "Down"},
+//     {.gpio = &gpio_button_left, .key = InputKeyLeft, .inverted = true, .name = "Left"},   
+//     {.gpio = &gpio_button_up, .key = InputKeyUp, .inverted = true, .name = "Up"},
+//     {.gpio = &gpio_button_ok, .key = InputKeyOk, .inverted = true, .name = "OK"},
+// };
+
 const InputPin input_pins[] = {
-    {.gpio = &gpio_button_back1, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
-    {.gpio = &gpio_button_back2, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
-    {.gpio = &gpio_button_back, .key = InputKeyBack, .inverted = true, .name = "Back"},    
-    {.gpio = &gpio_button_right, .key = InputKeyRight, .inverted = true, .name = "Right"}, 
-    {.gpio = &gpio_button_down, .key = InputKeyDown, .inverted = true, .name = "Down"},
-    {.gpio = &gpio_button_left, .key = InputKeyLeft, .inverted = true, .name = "Left"},   
     {.gpio = &gpio_button_up, .key = InputKeyUp, .inverted = true, .name = "Up"},
+    {.gpio = &gpio_button_down, .key = InputKeyDown, .inverted = true, .name = "Down"},
+    {.gpio = &gpio_button_right, .key = InputKeyRight, .inverted = true, .name = "Right"},
+    {.gpio = &gpio_button_left, .key = InputKeyLeft, .inverted = true, .name = "Left"},
     {.gpio = &gpio_button_ok, .key = InputKeyOk, .inverted = true, .name = "OK"},
+    {.gpio = &gpio_button_back, .key = InputKeyBack, .inverted = false, .name = "Back"},
 };
 
 
 
+const size_t input_pins_count = COUNT_OF(input_pins);
 
-const size_t input_pins_count = 8;
-
-// static void furi_hal_resources_init_input_pins(GpioMode mode) {
-//     for(size_t i = 0; i < input_pins_count; i++) {
-//         furi_hal_gpio_init(
-//             input_pins[i].gpio,
-//             mode,
-//             (input_pins[i].inverted) ? GpioPullUp : GpioPullDown,
-//             GpioSpeedLow);
-//     }
-// }
+static void furi_hal_resources_init_input_pins(GpioMode mode) {
+    for(size_t i = 0; i < input_pins_count; i++) {
+        furi_hal_gpio_init(
+            input_pins[i].gpio,
+            mode,
+            (input_pins[i].inverted) ? GpioPullUp : GpioPullDown,
+            GpioSpeedLow);
+    }
+}
 
  static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
      for(size_t i = 0; i < gpio_pins_count; i++) {
@@ -206,7 +212,7 @@ void furi_hal_resources_init_early(void) {
     furi_hal_bus_enable(FuriHalBusGPIOE);
     furi_hal_bus_enable(FuriHalBusGPIOH);
 
-    //furi_hal_resources_init_input_pins(GpioModeInput);
+    furi_hal_resources_init_input_pins(GpioModeInput);
 
     // Explicit, surviving reset, pulls
     LL_PWR_EnablePUPDCfg();
@@ -246,7 +252,7 @@ void furi_hal_resources_init_early(void) {
 }
 
 void furi_hal_resources_deinit_early(void) {
-    //furi_hal_resources_init_input_pins(GpioModeAnalog);
+    furi_hal_resources_init_input_pins(GpioModeAnalog);
     furi_hal_bus_disable(FuriHalBusGPIOA);
     furi_hal_bus_disable(FuriHalBusGPIOB);
     furi_hal_bus_disable(FuriHalBusGPIOC);
@@ -257,7 +263,8 @@ void furi_hal_resources_deinit_early(void) {
 
 void furi_hal_resources_init(void) {
     // Button pins
- //   furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
+    furi_delay_ms(100);
+   furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
 
     // SD pins
  //   furi_hal_gpio_init(&gpio_sdcard_cd, GpioModeInput, GpioPullNo, GpioSpeedLow);

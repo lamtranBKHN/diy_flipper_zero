@@ -123,18 +123,18 @@ extern const GpioPin gpio_spi_miso_BTN;
 extern const GpioPin gpio_button_sr_latch;
 
 
-#define BUTTON_BACK_GPIO_Port  GPIOC
-#define BUTTON_BACK_Pin        LL_GPIO_PIN_10
-#define BUTTON_DOWN_GPIO_Port  GPIOA
-#define BUTTON_DOWN_Pin        LL_GPIO_PIN_7
-#define BUTTON_LEFT_GPIO_Port  GPIOB
-#define BUTTON_LEFT_Pin        LL_GPIO_PIN_11
-#define BUTTON_OK_GPIO_Port    GPIOH
-#define BUTTON_OK_Pin          LL_GPIO_PIN_3
-#define BUTTON_RIGHT_GPIO_Port GPIOB
-#define BUTTON_RIGHT_Pin       LL_GPIO_PIN_12
+#define BUTTON_BACK_GPIO_Port  GPIOH
+#define BUTTON_BACK_Pin        LL_GPIO_PIN_3
+#define BUTTON_DOWN_GPIO_Port  GPIOB
+#define BUTTON_DOWN_Pin        LL_GPIO_PIN_8
+#define BUTTON_LEFT_GPIO_Port  GPIOA
+#define BUTTON_LEFT_Pin        LL_GPIO_PIN_15
+#define BUTTON_OK_GPIO_Port    GPIOA
+#define BUTTON_OK_Pin          LL_GPIO_PIN_5
+#define BUTTON_RIGHT_GPIO_Port GPIOA
+#define BUTTON_RIGHT_Pin       LL_GPIO_PIN_6
 #define BUTTON_UP_GPIO_Port    GPIOB
-#define BUTTON_UP_Pin          LL_GPIO_PIN_8
+#define BUTTON_UP_Pin          LL_GPIO_PIN_7
 
 
 
