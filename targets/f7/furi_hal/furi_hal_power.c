@@ -135,26 +135,28 @@ FURI_NORETURN void furi_hal_power_reset(void) {
 }
 
 bool furi_hal_power_enable_otg(void) {
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bq25896_set_boost_lim(&furi_hal_i2c_handle_power, BoostLim_2150);
-    bq25896_enable_otg(&furi_hal_i2c_handle_power);
-    furi_delay_ms(30);
-    bool ret = bq25896_is_otg_enabled(&furi_hal_i2c_handle_power);
-    bq25896_set_boost_lim(&furi_hal_i2c_handle_power, BoostLim_1400);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    // furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    // bq25896_set_boost_lim(&furi_hal_i2c_handle_power, BoostLim_2150);
+    // bq25896_enable_otg(&furi_hal_i2c_handle_power);
+    // furi_delay_ms(30);
+    // bool ret = bq25896_is_otg_enabled(&furi_hal_i2c_handle_power);
+    // bq25896_set_boost_lim(&furi_hal_i2c_handle_power, BoostLim_1400);
+    // furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    bool ret = false; // Always return false as OTG is not used
     return ret;
 }
 
 void furi_hal_power_disable_otg(void) {
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bq25896_disable_otg(&furi_hal_i2c_handle_power);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    // furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    // bq25896_disable_otg(&furi_hal_i2c_handle_power);
+    // furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 }
 
 bool furi_hal_power_is_otg_enabled(void) {
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ret = bq25896_is_otg_enabled(&furi_hal_i2c_handle_power);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    // furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    // bool ret = bq25896_is_otg_enabled(&furi_hal_i2c_handle_power);
+    // furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    bool ret = false; // Always return false as OTG is not used
     return ret;
 }
 

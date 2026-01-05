@@ -57,7 +57,7 @@ extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_fast;
 /** SdCard in slow mode on `furi_hal_spi_bus_d` */
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_slow;
 
-extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_button_sr;
+// extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_button_sr;
 
 
 

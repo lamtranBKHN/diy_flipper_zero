@@ -344,37 +344,37 @@ inline static void furi_hal_spi_bus_generic_handle_event_callback(
  * Defined before its wrapper.
  */
 
-static void furi_hal_spi_bus_handle_button_sr_event_callback(
-    const FuriHalSpiBusHandle* handle,
-    FuriHalSpiBusHandleEvent event) {
-    // Use a standard speed, 4MHz is plenty fast for buttons
-    const LL_SPI_InitTypeDef* preset = &furi_hal_spi_preset_1edge_low_BTN; 
+// static void furi_hal_spi_bus_handle_button_sr_event_callback(
+//     const FuriHalSpiBusHandle* handle,
+//     FuriHalSpiBusHandleEvent event) {
+//     // Use a standard speed, 4MHz is plenty fast for buttons
+//     const LL_SPI_InitTypeDef* preset = &furi_hal_spi_preset_1edge_low_BTN; 
 
-    if(event == FuriHalSpiBusHandleEventInit) {
-        // Initialize our LATCH pin (which is handle->cs) as an output
-        furi_hal_gpio_write(handle->cs, true); // Latch normally high
-        furi_hal_gpio_init(handle->cs, GpioModeOutputPushPull, GpioPullUp, GpioSpeedLow);
-    } else if(event == FuriHalSpiBusHandleEventDeinit) {
-        // Reset LATCH pin to analog
-        furi_hal_gpio_init(handle->cs, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
-    } else if(event == FuriHalSpiBusHandleEventActivate) {
-        // Standard SPI pin activation
-        LL_SPI_Init(handle->bus->spi, (LL_SPI_InitTypeDef*)preset);
-        LL_SPI_Enable(handle->bus->spi);
-        furi_hal_gpio_init_ex(handle->miso, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
-        furi_hal_gpio_init_ex(handle->mosi, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
-        furi_hal_gpio_init_ex(handle->sck, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
-        // We DO NOT assert CS here because our service code does it manually
-    } else if(event == FuriHalSpiBusHandleEventDeactivate) {
-        // We DO NOT de-assert CS here
-        // Standard SPI pin deactivation
-        while(LL_SPI_IsActiveFlag_BSY(handle->bus->spi)) {};
-        LL_SPI_Disable(handle->bus->spi);
-        furi_hal_gpio_init(handle->miso, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
-        furi_hal_gpio_init(handle->mosi, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
-        furi_hal_gpio_init(handle->sck, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
-    }
-}
+//     if(event == FuriHalSpiBusHandleEventInit) {
+//         // Initialize our LATCH pin (which is handle->cs) as an output
+//         furi_hal_gpio_write(handle->cs, true); // Latch normally high
+//         furi_hal_gpio_init(handle->cs, GpioModeOutputPushPull, GpioPullUp, GpioSpeedLow);
+//     } else if(event == FuriHalSpiBusHandleEventDeinit) {
+//         // Reset LATCH pin to analog
+//         furi_hal_gpio_init(handle->cs, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+//     } else if(event == FuriHalSpiBusHandleEventActivate) {
+//         // Standard SPI pin activation
+//         LL_SPI_Init(handle->bus->spi, (LL_SPI_InitTypeDef*)preset);
+//         LL_SPI_Enable(handle->bus->spi);
+//         furi_hal_gpio_init_ex(handle->miso, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
+//         furi_hal_gpio_init_ex(handle->mosi, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
+//         furi_hal_gpio_init_ex(handle->sck, GpioModeAltFunctionPushPull, GpioPullUp, GpioSpeedVeryHigh, SPI1_GPIO_ALT_FN);
+//         // We DO NOT assert CS here because our service code does it manually
+//     } else if(event == FuriHalSpiBusHandleEventDeactivate) {
+//         // We DO NOT de-assert CS here
+//         // Standard SPI pin deactivation
+//         while(LL_SPI_IsActiveFlag_BSY(handle->bus->spi)) {};
+//         LL_SPI_Disable(handle->bus->spi);
+//         furi_hal_gpio_init(handle->miso, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+//         furi_hal_gpio_init(handle->mosi, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+//         furi_hal_gpio_init(handle->sck, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+//     }
+// }
 
 
 
@@ -470,14 +470,14 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc = {
 
 // +++++++++ MOVED BLOCK START +++++++++
 // (Moved from above for better organization)
-const FuriHalSpiBusHandle furi_hal_spi_bus_handle_button_sr = {
-    .bus = &furi_hal_spi_bus,
-    .callback = furi_hal_spi_bus_handle_button_sr_event_callback,
-    .miso = &gpio_spi_miso_BTN,
-    .mosi = &gpio_spi_mosi,
-    .sck =  &gpio_spi_sck,
-    .cs = &gpio_button_sr_latch,
-};
+// const FuriHalSpiBusHandle furi_hal_spi_bus_handle_button_sr = {
+//     .bus = &furi_hal_spi_bus,
+//     .callback = furi_hal_spi_bus_handle_button_sr_event_callback,
+//     .miso = &gpio_spi_miso_BTN,
+//     .mosi = &gpio_spi_mosi,
+//     .sck =  &gpio_spi_sck,
+//     .cs = &gpio_button_sr_latch,
+// };
 
 
 // External Handles reinstated - pointing to shared SPI pins

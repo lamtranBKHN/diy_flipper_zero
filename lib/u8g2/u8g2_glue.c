@@ -5,6 +5,9 @@
 #define CONTRAST_ERC 32
 #define CONTRAST_MGG 28
 
+// SSD1306 I2C address - scanner detected at 0x3C
+#define SSD1306_I2C_ADDRESS 0x3C
+
 uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
     UNUSED(u8x8);
     UNUSED(arg_ptr);
@@ -19,10 +22,29 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
         furi_delay_us(10);
         break;
     case U8X8_MSG_DELAY_100NANO:
-        asm("nop");
+        // Faster timing for better responsiveness
+        __NOP();
         break;
     case U8X8_MSG_GPIO_RESET:
-        furi_hal_gpio_write(&gpio_display_rst_n, arg_int);
+        // SSD1306 typically doesn't require reset
+        break;
+    case U8X8_MSG_GPIO_I2C_CLOCK:
+        // Software I2C - control SCL pin (PA9)
+        if(arg_int) {
+            furi_hal_gpio_init_simple(&gpio_i2c_scl, GpioModeInput);
+        } else {
+            furi_hal_gpio_init_simple(&gpio_i2c_scl, GpioModeOutputOpenDrain);
+            furi_hal_gpio_write(&gpio_i2c_scl, false);
+        }
+        break;
+    case U8X8_MSG_GPIO_I2C_DATA:
+        // Software I2C - control SDA pin (PB9)
+        if(arg_int) {
+            furi_hal_gpio_init_simple(&gpio_i2c_sda, GpioModeInput);
+        } else {
+            furi_hal_gpio_init_simple(&gpio_i2c_sda, GpioModeOutputOpenDrain);
+            furi_hal_gpio_write(&gpio_i2c_sda, false);
+        }
         break;
     default:
         return 0;
@@ -47,6 +69,40 @@ uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_
         break;
     case U8X8_MSG_BYTE_END_TRANSFER:
         furi_hal_spi_release(&furi_hal_spi_bus_handle_display);
+        break;
+    default:
+        return 0;
+    }
+
+    return 1;
+}
+
+uint8_t u8x8_hw_i2c_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
+    switch(msg) {
+    case U8X8_MSG_BYTE_SEND: {
+        // Send data via I2C with reduced timeout to prevent system lag
+        bool success = furi_hal_i2c_tx(
+            &furi_hal_i2c_handle_external,
+            u8x8_GetI2CAddress(u8x8),
+            (uint8_t*)arg_ptr,
+            arg_int,
+            5); // 5ms timeout
+        if(!success) {
+            // I2C transmission failed - display might not be connected
+            return 0;
+        }
+        break;
+    }
+    case U8X8_MSG_BYTE_INIT:
+        break;
+    case U8X8_MSG_BYTE_SET_DC:
+        // I2C doesn't use DC pin
+        break;
+    case U8X8_MSG_BYTE_START_TRANSFER:
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_external);
+        break;
+    case U8X8_MSG_BYTE_END_TRANSFER:
+        furi_hal_i2c_release(&furi_hal_i2c_handle_external);
         break;
     default:
         return 0;
@@ -276,7 +332,27 @@ void u8g2_Setup_st756x_flipper(
     u8x8_msg_cb gpio_and_delay_cb) {
     uint8_t tile_buf_height;
     uint8_t* buf;
-    u8g2_SetupDisplay(u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+    UNUSED(byte_cb);
+    // Keep software I2C - hardware I2C doesn't work on these pins
+    u8g2_SetupDisplay(u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_ssd13xx_i2c, u8x8_byte_sw_i2c, gpio_and_delay_cb);
     buf = u8g2_m_16_8_f(&tile_buf_height);
     u8g2_SetupBuffer(u8g2, buf, tile_buf_height, u8g2_ll_hvline_vertical_top_lsb, rotation);
+    u8x8_SetI2CAddress(&u8g2->u8x8, 0x3C << 1);
 }
+
+void u8g2_Setup_ssd1306_i2c_128x64_noname_f(
+    u8g2_t* u8g2,
+    const u8g2_cb_t* rotation,
+    u8x8_msg_cb byte_cb,
+    u8x8_msg_cb gpio_and_delay_cb) {
+    uint8_t tile_buf_height;
+    uint8_t* buf;
+    u8g2_SetupDisplay(
+        u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_ssd13xx_fast_i2c, byte_cb, gpio_and_delay_cb);
+    // u8g2_SetupDisplay(u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+    buf = u8g2_m_16_8_f(&tile_buf_height);
+    
+    u8g2_SetupBuffer(u8g2, buf, tile_buf_height, u8g2_ll_hvline_vertical_top_lsb, rotation);
+    u8x8_SetI2CAddress(&u8g2->u8x8, SSD1306_I2C_ADDRESS << 1);
+}
+

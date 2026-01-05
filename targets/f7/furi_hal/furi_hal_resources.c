@@ -7,10 +7,10 @@
 
 #define TAG "FuriHalResources"
 
-const GpioPin gpio_button_IRQ = {.port = GPIOA, .pin = LL_GPIO_PIN_9};
+// const GpioPin gpio_button_IRQ = {.port = GPIOA, .pin = LL_GPIO_PIN_9};
 
-const GpioPin gpio_spi_miso_BTN = {.port = GPIOA, .pin = LL_GPIO_PIN_6};
-const GpioPin gpio_button_sr_latch = {.port = GPIOH, .pin = LL_GPIO_PIN_3};
+// const GpioPin gpio_spi_miso_BTN = {.port = GPIOA, .pin = LL_GPIO_PIN_6};
+// const GpioPin gpio_button_sr_latch = {.port = GPIOH, .pin = LL_GPIO_PIN_3};
 
 
 const GpioPin gpio_swdio = {.port = GPIOA, .pin = LL_GPIO_PIN_13};
@@ -62,8 +62,8 @@ const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
 const GpioPin gpio_usart_tx = {.port = USART1_TX_Port, .pin = USART1_TX_Pin};
 const GpioPin gpio_usart_rx = {.port = USART1_RX_Port, .pin = USART1_RX_Pin};
 
-//const GpioPin gpio_i2c_power_sda = {.port = GPIOC, .pin = LL_GPIO_PIN_10};
-//const GpioPin gpio_i2c_power_scl = {.port = GPIOC, .pin = LL_GPIO_PIN_9};
+const GpioPin gpio_i2c_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
+const GpioPin gpio_i2c_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
 
 const GpioPin gpio_speaker = {.port = GPIOC, .pin = LL_GPIO_PIN_8};
 

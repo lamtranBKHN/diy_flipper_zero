@@ -101,8 +101,9 @@ extern const GpioPin gpio_infrared_tx;
 
 extern const GpioPin gpio_usart_tx;
 extern const GpioPin gpio_usart_rx;
-//extern const GpioPin gpio_i2c_power_sda;
-//extern const GpioPin gpio_i2c_power_scl;
+
+extern const GpioPin gpio_i2c_sda;
+extern const GpioPin gpio_i2c_scl;
 
 extern const GpioPin gpio_speaker;
 
@@ -118,9 +119,9 @@ extern const GpioPin gpio_button_left;
 extern const GpioPin gpio_button_ok;
 extern const GpioPin gpio_button_back;
 
-extern const GpioPin gpio_button_IRQ;
-extern const GpioPin gpio_spi_miso_BTN;
-extern const GpioPin gpio_button_sr_latch;
+// extern const GpioPin gpio_button_IRQ;
+// extern const GpioPin gpio_spi_miso_BTN;
+// extern const GpioPin gpio_button_sr_latch;
 
 
 #define BUTTON_BACK_GPIO_Port  GPIOH
@@ -154,8 +155,8 @@ extern const GpioPin gpio_button_sr_latch;
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
-#define IR_TX_GPIO_Port GPIOB
-#define IR_TX_Pin       LL_GPIO_PIN_9
+#define IR_TX_GPIO_Port GPIOC
+#define IR_TX_Pin       LL_GPIO_PIN_0
 
 #define NFC_CS_GPIO_Port GPIOE
 #define NFC_CS_Pin       LL_GPIO_PIN_4
@@ -223,6 +224,11 @@ extern const GpioPin gpio_button_sr_latch;
 
 #define NFC_IRQ_Pin       LL_GPIO_PIN_2
 #define NFC_IRQ_GPIO_Port GPIOA
+
+#define I2C_3_SCL_Pin       LL_GPIO_PIN_9
+#define I2C_3_SCL_GPIO_Port GPIOA
+#define I2C_3_SDA_Pin       LL_GPIO_PIN_9
+#define I2C_3_SDA_GPIO_Port GPIOB
 
 void furi_hal_resources_init_early(void);
 
