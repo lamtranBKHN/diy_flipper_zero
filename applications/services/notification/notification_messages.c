@@ -160,13 +160,15 @@ const NotificationMessage message_sound_off = {
     .type = NotificationMessageTypeSoundOff,
 };
 
-// Vibration (dummy - no vibration hardware on this DIY device)
+// Vibro
 const NotificationMessage message_vibro_on = {
-    .type = NotificationMessageTypeDoNotReset,
+    .type = NotificationMessageTypeVibro,
+    .data.vibro.on = true,
 };
 
 const NotificationMessage message_vibro_off = {
-    .type = NotificationMessageTypeDoNotReset,
+    .type = NotificationMessageTypeVibro,
+    .data.vibro.on = false,
 };
 
 // Reset
@@ -180,6 +182,15 @@ const NotificationMessage message_force_speaker_volume_setting_1f = {
     .data.forced_settings.speaker_volume = 1.0f,
 };
 
+const NotificationMessage message_force_vibro_setting_on = {
+    .type = NotificationMessageTypeForceVibroSetting,
+    .data.forced_settings.vibro = true,
+};
+
+const NotificationMessage message_force_vibro_setting_off = {
+    .type = NotificationMessageTypeForceVibroSetting,
+    .data.forced_settings.vibro = false,
+};
 
 const NotificationMessage message_force_display_brightness_setting_1f = {
     .type = NotificationMessageTypeForceDisplayBrightnessSetting,
@@ -225,7 +236,17 @@ const NotificationSequence sequence_reset_sound = {
     NULL,
 };
 
+const NotificationSequence sequence_reset_vibro = {
+    &message_vibro_off,
+    NULL,
+};
 
+// Vibro
+const NotificationSequence sequence_set_vibro_on = {
+    &message_vibro_on,
+    &message_do_not_reset,
+    NULL,
+};
 
 // Display
 const NotificationSequence sequence_display_backlight_on = {
@@ -464,30 +485,30 @@ const NotificationSequence sequence_blink_stop = {
 
 //General
 const NotificationSequence sequence_single_vibro = {
-    
+    &message_vibro_on,
     &message_delay_100,
-    
+    &message_vibro_off,
     NULL,
 };
 
 const NotificationSequence sequence_double_vibro = {
-    
+    &message_vibro_on,
     &message_delay_100,
-    
+    &message_vibro_off,
     &message_delay_100,
-    
+    &message_vibro_on,
     &message_delay_100,
-    
+    &message_vibro_off,
     NULL,
 };
 
 const NotificationSequence sequence_success = {
     &message_display_backlight_on,
     &message_green_255,
-    
+    &message_vibro_on,
     &message_note_c5,
     &message_delay_50,
-    
+    &message_vibro_off,
     &message_note_e5,
     &message_delay_50,
     &message_note_g5,
@@ -501,7 +522,7 @@ const NotificationSequence sequence_success = {
 const NotificationSequence sequence_semi_success = {
     &message_display_backlight_on,
     &message_green_255,
-    
+    &message_vibro_on,
     &message_note_c4,
     &message_delay_50,
     &message_note_e4,
@@ -519,25 +540,25 @@ const NotificationSequence sequence_semi_success = {
 const NotificationSequence sequence_error = {
     &message_display_backlight_on,
     &message_red_255,
-  
+    &message_vibro_on,
     &message_note_c5,
     &message_delay_100,
-
+    &message_vibro_off,
     &message_sound_off,
     &message_delay_100,
- 
+    &message_vibro_on,
     &message_note_c5,
     &message_delay_100,
-
+    &message_vibro_off,
     &message_sound_off,
     NULL,
 };
 
 const NotificationSequence sequence_audiovisual_alert = {
     &message_force_speaker_volume_setting_1f,
-
+    &message_force_vibro_setting_on,
     &message_force_display_brightness_setting_1f,
- 
+    &message_vibro_on,
 
     &message_display_backlight_on,
     &message_note_c7,
@@ -564,6 +585,7 @@ const NotificationSequence sequence_audiovisual_alert = {
     &message_delay_250,
 
     &message_sound_off,
+    &message_vibro_off,
     NULL,
 };
 
