@@ -156,8 +156,8 @@ extern const GpioPin gpio_adc_battery_voltage;
 // #define DISPLAY_RST_GPIO_Port GPIOB
 // #define DISPLAY_RST_Pin       LL_GPIO_PIN_0
 
-#define IR_RX_GPIO_Port GPIOA
-#define IR_RX_Pin       LL_GPIO_PIN_0
+#define IR_RX_GPIO_Port GPIOB
+#define IR_RX_Pin       LL_GPIO_PIN_2
 #define IR_TX_GPIO_Port GPIOC
 #define IR_TX_Pin       LL_GPIO_PIN_0
 

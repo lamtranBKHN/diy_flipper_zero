@@ -23,6 +23,8 @@
  #include <bq27220_data_memory.h>
  #include <bq25896.h>
 
+#define TAG "FuriHalPower"
+
 // Remove TAG definition as logging won't happen
 // #define TAG "FuriHalPower"
 
@@ -61,6 +63,17 @@
 void furi_hal_power_init(void) {
     // Do nothing
 }
+
+// Helper: get pin index (0..15) from LL_GPIO_PIN_x mask
+// static int furi_hal_get_pin_index(const GpioPin* p) {
+//     uint32_t pin = p->pin;
+//     int idx = 0;
+//     while(pin > 1) {
+//         pin >>= 1;
+//         idx++;
+//     }
+//     return idx;
+// }
 
 bool furi_hal_power_gauge_is_ok(void) {
     // Return a default "OK" state
@@ -114,25 +127,25 @@ uint8_t furi_hal_power_get_pct(void) {
         return pct;
     }
 
-    // Configure ADC with safe defaults
+    // Configure ADC with safe defaults and read internal VBAT channel to avoid
+    // conflicts on PA0 (e.g., infrared uses PA0 as TIM2 input).
     furi_hal_adc_configure(handle);
 
-    // The battery measurement is connected to PA0 (ADC channel 0) on this board
-    const FuriHalAdcChannel batt_channel = FuriHalAdcChannel0;
+    // Read internal VBAT channel and VREFINT for calibrated conversion
+    uint16_t raw_vbat = furi_hal_adc_read(handle, FuriHalAdcChannelVBAT);
+    uint16_t raw_vref = furi_hal_adc_read(handle, FuriHalAdcChannelVREFINT);
+    float vref_mV = furi_hal_adc_convert_vref(handle, raw_vref);
 
-    uint16_t raw = furi_hal_adc_read(handle, batt_channel);
-
-    // Convert ADC reading to voltage at ADC pin
-    float adc_voltage = furi_hal_adc_convert_to_voltage(handle, raw);
+    // Convert raw VBAT ADC count to mV using measured VREF, then scale by 3
+    float adc_input_mV = ((float)raw_vbat) * vref_mV / 4095.0f;
+    float vbat_mV = adc_input_mV * 3.0f;
+    float vbat = vbat_mV / 1000.0f;
 
     // Release ADC
     furi_hal_adc_release(handle);
 
-    // Compensate for external divider between battery and ADC pin.
-    // Many target boards use a divider that maps VBAT -> ADC by ~3:1 or 2:1.
-    // Adjust this if your hardware differs.
-    const float DIV_RATIO = 3.0f; // conservative default matching original conversions
-    float vbat = adc_voltage * DIV_RATIO;
+    FURI_LOG_D(TAG, "VBAT raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
+    FURI_LOG_D(TAG, "DIAG: raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
 
     // Map voltage to percentage using a simple linear curve between V_MIN and V_MAX
     const float V_MIN = 3.00f; // 0%
@@ -247,19 +260,24 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
         return 3.7f; // fallback
     }
 
-    // // Configure ADC and read battery channel (PA0 -> ADC channel 0)
+    // Read internal VBAT channel and VREFINT for calibrated conversion
     furi_hal_adc_configure(handle);
-    const FuriHalAdcChannel batt_channel = FuriHalAdcChannel0;
-    uint16_t raw = furi_hal_adc_read(handle, batt_channel);
-    float adc_voltage = furi_hal_adc_convert_to_voltage(handle, raw);
+    uint16_t raw_vbat = furi_hal_adc_read(handle, FuriHalAdcChannelVBAT);
+    uint16_t raw_vref = furi_hal_adc_read(handle, FuriHalAdcChannelVREFINT);
+    float vref_mV = furi_hal_adc_convert_vref(handle, raw_vref);
+
+    // Convert raw VBAT ADC count to mV using measured VREF, then scale by 3
+    float adc_input_mV = ((float)raw_vbat) * vref_mV / 4095.0f;
+    float vbat_mV = adc_input_mV * 3.0f;
+    float vbat = vbat_mV / 1000.0f;
+    
+
     furi_hal_adc_release(handle);
 
-    // // Apply divider compensation. Default matches original project's behavior.
-    const float DIV_RATIO = 3.0f; // adjust if your hardware differs
-    float vbat = adc_voltage * DIV_RATIO;
-    
-    // Limit voltage to reasonable range
-    if(vbat < 0.0f) vbat = 0.0f;
+    FURI_LOG_D(TAG, "VBAT read raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
+    FURI_LOG_D(TAG, "DIAG (voltage): raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
+
+    if(vbat < 3.2f) vbat = 0.0f;
     if(vbat > 4.2f) vbat = 4.2f;
 
     return vbat;
