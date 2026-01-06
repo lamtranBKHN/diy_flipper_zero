@@ -97,7 +97,7 @@ void furi_hal_i2c_bus_handle_power_event(
         I2C_InitStruct.OwnAddress1 = 0;
         I2C_InitStruct.TypeAcknowledge = LL_I2C_ACK;
         I2C_InitStruct.OwnAddrSize = LL_I2C_OWNADDRESS1_7BIT;
-        I2C_InitStruct.Timing = FURI_HAL_I2C_CONFIG_POWER_I2C_TIMINGS_100;  // 400kHz quieter operation
+        I2C_InitStruct.Timing = FURI_HAL_I2C_CONFIG_POWER_I2C_TIMINGS_400;  // 400kHz quieter operation
         LL_I2C_Init(handle->bus->i2c, &I2C_InitStruct);
         // Explicitly enable I2C peripheral
         LL_I2C_Enable(handle->bus->i2c);
