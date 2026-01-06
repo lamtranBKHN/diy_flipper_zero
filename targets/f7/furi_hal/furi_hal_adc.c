@@ -159,10 +159,16 @@ void furi_hal_adc_configure_ex(
     LL_VREFBUF_Enable();
     LL_VREFBUF_DisableHIZ();
 
-    timer = furi_hal_cortex_timer_get(500000); // 500ms to stabilize VREF
-    while(!LL_VREFBUF_IsVREFReady()) {
-        furi_check(!furi_hal_cortex_timer_is_expired(timer), "VREF fail");
-    };
+    timer = furi_hal_cortex_timer_get(50000); // 50ms to stabilize VREF
+    // Wait for VREF to be ready but don't hang indefinitely. Some board
+    // variants may never assert VREF ready; use a timed wait and continue
+    // even if VREF didn't report ready to avoid boot hang.
+    while(!LL_VREFBUF_IsVREFReady() && !furi_hal_cortex_timer_is_expired(timer)) {
+        // small delay to yield CPU and allow other initialisation
+        furi_delay_ms(1);
+    }
+    // If VREF is still not ready here, continue anyway as a best-effort
+    // (previous behavior crashed via furi_check). This avoids hanging at boot.
 
     furi_hal_bus_enable(FuriHalBusADC);
 

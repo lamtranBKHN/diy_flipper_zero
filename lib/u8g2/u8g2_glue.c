@@ -377,7 +377,7 @@ void u8g2_Setup_st756x_flipper(
     uint8_t* buf;
     UNUSED(byte_cb);
     // Hardware I2C with proper byte handler
-    u8g2_SetupDisplay(u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_ssd13xx_fast_i2c, u8x8_byte_hw_i2c_stm32, gpio_and_delay_cb);
+    u8g2_SetupDisplay(u8g2, u8x8_d_sh1106_128x64_noname, u8x8_cad_ssd13xx_fast_i2c, u8x8_byte_hw_i2c_stm32, gpio_and_delay_cb);
     buf = u8g2_m_16_8_f(&tile_buf_height);
     u8g2_SetupBuffer(u8g2, buf, tile_buf_height, u8g2_ll_hvline_vertical_top_lsb, rotation);
     u8x8_SetI2CAddress(&u8g2->u8x8, 0x3C << 1);

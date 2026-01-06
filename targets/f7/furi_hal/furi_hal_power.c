@@ -9,6 +9,7 @@
  #include <furi_hal_bt.h>
  #include <furi_hal_vibro.h>
  #include <furi_hal_resources.h>
+ #include <furi_hal_adc.h>
  #include <furi_hal_serial_control.h>
  #include <furi_hal_rtc.h>
  #include <furi_hal_debug.h>
@@ -101,8 +102,51 @@ void furi_hal_power_sleep(void) {
 }
 
 uint8_t furi_hal_power_get_pct(void) {
-    // Return a default battery percentage
-    return 90;
+    // Default fallback percentage
+    uint8_t pct = 90;
+
+    // Ensure ADC is initialized in case it wasn't earlier
+    furi_hal_adc_init();
+
+    // Acquire ADC handle
+    FuriHalAdcHandle* handle = furi_hal_adc_acquire();
+    if(!handle) {
+        return pct;
+    }
+
+    // Configure ADC with safe defaults
+    furi_hal_adc_configure(handle);
+
+    // The battery measurement is connected to PA0 (ADC channel 0) on this board
+    const FuriHalAdcChannel batt_channel = FuriHalAdcChannel0;
+
+    uint16_t raw = furi_hal_adc_read(handle, batt_channel);
+
+    // Convert ADC reading to voltage at ADC pin
+    float adc_voltage = furi_hal_adc_convert_to_voltage(handle, raw);
+
+    // Release ADC
+    furi_hal_adc_release(handle);
+
+    // Compensate for external divider between battery and ADC pin.
+    // Many target boards use a divider that maps VBAT -> ADC by ~3:1 or 2:1.
+    // Adjust this if your hardware differs.
+    const float DIV_RATIO = 3.0f; // conservative default matching original conversions
+    float vbat = adc_voltage * DIV_RATIO;
+
+    // Map voltage to percentage using a simple linear curve between V_MIN and V_MAX
+    const float V_MIN = 3.00f; // 0%
+    const float V_MAX = 4.20f; // 100%
+
+    if(vbat <= V_MIN) pct = 0;
+    else if(vbat >= V_MAX) pct = 100;
+    else {
+        float t = (vbat - V_MIN) / (V_MAX - V_MIN);
+        pct = (uint8_t)(t * 100.0f + 0.5f);
+    }
+
+    return pct;
+    // return 90; // Return a default percentage
 }
 
 uint8_t furi_hal_power_get_bat_health_pct(void) {
@@ -195,15 +239,71 @@ uint32_t furi_hal_power_get_battery_design_capacity(void) {
 }
 
 float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
-    // Return a typical nominal voltage
+    // Read battery voltage via ADC when available. Returns voltage in volts.
     (void)ic; // Suppress unused parameter warning
-    return 3.7f;
+
+    FuriHalAdcHandle* handle = furi_hal_adc_acquire();
+    if(!handle) {
+        return 3.7f; // fallback
+    }
+
+    // // Configure ADC and read battery channel (PA0 -> ADC channel 0)
+    furi_hal_adc_configure(handle);
+    const FuriHalAdcChannel batt_channel = FuriHalAdcChannel0;
+    uint16_t raw = furi_hal_adc_read(handle, batt_channel);
+    float adc_voltage = furi_hal_adc_convert_to_voltage(handle, raw);
+    furi_hal_adc_release(handle);
+
+    // // Apply divider compensation. Default matches original project's behavior.
+    const float DIV_RATIO = 3.0f; // adjust if your hardware differs
+    float vbat = adc_voltage * DIV_RATIO;
+    
+    // Limit voltage to reasonable range
+    if(vbat < 0.0f) vbat = 0.0f;
+    if(vbat > 4.2f) vbat = 4.2f;
+
+    return vbat;
 }
 
 float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
-    // Return a default zero current
+    // Heuristic current estimator based on voltage change over time.
+    // This treats the battery as an equivalent capacitor with effective
+    // capacitance derived from nominal capacity. Result is returned in mA.
     (void)ic; // Suppress unused parameter warning
-    return 10.0f;
+    // return 10.0f; // Return a default small current value
+
+    // Read two voltage samples separated by a short delay
+    const uint32_t SAMPLE_MS = 250;
+    float v1 = furi_hal_power_get_battery_voltage(ic);
+    furi_delay_ms(SAMPLE_MS);
+    float v2 = furi_hal_power_get_battery_voltage(ic);
+
+    float dv = v2 - v1;
+    float dt = SAMPLE_MS / 1000.0f; // seconds
+
+    if(dt <= 0.0f) return 0.0f;
+
+    // Nominal full-range voltage used for effective capacitance calculation
+    const float V_MIN = 3.00f;
+    const float V_MAX = 4.20f;
+    float capacity_mAh = (float)furi_hal_power_get_battery_full_capacity();
+    float capacity_Ah = capacity_mAh / 1000.0f;
+
+    // Effective capacitance (Farads) approximated as Q / dV where Q = capacity_Ah * 3600 (C)
+    float Ceq = (capacity_Ah * 3600.0f) / (V_MAX - V_MIN);
+
+    // dV/dt (V/s)
+    float dvdt = dv / dt;
+
+    // I = C * dV/dt (A)
+    float i_a = Ceq * dvdt;
+
+    // Convert to mA and clamp to reasonable range
+    float i_ma = i_a * 1000.0f;
+    if(i_ma > 5000.0f) i_ma = 5000.0f;
+    if(i_ma < -5000.0f) i_ma = -5000.0f;
+
+    return i_ma;
 }
 
 // Remove internal static function
