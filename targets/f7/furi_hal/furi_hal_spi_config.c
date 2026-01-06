@@ -123,11 +123,11 @@ FuriMutex* furi_hal_spi_bus_mutex = NULL;
 
 void furi_hal_spi_config_init_early(void) {
     furi_hal_spi_bus_init(&furi_hal_spi_bus);
-    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_display);
+    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_display);
 }
 
 void furi_hal_spi_config_deinit_early(void) {
-    furi_hal_spi_bus_handle_deinit(&furi_hal_spi_bus_handle_display);
+    // furi_hal_spi_bus_handle_deinit(&furi_hal_spi_bus_handle_display);
     furi_hal_spi_bus_init(&furi_hal_spi_bus);
 }
 
@@ -378,13 +378,13 @@ inline static void furi_hal_spi_bus_generic_handle_event_callback(
 
 
 
-void furi_hal_spi_bus_handle_display_event_callback(
-    const FuriHalSpiBusHandle* handle,
-    FuriHalSpiBusHandleEvent event) {
-    // Using the extra slow preset for display
-    furi_hal_spi_bus_generic_handle_event_callback(
-        handle, event, &furi_hal_spi_preset_1edge_low_2m);
-}
+// void furi_hal_spi_bus_handle_display_event_callback(
+//     const FuriHalSpiBusHandle* handle,
+//     FuriHalSpiBusHandleEvent event) {
+//     // Using the extra slow preset for display
+//     furi_hal_spi_bus_generic_handle_event_callback(
+//         handle, event, &furi_hal_spi_preset_1edge_low_2m);
+// }
 
 static void furi_hal_spi_bus_handle_sd_fast_event_callback(
     const FuriHalSpiBusHandle* handle,
@@ -423,14 +423,14 @@ static void furi_hal_spi_bus_handle_external_wrapper_event_callback(
 
 /* ======================== SPI Bus Handle Definitions ======================= */
 
-const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display = {
-    .bus = &furi_hal_spi_bus,
-    .callback = furi_hal_spi_bus_handle_display_event_callback,
-    .miso = &gpio_spi_miso,
-    .mosi = &gpio_spi_mosi,
-    .sck = &gpio_spi_sck,
-    .cs = &gpio_display_cs,
-};
+// const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display = {
+//     .bus = &furi_hal_spi_bus,
+//     .callback = furi_hal_spi_bus_handle_display_event_callback,
+//     .miso = &gpio_spi_miso,
+//     .mosi = &gpio_spi_mosi,
+//     .sck = &gpio_spi_sck,
+//     .cs = &gpio_display_cs,
+// };
 
 const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_fast = {
     .bus = &furi_hal_spi_bus,

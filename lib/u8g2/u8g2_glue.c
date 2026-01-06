@@ -53,29 +53,29 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
     return 1;
 }
 
-uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
-    UNUSED(u8x8);
-    switch(msg) {
-    case U8X8_MSG_BYTE_SEND:
-        furi_hal_spi_bus_tx(&furi_hal_spi_bus_handle_display, (uint8_t*)arg_ptr, arg_int, 10000);
-        break;
-    case U8X8_MSG_BYTE_SET_DC:
-        furi_hal_gpio_write(&gpio_display_di, arg_int);
-        break;
-    case U8X8_MSG_BYTE_INIT:
-        break;
-    case U8X8_MSG_BYTE_START_TRANSFER:
-        furi_hal_spi_acquire(&furi_hal_spi_bus_handle_display);
-        break;
-    case U8X8_MSG_BYTE_END_TRANSFER:
-        furi_hal_spi_release(&furi_hal_spi_bus_handle_display);
-        break;
-    default:
-        return 0;
-    }
+// uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
+//     UNUSED(u8x8);
+//     switch(msg) {
+//     case U8X8_MSG_BYTE_SEND:
+//         furi_hal_spi_bus_tx(&furi_hal_spi_bus_handle_display, (uint8_t*)arg_ptr, arg_int, 10000);
+//         break;
+//     case U8X8_MSG_BYTE_SET_DC:
+//         furi_hal_gpio_write(&gpio_display_di, arg_int);
+//         break;
+//     case U8X8_MSG_BYTE_INIT:
+//         break;
+//     case U8X8_MSG_BYTE_START_TRANSFER:
+//         furi_hal_spi_acquire(&furi_hal_spi_bus_handle_display);
+//         break;
+//     case U8X8_MSG_BYTE_END_TRANSFER:
+//         furi_hal_spi_release(&furi_hal_spi_bus_handle_display);
+//         break;
+//     default:
+//         return 0;
+//     }
 
-    return 1;
-}
+//     return 1;
+// }
 
 /**
  * Hardware I2C byte callback for u8g2 library with SSD1306 OLED

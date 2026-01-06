@@ -68,9 +68,9 @@ extern const GpioPin gpio_cc1101_g0;
 //extern const GpioPin gpio_rf_sw_0;
 
 extern const GpioPin gpio_subghz_cs;
-extern const GpioPin gpio_display_cs;
-extern const GpioPin gpio_display_rst_n;
-extern const GpioPin gpio_display_di;
+// extern const GpioPin gpio_display_cs;
+// extern const GpioPin gpio_display_rst_n;
+// extern const GpioPin gpio_display_di;
 extern const GpioPin gpio_sdcard_cs;
 //extern const GpioPin gpio_sdcard_cd;
 extern const GpioPin gpio_nfc_cs;
@@ -123,6 +123,10 @@ extern const GpioPin gpio_button_back;
 // extern const GpioPin gpio_spi_miso_BTN;
 // extern const GpioPin gpio_button_sr_latch;
 
+// ADC for battery voltage measurement
+extern const GpioPin gpio_adc_battery_voltage;
+#define ADC_BATTERY_VOLTAGE_GPIO_Port GPIOA
+#define ADC_BATTERY_VOLTAGE_Pin       LL_GPIO_PIN_0
 
 #define BUTTON_BACK_GPIO_Port  GPIOH
 #define BUTTON_BACK_Pin        LL_GPIO_PIN_3
@@ -138,7 +142,6 @@ extern const GpioPin gpio_button_back;
 #define BUTTON_UP_Pin          LL_GPIO_PIN_7
 
 
-
 //extern const GpioPin gpio_button_sr_latch;
 
 #define CC1101_CS_GPIO_Port GPIOA
@@ -146,12 +149,12 @@ extern const GpioPin gpio_button_back;
 #define CC1101_G0_GPIO_Port GPIOA
 #define CC1101_G0_Pin       LL_GPIO_PIN_1
 
-#define DISPLAY_CS_GPIO_Port  GPIOA
-#define DISPLAY_CS_Pin        LL_GPIO_PIN_3
-#define DISPLAY_DI_GPIO_Port  GPIOB
-#define DISPLAY_DI_Pin        LL_GPIO_PIN_1
-#define DISPLAY_RST_GPIO_Port GPIOB
-#define DISPLAY_RST_Pin       LL_GPIO_PIN_0
+// #define DISPLAY_CS_GPIO_Port  GPIOA
+// #define DISPLAY_CS_Pin        LL_GPIO_PIN_3
+// #define DISPLAY_DI_GPIO_Port  GPIOB
+// #define DISPLAY_DI_Pin        LL_GPIO_PIN_1
+// #define DISPLAY_RST_GPIO_Port GPIOB
+// #define DISPLAY_RST_Pin       LL_GPIO_PIN_0
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0

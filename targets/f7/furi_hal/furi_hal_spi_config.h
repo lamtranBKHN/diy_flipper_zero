@@ -49,7 +49,7 @@ extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external;
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external_extra;
 
 /** ST7567(Display) on `furi_hal_spi_bus_d` */
-extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display;
+// extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display;
 
 /** SdCard in fast mode on `furi_hal_spi_bus_d` */
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_fast;

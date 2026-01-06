@@ -102,7 +102,7 @@ void furi_hal_power_sleep(void) {
 
 uint8_t furi_hal_power_get_pct(void) {
     // Return a default battery percentage
-    return 50;
+    return 90;
 }
 
 uint8_t furi_hal_power_get_bat_health_pct(void) {
@@ -181,17 +181,17 @@ void furi_hal_power_check_otg_status(void) {
 
 uint32_t furi_hal_power_get_battery_remaining_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 1000;
+    return 300;
 }
 
 uint32_t furi_hal_power_get_battery_full_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 2000;
+    return 300;
 }
 
 uint32_t furi_hal_power_get_battery_design_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 2100;
+    return 310;
 }
 
 float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
@@ -203,7 +203,7 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
 float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
     // Return a default zero current
     (void)ic; // Suppress unused parameter warning
-    return 0.0f;
+    return 10.0f;
 }
 
 // Remove internal static function

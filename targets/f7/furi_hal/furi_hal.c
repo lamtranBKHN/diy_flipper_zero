@@ -53,7 +53,7 @@ void furi_hal_init(void) {
     furi_hal_region_init();
     furi_hal_spi_config_init();
     furi_hal_spi_dma_init();
-    furi_hal_ibutton_init();
+    // furi_hal_ibutton_init();
     furi_hal_speaker_init();
     furi_hal_crypto_init();
     furi_hal_i2c_init();
@@ -64,10 +64,10 @@ void furi_hal_init(void) {
 
 #ifndef FURI_RAM_EXEC
     furi_hal_usb_init();
-    furi_hal_vibro_init();
+    // furi_hal_vibro_init();
     furi_hal_subghz_init();
-    furi_hal_nfc_init();
-    furi_hal_rfid_init();
+    // furi_hal_nfc_init();
+    // furi_hal_rfid_init();
 #endif
 }
 
