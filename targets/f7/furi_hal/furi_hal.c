@@ -47,6 +47,7 @@ void furi_hal_init(void) {
     furi_hal_random_init();
     furi_hal_serial_control_init();
     furi_hal_rtc_init();
+    furi_hal_usb_init();
     furi_hal_interrupt_init();
     furi_hal_flash_init();
     furi_hal_resources_init();
@@ -63,7 +64,7 @@ void furi_hal_init(void) {
     furi_hal_memory_init();
 
 #ifndef FURI_RAM_EXEC
-    furi_hal_usb_init();
+    // furi_hal_usb_init();
     // furi_hal_vibro_init();
     furi_hal_subghz_init();
     // furi_hal_nfc_init();

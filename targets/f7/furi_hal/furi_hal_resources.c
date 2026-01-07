@@ -51,10 +51,10 @@ const GpioPin gpio_ext_pa4 = {.port = PA4_GPIO_Port, .pin = PA4_Pin};
 const GpioPin gpio_ext_pa6 = {.port = PA6_GPIO_Port, .pin = PA6_Pin};
 const GpioPin gpio_ext_pa7 = {.port = PA7_GPIO_Port, .pin = PA7_Pin};
 
-const GpioPin gpio_nfc_irq_rfid_pull = {.port = NFC_IRQ_GPIO_Port, .pin = NFC_IRQ_Pin};
-const GpioPin gpio_rfid_carrier_out = {.port = RFID_OUT_GPIO_Port, .pin = RFID_OUT_Pin};
-const GpioPin gpio_rfid_data_in = {.port = RFID_RF_IN_GPIO_Port, .pin = RFID_RF_IN_Pin};
-const GpioPin gpio_rfid_carrier = {.port = RFID_CARRIER_GPIO_Port, .pin = RFID_CARRIER_Pin};
+// const GpioPin gpio_nfc_irq_rfid_pull = {.port = NFC_IRQ_GPIO_Port, .pin = NFC_IRQ_Pin};
+// const GpioPin gpio_rfid_carrier_out = {.port = RFID_OUT_GPIO_Port, .pin = RFID_OUT_Pin};
+// const GpioPin gpio_rfid_data_in = {.port = RFID_RF_IN_GPIO_Port, .pin = RFID_RF_IN_Pin};
+// const GpioPin gpio_rfid_carrier = {.port = RFID_CARRIER_GPIO_Port, .pin = RFID_CARRIER_Pin};
 
 const GpioPin gpio_infrared_rx = {.port = IR_RX_GPIO_Port, .pin = IR_RX_Pin};
 const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
@@ -198,13 +198,13 @@ static void furi_hal_resources_init_input_pins(GpioMode mode) {
     }
 }
 
- static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
-     for(size_t i = 0; i < gpio_pins_count; i++) {
-         if(!gpio_pins[i].debug) {
-             furi_hal_gpio_init(gpio_pins[i].pin, mode, GpioPullNo, GpioSpeedLow);
-         }
-     }
- }
+//  static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
+//      for(size_t i = 0; i < gpio_pins_count; i++) {
+//          if(!gpio_pins[i].debug) {
+//              furi_hal_gpio_init(gpio_pins[i].pin, mode, GpioPullNo, GpioSpeedLow);
+//          }
+//      }
+//  }
 
 void furi_hal_resources_init_early(void) {
     furi_hal_bus_enable(FuriHalBusGPIOA);
@@ -218,13 +218,13 @@ void furi_hal_resources_init_early(void) {
 
     // Explicit, surviving reset, pulls
     LL_PWR_EnablePUPDCfg();
-   // LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_A, LL_PWR_GPIO_BIT_8); // gpio_vibro
-  //  LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_8); // gpio_speaker
-  //  LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_9); // gpio_infrared_tx
+    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_A, LL_PWR_GPIO_BIT_8); // gpio_vibro
+    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_8); // gpio_speaker
+    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_9); // gpio_infrared_tx
 
     // SD Card stepdown control
-    //furi_hal_gpio_write(&gpio_periph_power, 1);
-    //furi_hal_gpio_init(&gpio_periph_power, GpioModeOutputOpenDrain, GpioPullNo, GpioSpeedLow);
+    // furi_hal_gpio_write(&gpio_periph_power, 1);
+    // furi_hal_gpio_init(&gpio_periph_power, GpioModeOutputOpenDrain, GpioPullNo, GpioSpeedLow);
 
     // Display pins
     // furi_hal_gpio_write(&gpio_display_rst_n, 0);
@@ -250,7 +250,7 @@ void furi_hal_resources_init_early(void) {
     furi_hal_gpio_write(&gpio_usb_dp, 0);
 
     // External header pins
-    furi_hal_resources_init_gpio_pins(GpioModeAnalog);
+    // furi_hal_resources_init_gpio_pins(GpioModeAnalog);
 }
 
 void furi_hal_resources_deinit_early(void) {
@@ -265,7 +265,6 @@ void furi_hal_resources_deinit_early(void) {
 
 void furi_hal_resources_init(void) {
     // Button pins
-    furi_delay_ms(100);
    furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
 
     // SD pins
@@ -274,30 +273,30 @@ void furi_hal_resources_init(void) {
 
   //  furi_hal_gpio_init(&gpio_ibutton, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
 
-    furi_hal_gpio_init(&gpio_nfc_irq_rfid_pull, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
-    FURI_LOG_T(TAG, "IRQ4");
+    // furi_hal_gpio_init(&gpio_nfc_irq_rfid_pull, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
+    // FURI_LOG_T(TAG, "IRQ4");
 
   //  furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
 
-    NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI0_IRQn);
 
-    NVIC_SetPriority(EXTI1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI1_IRQn);
 
-    NVIC_SetPriority(EXTI2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI2_IRQn);
 
-    NVIC_SetPriority(EXTI3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI3_IRQn);
 
-    NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI4_IRQn);
 
-    NVIC_SetPriority(EXTI9_5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI9_5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI9_5_IRQn);
 
-    NVIC_SetPriority(EXTI15_10_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
+    NVIC_SetPriority(EXTI15_10_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI15_10_IRQn);
 
     FURI_LOG_I(TAG, "Init OK");

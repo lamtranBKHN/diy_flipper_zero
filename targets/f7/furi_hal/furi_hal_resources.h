@@ -91,10 +91,10 @@ extern const GpioPin gpio_ext_pa4;
 extern const GpioPin gpio_ext_pa6;
 extern const GpioPin gpio_ext_pa7;
 
-extern const GpioPin gpio_nfc_irq_rfid_pull;
-extern const GpioPin gpio_rfid_carrier_out;
-extern const GpioPin gpio_rfid_data_in;
-extern const GpioPin gpio_rfid_carrier;
+// extern const GpioPin gpio_nfc_irq_rfid_pull;
+// extern const GpioPin gpio_rfid_carrier_out;
+// extern const GpioPin gpio_rfid_data_in;
+// extern const GpioPin gpio_rfid_carrier;
 
 extern const GpioPin gpio_infrared_rx;
 extern const GpioPin gpio_infrared_tx;
@@ -138,8 +138,8 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define BUTTON_OK_Pin          LL_GPIO_PIN_5
 #define BUTTON_RIGHT_GPIO_Port GPIOA
 #define BUTTON_RIGHT_Pin       LL_GPIO_PIN_6
-#define BUTTON_UP_GPIO_Port    GPIOB
-#define BUTTON_UP_Pin          LL_GPIO_PIN_7
+#define BUTTON_UP_GPIO_Port    GPIOA
+#define BUTTON_UP_Pin          LL_GPIO_PIN_2
 
 
 //extern const GpioPin gpio_button_sr_latch;
@@ -186,14 +186,14 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define QUARTZ_32MHZ_OUT_GPIO_Port GPIOC
 #define QUARTZ_32MHZ_OUT_Pin       LL_GPIO_PIN_15
 
-#define RFID_OUT_GPIO_Port     GPIOC
-#define RFID_OUT_Pin           LL_GPIO_PIN_0
-#define RFID_PULL_GPIO_Port    GPIOA
-#define RFID_PULL_Pin          LL_GPIO_PIN_2
-#define RFID_RF_IN_GPIO_Port   GPIOC
-#define RFID_RF_IN_Pin         LL_GPIO_PIN_0
-#define RFID_CARRIER_GPIO_Port GPIOC
-#define RFID_CARRIER_Pin       LL_GPIO_PIN_0
+// #define RFID_OUT_GPIO_Port     GPIOC
+// #define RFID_OUT_Pin           LL_GPIO_PIN_0
+// #define RFID_PULL_GPIO_Port    GPIOA
+// #define RFID_PULL_Pin          LL_GPIO_PIN_2
+// #define RFID_RF_IN_GPIO_Port   GPIOC
+// #define RFID_RF_IN_Pin         LL_GPIO_PIN_0
+// #define RFID_CARRIER_GPIO_Port GPIOC
+// #define RFID_CARRIER_Pin       LL_GPIO_PIN_0
 #define RF_SW_0_GPIO_Port GPIOC
 #define RF_SW_0_Pin       LL_GPIO_PIN_0
 
@@ -225,8 +225,8 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define SPI_SCK_GPIO_Port  GPIOB
 #define SPI_SCK_Pin        LL_GPIO_PIN_3
 
-#define NFC_IRQ_Pin       LL_GPIO_PIN_2
-#define NFC_IRQ_GPIO_Port GPIOA
+// #define NFC_IRQ_Pin       LL_GPIO_PIN_2
+// #define NFC_IRQ_GPIO_Port GPIOA
 
 #define I2C_3_SCL_Pin       LL_GPIO_PIN_9
 #define I2C_3_SCL_GPIO_Port GPIOA

@@ -47,8 +47,8 @@ static FuriHalNfcIso15693Listener* furi_hal_nfc_iso15693_listener_alloc(void) {
     FuriHalNfcIso15693Listener* instance = malloc(sizeof(FuriHalNfcIso15693Listener));
 
     instance->signal = iso15693_signal_alloc(&gpio_spi_mosi);
-    instance->parser =
-        iso15693_parser_alloc(&gpio_nfc_irq_rfid_pull, FURI_HAL_NFC_ISO15693_MAX_FRAME_SIZE);
+    // instance->parser =
+        // iso15693_parser_alloc(&gpio_nfc_irq_rfid_pull, FURI_HAL_NFC_ISO15693_MAX_FRAME_SIZE);
 
     return instance;
 }
