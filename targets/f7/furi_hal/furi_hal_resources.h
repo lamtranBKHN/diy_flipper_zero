@@ -137,7 +137,7 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define BUTTON_OK_GPIO_Port    GPIOA
 #define BUTTON_OK_Pin          LL_GPIO_PIN_5
 #define BUTTON_RIGHT_GPIO_Port GPIOA
-#define BUTTON_RIGHT_Pin       LL_GPIO_PIN_6
+#define BUTTON_RIGHT_Pin       LL_GPIO_PIN_4
 #define BUTTON_UP_GPIO_Port    GPIOA
 #define BUTTON_UP_Pin          LL_GPIO_PIN_2
 
@@ -202,8 +202,8 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define SD_CS_GPIO_Port GPIOA
 #define SD_CS_Pin       LL_GPIO_PIN_10
 
-#define SPEAKER_GPIO_Port GPIOC
-#define SPEAKER_Pin       LL_GPIO_PIN_0
+#define SPEAKER_GPIO_Port GPIOA
+#define SPEAKER_Pin       LL_GPIO_PIN_6
 
 #define VIBRO_GPIO_Port GPIOC
 #define VIBRO_Pin       LL_GPIO_PIN_0
@@ -218,8 +218,8 @@ extern const GpioPin gpio_adc_battery_voltage;
 
 #define SPI_MISO_GPIO_Port GPIOB
 #define SPI_MISO_Pin       LL_GPIO_PIN_4
-#define SPI_MOSI_GPIO_Port1 GPIOA
-#define SPI_MOSI_Pin1       LL_GPIO_PIN_7
+#define SPI_MOSI_GPIO_Port1 GPIOC
+#define SPI_MOSI_Pin1       LL_GPIO_PIN_0
 #define SPI_MOSI_GPIO_Port GPIOB
 #define SPI_MOSI_Pin       LL_GPIO_PIN_5
 #define SPI_SCK_GPIO_Port  GPIOB

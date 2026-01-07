@@ -144,8 +144,8 @@ uint8_t furi_hal_power_get_pct(void) {
     // Release ADC
     furi_hal_adc_release(handle);
 
-    FURI_LOG_D(TAG, "VBAT raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
-    FURI_LOG_D(TAG, "DIAG: raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
+    // FURI_LOG_D(TAG, "VBAT raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
+    // FURI_LOG_D(TAG, "DIAG: raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
 
     // Map voltage to percentage using a simple linear curve between V_MIN and V_MAX
     const float V_MIN = 3.00f; // 0%
@@ -274,8 +274,8 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
 
     furi_hal_adc_release(handle);
 
-    FURI_LOG_D(TAG, "VBAT read raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
-    FURI_LOG_D(TAG, "DIAG (voltage): raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
+    // FURI_LOG_D(TAG, "VBAT read raw=%u, vbat=%.3f V (%.0f mV) -- adc_input=%.0f mV", raw_vbat, (double)vbat, (double)vbat_mV, (double)adc_input_mV);
+    // FURI_LOG_D(TAG, "DIAG (voltage): raw_vref=%u vref=%.0f mV", raw_vref, (double)vref_mV);
 
     if(vbat < 3.2f) vbat = 0.0f;
     if(vbat > 4.2f) vbat = 4.2f;

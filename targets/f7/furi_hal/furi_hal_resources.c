@@ -65,7 +65,7 @@ const GpioPin gpio_usart_rx = {.port = USART1_RX_Port, .pin = USART1_RX_Pin};
 const GpioPin gpio_i2c_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
 const GpioPin gpio_i2c_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
 
-const GpioPin gpio_speaker = {.port = GPIOC, .pin = LL_GPIO_PIN_8};
+const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};
 
 //const GpioPin gpio_periph_power = {.port = GPIOC, .pin = LL_GPIO_PIN_3};
 
@@ -76,82 +76,82 @@ const GpioPin gpio_adc_battery_voltage = {.port = ADC_BATTERY_VOLTAGE_GPIO_Port,
 
 const GpioPinRecord gpio_pins[] = {
     // 5V: 1
-    {.pin = &gpio_ext_pa7,
-     .name = "PA7",
-     .channel = FuriHalAdcChannel12,
-     .pwm_output = FuriHalPwmOutputIdTim1PA7,
-     .number = 2,
-     .debug = false},
-    {.pin = &gpio_ext_pa6,
-     .name = "PA6",
-     .channel = FuriHalAdcChannel11,
-     .number = 3,
-     .debug = false},
-    {.pin = &gpio_ext_pa4,
-     .name = "PA4",
-     .channel = FuriHalAdcChannel9,
-     .pwm_output = FuriHalPwmOutputIdLptim2PA4,
-     .number = 4,
-     .debug = false},
-    {.pin = &gpio_ext_pb3,
-     .name = "PB3",
-     .channel = FuriHalAdcChannelNone,
-     .number = 5,
-     .debug = false},
-    {.pin = &gpio_ext_pb2,
-     .name = "PB2",
-     .channel = FuriHalAdcChannelNone,
-     .number = 6,
-     .debug = false},
-    {.pin = &gpio_ext_pc3,
-     .name = "PC3",
-     .channel = FuriHalAdcChannel4,
-     .number = 7,
-     .debug = false},
-    // GND: 8
-    // Space
-    // 3v3: 9
-    {.pin = &gpio_swclk,
-     .name = "PA14",
-     .channel = FuriHalAdcChannelNone,
-     .number = 10,
-     .debug = true},
-    // GND: 11
-    {.pin = &gpio_swdio,
-     .name = "PA13",
-     .channel = FuriHalAdcChannelNone,
-     .number = 12,
-     .debug = true},
-    {.pin = &gpio_usart_tx,
-     .name = "PB6",
-     .channel = FuriHalAdcChannelNone,
-     .number = 13,
-     .debug = true},
-    {.pin = &gpio_usart_rx,
-     .name = "PB7",
-     .channel = FuriHalAdcChannelNone,
-     .number = 14,
-     .debug = true},
-    {.pin = &gpio_ext_pc1,
-     .name = "PC1",
-     .channel = FuriHalAdcChannel2,
-     .number = 15,
-     .debug = false},
-    {.pin = &gpio_ext_pc0,
-     .name = "PC0",
-     .channel = FuriHalAdcChannel1,
-     .number = 16,
-     .debug = false},
-    {.pin = &gpio_ibutton,
-     .name = "PB14",
-     .channel = FuriHalAdcChannelNone,
-     .number = 17,
-     .debug = true},
+    // {.pin = &gpio_ext_pa7,
+    //  .name = "PA7",
+    //  .channel = FuriHalAdcChannel12,
+    //  .pwm_output = FuriHalPwmOutputIdTim1PA7,
+    //  .number = 2,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pa6,
+    //  .name = "PA6",
+    //  .channel = FuriHalAdcChannel11,
+    //  .number = 3,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pa4,
+    //  .name = "PA4",
+    //  .channel = FuriHalAdcChannel9,
+    //  .pwm_output = FuriHalPwmOutputIdLptim2PA4,
+    //  .number = 4,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pb3,
+    //  .name = "PB3",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 5,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pb2,
+    //  .name = "PB2",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 6,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pc3,
+    //  .name = "PC3",
+    //  .channel = FuriHalAdcChannel4,
+    //  .number = 7,
+    //  .debug = false},
+    // // GND: 8
+    // // Space
+    // // 3v3: 9
+    // {.pin = &gpio_swclk,
+    //  .name = "PA14",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 10,
+    //  .debug = true},
+    // // GND: 11
+    // {.pin = &gpio_swdio,
+    //  .name = "PA13",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 12,
+    //  .debug = true},
+    // {.pin = &gpio_usart_tx,
+    //  .name = "PB6",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 13,
+    //  .debug = true},
+    // {.pin = &gpio_usart_rx,
+    //  .name = "PB7",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 14,
+    //  .debug = true},
+    // {.pin = &gpio_ext_pc1,
+    //  .name = "PC1",
+    //  .channel = FuriHalAdcChannel2,
+    //  .number = 15,
+    //  .debug = false},
+    // {.pin = &gpio_ext_pc0,
+    //  .name = "PC0",
+    //  .channel = FuriHalAdcChannel1,
+    //  .number = 16,
+    //  .debug = false},
+    // {.pin = &gpio_ibutton,
+    //  .name = "PB14",
+    //  .channel = FuriHalAdcChannelNone,
+    //  .number = 17,
+    //  .debug = true},
     // GND: 18
 
     /* Dangerous pins, may damage hardware */
     {.pin = &gpio_speaker,
-     .name = "PB8",
+     .name = "PA6",
      .channel = FuriHalAdcChannelNone,
      .number = 0,
      .debug = true},
@@ -198,13 +198,13 @@ static void furi_hal_resources_init_input_pins(GpioMode mode) {
     }
 }
 
-//  static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
-//      for(size_t i = 0; i < gpio_pins_count; i++) {
-//          if(!gpio_pins[i].debug) {
-//              furi_hal_gpio_init(gpio_pins[i].pin, mode, GpioPullNo, GpioSpeedLow);
-//          }
-//      }
-//  }
+static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
+    for(size_t i = 0; i < gpio_pins_count; i++) {
+        if(!gpio_pins[i].debug) {
+            furi_hal_gpio_init(gpio_pins[i].pin, mode, GpioPullNo, GpioSpeedLow);
+        }
+    }
+}
 
 void furi_hal_resources_init_early(void) {
     furi_hal_bus_enable(FuriHalBusGPIOA);
@@ -218,9 +218,9 @@ void furi_hal_resources_init_early(void) {
 
     // Explicit, surviving reset, pulls
     LL_PWR_EnablePUPDCfg();
-    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_A, LL_PWR_GPIO_BIT_8); // gpio_vibro
-    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_8); // gpio_speaker
-    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_9); // gpio_infrared_tx
+    // LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_A, LL_PWR_GPIO_BIT_8); // gpio_vibro
+    LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_A, LL_PWR_GPIO_BIT_6); // gpio_speaker
+    // LL_PWR_EnableGPIOPullDown(LL_PWR_GPIO_B, LL_PWR_GPIO_BIT_9); // gpio_infrared_tx
 
     // SD Card stepdown control
     // furi_hal_gpio_write(&gpio_periph_power, 1);
@@ -248,9 +248,20 @@ void furi_hal_resources_init_early(void) {
     furi_hal_gpio_init_simple(&gpio_usb_dp, GpioModeAnalog);
     furi_hal_gpio_write(&gpio_usb_dm, 0);
     furi_hal_gpio_write(&gpio_usb_dp, 0);
+    
+    // furi_hal_gpio_write(&gpio_speaker, 1);
 
+    // quick test: drive buzzer with GPIO
+    // furi_hal_gpio_init(&gpio_speaker, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
+    // for (int i=0;i<1000;i++) {
+    //     furi_hal_gpio_write(&gpio_speaker, true);
+    //     furi_delay_ms(1);
+    //     furi_hal_gpio_write(&gpio_speaker, false);
+    //     furi_delay_ms(1);
+    // }
+    // furi_delay_ms(100);
     // External header pins
-    // furi_hal_resources_init_gpio_pins(GpioModeAnalog);
+    furi_hal_resources_init_gpio_pins(GpioModeAnalog);
 }
 
 void furi_hal_resources_deinit_early(void) {
@@ -290,8 +301,8 @@ void furi_hal_resources_init(void) {
     NVIC_SetPriority(EXTI3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI3_IRQn);
 
-    // NVIC_SetPriority(EXTI5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
-    // NVIC_EnableIRQ(EXTI5_IRQn);
+    NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
+    NVIC_EnableIRQ(EXTI4_IRQn);
 
     // NVIC_SetPriority(EXTI6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     // NVIC_EnableIRQ(EXTI6_IRQn);
