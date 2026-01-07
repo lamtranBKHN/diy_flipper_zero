@@ -278,11 +278,11 @@ void furi_hal_resources_init(void) {
 
   //  furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
 
-    NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
-    NVIC_EnableIRQ(EXTI0_IRQn);
+    // NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
+    // NVIC_EnableIRQ(EXTI0_IRQn);
 
-    NVIC_SetPriority(EXTI1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
-    NVIC_EnableIRQ(EXTI1_IRQn);
+    // NVIC_SetPriority(EXTI1_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
+    // NVIC_EnableIRQ(EXTI1_IRQn);
 
     NVIC_SetPriority(EXTI2_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI2_IRQn);
@@ -290,8 +290,11 @@ void furi_hal_resources_init(void) {
     NVIC_SetPriority(EXTI3_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI3_IRQn);
 
-    NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
-    NVIC_EnableIRQ(EXTI4_IRQn);
+    // NVIC_SetPriority(EXTI5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
+    // NVIC_EnableIRQ(EXTI5_IRQn);
+
+    // NVIC_SetPriority(EXTI6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
+    // NVIC_EnableIRQ(EXTI6_IRQn);
 
     NVIC_SetPriority(EXTI9_5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
     NVIC_EnableIRQ(EXTI9_5_IRQn);
