@@ -68,11 +68,6 @@ static void furi_hal_i2c_bus_external_event(FuriHalI2cBus* bus, FuriHalI2cBusEve
     }
 }
 
-FuriHalI2cBus furi_hal_i2c_bus_external = {
-    .i2c = I2C3,
-    .callback = furi_hal_i2c_bus_external_event,
-};
-
 void furi_hal_i2c_bus_handle_power_event(
     const FuriHalI2cBusHandle* handle,
     FuriHalI2cBusHandleEvent event) {
@@ -157,7 +152,13 @@ void furi_hal_i2c_bus_handle_external_event(
     }
 }
 
-const FuriHalI2cBusHandle furi_hal_i2c_handle_external = {
-    .bus = &furi_hal_i2c_bus_external,
-    .callback = furi_hal_i2c_bus_handle_external_event,
+FuriHalI2cBus furi_hal_i2c_bus_external = {
+    .i2c = I2C3,
+    .callback = furi_hal_i2c_bus_external_event,
 };
+// const FuriHalI2cBusHandle furi_hal_i2c_handle_external = {
+//     .bus = &furi_hal_i2c_bus_external,
+//     .callback = furi_hal_i2c_bus_handle_external_event,
+// };
+
+const FuriHalI2cBusHandle furi_hal_i2c_handle_external =  furi_hal_i2c_handle_power;
