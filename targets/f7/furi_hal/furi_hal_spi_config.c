@@ -128,7 +128,7 @@ void furi_hal_spi_config_init_early(void) {
 
 void furi_hal_spi_config_deinit_early(void) {
     // furi_hal_spi_bus_handle_deinit(&furi_hal_spi_bus_handle_display);
-    furi_hal_spi_bus_init(&furi_hal_spi_bus);
+    furi_hal_spi_bus_deinit(&furi_hal_spi_bus);
 }
 
 void furi_hal_spi_config_init(void) {
@@ -430,21 +430,21 @@ inline static void furi_hal_spi_bus_handle_event_callback(
 static void furi_hal_spi_bus_handle_sd_fast_event_callback(
     const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event) {
-    furi_hal_spi_bus_handle_event_callback(
+    furi_hal_spi_bus_generic_handle_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_16m);
 }
 
 static void furi_hal_spi_bus_handle_sd_slow_event_callback(
     const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event) {
-    furi_hal_spi_bus_handle_event_callback(
+    furi_hal_spi_bus_generic_handle_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_2m);
 }
 
 static void furi_hal_spi_bus_handle_subghz_event_callback(
     const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event) {
-    furi_hal_spi_bus_handle_event_callback(
+    furi_hal_spi_bus_generic_handle_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_8m);
 }
 

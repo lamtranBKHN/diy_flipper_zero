@@ -157,8 +157,9 @@ uint8_t furi_hal_power_get_pct(void) {
         float t = (vbat - V_MIN) / (V_MAX - V_MIN);
         pct = (uint8_t)(t * 100.0f + 0.5f);
     }
-
+    
     return pct;
+    // UNUSED(pct);
     // return 90; // Return a default percentage
 }
 
@@ -281,6 +282,8 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
     if(vbat > 4.2f) vbat = 4.2f;
 
     return vbat;
+    // UNUSED(vbat);
+    // return 3.7f; // fallback
 }
 
 float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
@@ -321,7 +324,9 @@ float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
     if(i_ma > 5000.0f) i_ma = 5000.0f;
     if(i_ma < -5000.0f) i_ma = -5000.0f;
 
-    return i_ma;
+    // return i_ma;
+    UNUSED(i_ma);
+    return 0.10f; // Return a default small current value
 }
 
 // Remove internal static function

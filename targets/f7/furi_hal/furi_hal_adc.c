@@ -87,7 +87,10 @@ static const uint32_t furi_hal_adc_channel_map[] = {
 static FuriHalAdcHandle* furi_hal_adc_handle = NULL;
 
 void furi_hal_adc_init(void) {
+    if(furi_hal_adc_handle) return;
+
     furi_hal_adc_handle = malloc(sizeof(FuriHalAdcHandle));
+    if(!furi_hal_adc_handle) return;
     furi_hal_adc_handle->adc = ADC1;
     furi_hal_adc_handle->mutex = furi_mutex_alloc(FuriMutexTypeNormal);
 }
@@ -112,7 +115,7 @@ void furi_hal_adc_release(FuriHalAdcHandle* handle) {
 
     furi_hal_power_insomnia_exit();
 
-    furi_check(furi_mutex_release(furi_hal_adc_handle->mutex) == FuriStatusOk);
+    furi_check(furi_mutex_release(handle->mutex) == FuriStatusOk);
 }
 
 void furi_hal_adc_configure(FuriHalAdcHandle* handle) {

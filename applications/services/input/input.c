@@ -13,8 +13,8 @@
 #include <toolbox/pipe.h>
 
 #define INPUT_DEBOUNCE_TICKS_HALF (INPUT_DEBOUNCE_TICKS / 2)
-#define INPUT_PRESS_TICKS         150
-#define INPUT_LONG_PRESS_COUNTS   2
+#define INPUT_PRESS_TICKS         200
+#define INPUT_LONG_PRESS_COUNTS   5
 #define INPUT_THREAD_FLAG_ISR     0x00000001
 
 #define TAG "Input"
@@ -156,25 +156,25 @@ int32_t input_srv(void* p) {
                 event.type = pin_states[i].state ? InputTypePress : InputTypeRelease;
                 furi_pubsub_publish(event_pubsub, &event);
                 // vibro signal if user setup vibro touch level in Settings-Input.
-                if(settings->vibro_touch_level &&
-                   ((1 << event.type) & settings->vibro_touch_trigger_mask)) {
-                    //delay 1 ticks for compatibility with rgb_backlight_mod
-                    furi_delay_tick(1);
-                    furi_hal_vibro_on(true);
-                    furi_delay_tick(settings->vibro_touch_level);
-                    furi_hal_vibro_on(false);
-                }
+                // if(settings->vibro_touch_level &&
+                //    ((1 << event.type) & settings->vibro_touch_trigger_mask)) {
+                //     //delay 1 ticks for compatibility with rgb_backlight_mod
+                //     furi_delay_tick(1);
+                //     furi_hal_vibro_on(true);
+                //     furi_delay_tick(settings->vibro_touch_level);
+                //     furi_hal_vibro_on(false);
+                // }
             }
         }
 
         if(is_changing) {
 #ifdef INPUT_DEBUG
-            furi_hal_gpio_write(&gpio_ext_pa4, 1);
+            // furi_hal_gpio_write(&gpio_ext_pa4, 1);
 #endif
             furi_delay_tick(1);
         } else {
 #ifdef INPUT_DEBUG
-            furi_hal_gpio_write(&gpio_ext_pa4, 0);
+            // furi_hal_gpio_write(&gpio_ext_pa4, 0);
 #endif
             furi_thread_flags_wait(INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, FuriWaitForever);
         }
