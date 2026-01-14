@@ -67,6 +67,7 @@
 
 #ifdef USE_INA219
 // INA219 wrapper state is tracked in its module
+float curr_soc_percent = 100.0f;
 #endif
 
 void furi_hal_power_init(void) {
@@ -175,7 +176,25 @@ uint8_t furi_hal_power_get_pct(void) {
             if(blended < 0.0f) blended = 0.0f;
             if(blended > 100.0f) blended = 100.0f;
             soc_percent = blended;
-            FURI_LOG_I(TAG, "INA219 voltage=%.3f V, current=%.3f A, SOC=%.2f%%", (double)vbat, (double)i, (double)soc_percent);
+            FURI_LOG_D(TAG, "INA219 voltage=%.3f V, current=%.3f A, SOC=%.2f%%", (double)vbat, (double)i, (double)soc_percent);
+            // if delta_mAh is smaller than 0, means discharging, in this case if soc_percent is greater than curr_soc_percent, do not update curr_soc_percent to avoid increasing soc_percent during discharging
+            if(delta_mAh < 0.0f) {
+                if(soc_percent > curr_soc_percent) {
+                    soc_percent = curr_soc_percent;
+                } else {
+                    curr_soc_percent = soc_percent;
+                }
+            }
+            // if delta_mAh is greater than 0, means charging, in this case if soc_percent is less than curr_soc_percent, do not update curr_soc_percent to avoid decreasing soc_percent during charging
+            else if(delta_mAh > 0.0f) {
+                if(soc_percent < curr_soc_percent) {
+                    soc_percent = curr_soc_percent;
+                } else {
+                    curr_soc_percent = soc_percent;
+                }
+            } else {
+                curr_soc_percent = soc_percent;
+            }
             return (uint8_t)(soc_percent + 0.5f);
         }
     }
@@ -211,7 +230,19 @@ uint8_t furi_hal_power_get_bat_health_pct(void) {
 }
 
 bool furi_hal_power_is_charging(void) {
-    // Return a default "not charging" state
+    // Get charge and discharge current status from power IC when available
+    #ifdef USE_INA219
+    if(furi_hal_ina219_is_ready()) {
+        float v = 0.0f, i = 0.0f;
+        if(furi_hal_ina219_get_voltage_current(&v, &i)) {
+            // Positive current indicates discharging, negative indicates charging
+            bool charging = (i > 0.0f);
+            FURI_LOG_D(TAG, "INA219 voltage=%.3f V, current=%.3f A, charging=%s", (double)v, (double)i, charging ? "YES" : "NO");
+            return charging;
+        }
+    }
+    #endif
+    // Return a default "not charging" state (consistent with not charging)
     return false;
 }
 
@@ -304,7 +335,7 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
             float vbat = v;
-            FURI_LOG_I(TAG, "INA219 battery voltage=%.3f V", (double)vbat);
+            FURI_LOG_D(TAG, "INA219 battery voltage=%.3f V", (double)vbat);
             if(vbat < 3.2f) vbat = 0.0f;
             if(vbat > 4.2f) vbat = 4.2f;
             return vbat;
@@ -347,7 +378,7 @@ float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
-            FURI_LOG_I(TAG, "INA219 voltage=%.3f V, current=%.3f A", (double)v, (double)i);
+            FURI_LOG_D(TAG, "INA219 voltage=%.3f V, current=%.3f A", (double)v, (double)i);
             return i;
         }
     }
