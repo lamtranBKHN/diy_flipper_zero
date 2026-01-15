@@ -124,20 +124,6 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define ADC_BATTERY_VOLTAGE_GPIO_Port GPIOA
 #define ADC_BATTERY_VOLTAGE_Pin       LL_GPIO_PIN_0
 
-#define BUTTON_BACK_GPIO_Port  GPIOH
-#define BUTTON_BACK_Pin        LL_GPIO_PIN_3
-#define BUTTON_DOWN_GPIO_Port  GPIOB
-#define BUTTON_DOWN_Pin        LL_GPIO_PIN_8
-#define BUTTON_LEFT_GPIO_Port  GPIOA
-#define BUTTON_LEFT_Pin        LL_GPIO_PIN_15
-#define BUTTON_OK_GPIO_Port    GPIOA
-#define BUTTON_OK_Pin          LL_GPIO_PIN_5
-#define BUTTON_RIGHT_GPIO_Port GPIOA
-#define BUTTON_RIGHT_Pin       LL_GPIO_PIN_4
-#define BUTTON_UP_GPIO_Port    GPIOA
-#define BUTTON_UP_Pin          LL_GPIO_PIN_2
-
-
 //extern const GpioPin gpio_button_sr_latch;
 
 #define CC1101_CS_GPIO_Port GPIOA

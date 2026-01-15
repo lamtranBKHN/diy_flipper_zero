@@ -134,7 +134,7 @@ void furi_hal_spi_config_deinit_early(void) {
 void furi_hal_spi_config_init(void) {
     furi_hal_spi_bus_init(&furi_hal_spi_bus);
 
-    // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
+    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
     // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_fast);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_slow);
@@ -142,7 +142,7 @@ void furi_hal_spi_config_init(void) {
     // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external);
     // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external_extra);
 
-    //   FURI_LOG_I(TAG, "Init OK");
+    FURI_LOG_I(TAG, "Init OK");
 }
 
 static void furi_hal_spi_bus_event_callback(FuriHalSpiBus* bus, FuriHalSpiBusEvent event) {
