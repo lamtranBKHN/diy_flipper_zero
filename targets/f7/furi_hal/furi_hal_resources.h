@@ -65,6 +65,7 @@ extern const GpioPin gpio_swclk;
 extern const GpioPin gpio_ibutton;
 
 extern const GpioPin gpio_cc1101_g0;
+extern const GpioPin gpio_mcp_int;
 //extern const GpioPin gpio_rf_sw_0;
 
 extern const GpioPin gpio_subghz_cs;
@@ -112,12 +113,7 @@ extern const GpioPin gpio_speaker;
 extern const GpioPin gpio_usb_dm;
 extern const GpioPin gpio_usb_dp;
 
-extern const GpioPin gpio_button_up;
-extern const GpioPin gpio_button_down;
-extern const GpioPin gpio_button_right;
-extern const GpioPin gpio_button_left;
-extern const GpioPin gpio_button_ok;
-extern const GpioPin gpio_button_back;
+// gpio_button_* MCU pin definitions removed: inputs are provided via MCP23017 wiring
 
 // extern const GpioPin gpio_button_IRQ;
 // extern const GpioPin gpio_spi_miso_BTN;
@@ -203,6 +199,9 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define SD_CS_Pin       LL_GPIO_PIN_10
 
 #define SPEAKER_GPIO_Port GPIOA
+// MCP23017 interrupt default pin
+#define MCP_INT_GPIO_Port GPIOB
+#define MCP_INT_Pin       LL_GPIO_PIN_0
 #define SPEAKER_Pin       LL_GPIO_PIN_6
 
 #define VIBRO_GPIO_Port GPIOC

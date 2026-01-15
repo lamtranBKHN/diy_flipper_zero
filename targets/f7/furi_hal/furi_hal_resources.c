@@ -7,35 +7,28 @@
 
 #define TAG "FuriHalResources"
 
-// const GpioPin gpio_button_IRQ = {.port = GPIOA, .pin = LL_GPIO_PIN_9};
-
-// const GpioPin gpio_spi_miso_BTN = {.port = GPIOA, .pin = LL_GPIO_PIN_6};
-// const GpioPin gpio_button_sr_latch = {.port = GPIOH, .pin = LL_GPIO_PIN_3};
+// Legacy/debug GPIOs removed: keep main pin definitions only.
 
 
 const GpioPin gpio_swdio = {.port = GPIOA, .pin = LL_GPIO_PIN_13};
 const GpioPin gpio_swclk = {.port = GPIOA, .pin = LL_GPIO_PIN_14};
 
-//const GpioPin gpio_vibro = {.port = VIBRO_GPIO_Port, .pin = VIBRO_Pin};
+// vibro not used on this board variant
 const GpioPin gpio_ibutton = {.port = iBTN_GPIO_Port, .pin = iBTN_Pin};
 
 const GpioPin gpio_cc1101_g0 = {.port = CC1101_G0_GPIO_Port, .pin = CC1101_G0_Pin};
-//const GpioPin gpio_rf_sw_0 = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
+const GpioPin gpio_mcp_int = {.port = MCP_INT_GPIO_Port, .pin = MCP_INT_Pin};
+// RF switch pin omitted for this board
 
 const GpioPin gpio_subghz_cs = {.port = CC1101_CS_GPIO_Port, .pin = CC1101_CS_Pin};
 // const GpioPin gpio_display_cs = {.port = DISPLAY_CS_GPIO_Port, .pin = DISPLAY_CS_Pin};
 // const GpioPin gpio_display_rst_n = {.port = DISPLAY_RST_GPIO_Port, .pin = DISPLAY_RST_Pin};
 // const GpioPin gpio_display_di = {.port = DISPLAY_DI_GPIO_Port, .pin = DISPLAY_DI_Pin};
 const GpioPin gpio_sdcard_cs = {.port = SD_CS_GPIO_Port, .pin = SD_CS_Pin};
-//const GpioPin gpio_sdcard_cd = {.port = SD_CD_GPIO_Port, .pin = SD_CD_Pin};
+// SD card CD not used
 const GpioPin gpio_nfc_cs = {.port = NFC_CS_GPIO_Port, .pin = NFC_CS_Pin};
 
-const GpioPin gpio_button_up = {.port = BUTTON_UP_GPIO_Port, .pin = BUTTON_UP_Pin};
-const GpioPin gpio_button_down = {.port = BUTTON_DOWN_GPIO_Port, .pin = BUTTON_DOWN_Pin};
-const GpioPin gpio_button_right = {.port = BUTTON_RIGHT_GPIO_Port, .pin = BUTTON_RIGHT_Pin};
-const GpioPin gpio_button_left = {.port = BUTTON_LEFT_GPIO_Port, .pin = BUTTON_LEFT_Pin};
-const GpioPin gpio_button_ok = {.port = BUTTON_OK_GPIO_Port, .pin = BUTTON_OK_Pin};
-const GpioPin gpio_button_back = {.port = BUTTON_BACK_GPIO_Port, .pin = BUTTON_BACK_Pin};
+// MCU button GpioPin definitions removed — board uses MCP23017 for inputs.
 
 const GpioPin gpio_spi_miso = {.port = SPI_MISO_GPIO_Port, .pin = SPI_MISO_Pin};
 const GpioPin gpio_spi_mosi = {.port = SPI_MOSI_GPIO_Port, .pin = SPI_MOSI_Pin};
@@ -51,10 +44,7 @@ const GpioPin gpio_ext_pa4 = {.port = PA4_GPIO_Port, .pin = PA4_Pin};
 const GpioPin gpio_ext_pa6 = {.port = PA6_GPIO_Port, .pin = PA6_Pin};
 const GpioPin gpio_ext_pa7 = {.port = PA7_GPIO_Port, .pin = PA7_Pin};
 
-// const GpioPin gpio_nfc_irq_rfid_pull = {.port = NFC_IRQ_GPIO_Port, .pin = NFC_IRQ_Pin};
-// const GpioPin gpio_rfid_carrier_out = {.port = RFID_OUT_GPIO_Port, .pin = RFID_OUT_Pin};
-// const GpioPin gpio_rfid_data_in = {.port = RFID_RF_IN_GPIO_Port, .pin = RFID_RF_IN_Pin};
-// const GpioPin gpio_rfid_carrier = {.port = RFID_CARRIER_GPIO_Port, .pin = RFID_CARRIER_Pin};
+// NFC/RFID pins omitted for this board
 
 const GpioPin gpio_infrared_rx = {.port = IR_RX_GPIO_Port, .pin = IR_RX_Pin};
 const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
@@ -67,7 +57,7 @@ const GpioPin gpio_i2c_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin}
 
 const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};
 
-//const GpioPin gpio_periph_power = {.port = GPIOC, .pin = LL_GPIO_PIN_3};
+// peripheral power control not present on this board
 
 const GpioPin gpio_usb_dm = {.port = GPIOA, .pin = LL_GPIO_PIN_11};
 const GpioPin gpio_usb_dp = {.port = GPIOA, .pin = LL_GPIO_PIN_12};
@@ -169,39 +159,31 @@ const GpioPinRecord gpio_pins[] = {
 
 const size_t gpio_pins_count = COUNT_OF(gpio_pins);
 
-// const InputPin input_pins[] = {
-//     {.gpio = &gpio_button_back1, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
-//     {.gpio = &gpio_button_back2, .key = InputKeyMAX, .inverted = true, .name = "InputKeyMAX"},
-//     {.gpio = &gpio_button_back, .key = InputKeyBack, .inverted = true, .name = "Back"},    
-//     {.gpio = &gpio_button_right, .key = InputKeyRight, .inverted = true, .name = "Right"}, 
-//     {.gpio = &gpio_button_down, .key = InputKeyDown, .inverted = true, .name = "Down"},
-//     {.gpio = &gpio_button_left, .key = InputKeyLeft, .inverted = true, .name = "Left"},   
-//     {.gpio = &gpio_button_up, .key = InputKeyUp, .inverted = true, .name = "Up"},
-//     {.gpio = &gpio_button_ok, .key = InputKeyOk, .inverted = true, .name = "OK"},
-// };
+// Old MCU-driven input pin array removed — input is handled via MCP23017 on this board.
 
 const InputPin input_pins[] = {
-    {.gpio = &gpio_button_up, .key = InputKeyUp, .inverted = true, .name = "Up"},
-    {.gpio = &gpio_button_down, .key = InputKeyDown, .inverted = true, .name = "Down"},
-    {.gpio = &gpio_button_right, .key = InputKeyRight, .inverted = true, .name = "Right"},
-    {.gpio = &gpio_button_left, .key = InputKeyLeft, .inverted = true, .name = "Left"},
-    {.gpio = &gpio_button_ok, .key = InputKeyOk, .inverted = true, .name = "OK"},
-    {.gpio = &gpio_button_back, .key = InputKeyBack, .inverted = false, .name = "Back"},
+    {.gpio = NULL, .key = InputKeyUp, .inverted = true, .name = "Up"},
+    {.gpio = NULL, .key = InputKeyDown, .inverted = true, .name = "Down"},
+    {.gpio = NULL, .key = InputKeyRight, .inverted = true, .name = "Right"},
+    {.gpio = NULL, .key = InputKeyLeft, .inverted = true, .name = "Left"},
+    {.gpio = NULL, .key = InputKeyOk, .inverted = true, .name = "OK"},
+    {.gpio = NULL, .key = InputKeyBack, .inverted = true, .name = "Back"},
 };
-
 
 
 const size_t input_pins_count = COUNT_OF(input_pins);
 
-static void furi_hal_resources_init_input_pins(GpioMode mode) {
-    for(size_t i = 0; i < input_pins_count; i++) {
-        furi_hal_gpio_init(
-            input_pins[i].gpio,
-            mode,
-            (input_pins[i].inverted) ? GpioPullUp : GpioPullDown,
-            GpioSpeedLow);
-    }
-}
+// static void furi_hal_resources_init_input_pins(GpioMode mode) {
+//     for(size_t i = 0; i < input_pins_count; i++) {
+//         if(input_pins[i].gpio != NULL) {
+//             furi_hal_gpio_init(
+//                 input_pins[i].gpio,
+//                 mode,
+//                 (input_pins[i].inverted) ? GpioPullUp : GpioPullDown,
+//                 GpioSpeedLow);
+//         }
+//     }
+// }
 
 static void furi_hal_resources_init_gpio_pins(GpioMode mode) {
     for(size_t i = 0; i < gpio_pins_count; i++) {
@@ -219,7 +201,7 @@ void furi_hal_resources_init_early(void) {
     furi_hal_bus_enable(FuriHalBusGPIOE);
     furi_hal_bus_enable(FuriHalBusGPIOH);
 
-    furi_hal_resources_init_input_pins(GpioModeInput);
+    // furi_hal_resources_init_input_pins(GpioModeInput);
 
     // Explicit, surviving reset, pulls
     LL_PWR_EnablePUPDCfg();
@@ -270,7 +252,7 @@ void furi_hal_resources_init_early(void) {
 }
 
 void furi_hal_resources_deinit_early(void) {
-    furi_hal_resources_init_input_pins(GpioModeAnalog);
+    // furi_hal_resources_init_input_pins(GpioModeAnalog);
     furi_hal_bus_disable(FuriHalBusGPIOA);
     furi_hal_bus_disable(FuriHalBusGPIOB);
     furi_hal_bus_disable(FuriHalBusGPIOC);
@@ -281,7 +263,7 @@ void furi_hal_resources_deinit_early(void) {
 
 void furi_hal_resources_init(void) {
     // Button pins
-   furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
+//    furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
 
     // SD pins
  //   furi_hal_gpio_init(&gpio_sdcard_cd, GpioModeInput, GpioPullNo, GpioSpeedLow);
@@ -309,8 +291,7 @@ void furi_hal_resources_init(void) {
     NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
     NVIC_EnableIRQ(EXTI4_IRQn);
 
-    // NVIC_SetPriority(EXTI6_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 8, 0));
-    // NVIC_EnableIRQ(EXTI6_IRQn);
+    // EXTI6 not used in this board configuration (MCP23017 INT line is routed elsewhere)
 
     NVIC_SetPriority(EXTI9_5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
     NVIC_EnableIRQ(EXTI9_5_IRQn);
