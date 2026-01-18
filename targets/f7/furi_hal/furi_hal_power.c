@@ -122,7 +122,8 @@ void furi_hal_power_insomnia_exit(void) {
 
 bool furi_hal_power_sleep_available(void) {
     // Return a default "always available" state
-    return true;
+    // return true;
+    return false;
 }
 
 // Remove internal static functions as they are no longer needed

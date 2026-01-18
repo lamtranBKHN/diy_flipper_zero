@@ -65,7 +65,7 @@ void furi_hal_init(void) {
 
 #ifndef FURI_RAM_EXEC
     furi_hal_usb_init();
-    // furi_hal_vibro_init();
+    furi_hal_vibro_init();
     furi_hal_subghz_init();
     // furi_hal_nfc_init();
     // furi_hal_rfid_init();
