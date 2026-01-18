@@ -1559,6 +1559,9 @@ Function,+,furi_hal_mcp23017_handle_int,void,
 Function,+,furi_hal_mcp23017_init,_Bool,
 Function,+,furi_hal_mcp23017_init_ex,_Bool,uint8_t
 Function,+,furi_hal_mcp23017_read_gpio,_Bool,uint16_t*
+Function,+,furi_hal_mcp23017_write_gpio,_Bool,uint16_t
+Function,+,furi_hal_mcp23017_write_pin,_Bool,"uint8_t, _Bool"
+Function,+,furi_hal_mcp23017_set_pin_direction,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_memory_alloc,void*,size_t
 Function,+,furi_hal_memory_get_free,size_t,
 Function,+,furi_hal_memory_init,void,

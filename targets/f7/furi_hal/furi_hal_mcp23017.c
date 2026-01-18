@@ -225,3 +225,38 @@ void furi_hal_mcp23017_attach_int(GpioExtiCallback cb, void* ctx) {
 void furi_hal_mcp23017_handle_int(void) {
     if(exti_cb) exti_cb(exti_ctx);
 }
+
+// Write full GPIO state: lower byte = GPIOA, upper byte = GPIOB
+bool furi_hal_mcp23017_write_gpio(uint16_t gpio_state) {
+    uint8_t a = (uint8_t)(gpio_state & 0xFF);
+    uint8_t b = (uint8_t)((gpio_state >> 8) & 0xFF);
+    // Write GPIOA then GPIOB
+    if(!mcp_write_reg(MCP_GPIOA, a)) return false;
+    if(!mcp_write_reg(MCP_GPIOB, b)) return false;
+    return true;
+}
+
+// Write a single pin (0-15). Pins 0-7 -> A; 8-15 -> B
+bool furi_hal_mcp23017_write_pin(uint8_t pin, bool value) {
+    if(pin > 15) return false;
+    uint8_t reg = (pin < 8) ? MCP_GPIOA : MCP_GPIOB;
+    uint8_t bit = (uint8_t)(1u << (pin & 0x7));
+    uint8_t cur;
+    if(!mcp_read_reg(reg, &cur)) return false;
+    if(value) cur |= bit;
+    else cur &= (uint8_t)~bit;
+    if(!mcp_write_reg(reg, cur)) return false;
+    return true;
+}
+
+// Set pin direction: true = input, false = output
+bool furi_hal_mcp23017_set_pin_direction(uint8_t pin, bool is_input) {
+    if(pin > 15) return false;
+    uint8_t iodir_reg = (pin < 8) ? MCP_IODIRA : MCP_IODIRB;
+    uint8_t bit = (uint8_t)(1u << (pin & 0x7));
+    uint8_t cur;
+    if(!mcp_read_reg(iodir_reg, &cur)) return false;
+    if(is_input) cur |= bit; else cur &= (uint8_t)~bit;
+    if(!mcp_write_reg(iodir_reg, cur)) return false;
+    return true;
+}

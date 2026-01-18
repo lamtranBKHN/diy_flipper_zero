@@ -145,57 +145,99 @@ uint8_t furi_hal_power_get_pct(void) {
     const float V_MAX = 4.20f; // 100%
     static float soc_percent = 100.0f; // runtime state-of-charge estimate
     static uint32_t last_ms = 0;
-    const float battery_capacity_mAh = 300.0f; // default battery capacity
+    const float battery_capacity_mAh = 120.0f; // default battery capacity
 
 #ifdef USE_INA219
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
-            // Voltage-based estimate (open-circuit approximation)
-            float vbat = v;
-            if(vbat <= V_MIN) vbat = V_MIN;
-            if(vbat >= V_MAX) vbat = V_MAX;
-            float v_frac = (vbat - V_MIN) / (V_MAX - V_MIN);
-
+            // Current sign convention (reversed shunt wiring): 
+            // NEGATIVE current = discharge, POSITIVE current = charge
+            
+            // Load-compensated voltage estimate (approximate internal resistance)
+            const float R_INTERNAL = 0.2f; // Ohms - typical for small Li-ion
+            // During discharge (i<0), measured V is lower than open-circuit
+            // V_oc = V_measured - i*R (since i is negative, this adds |i|*R)
+            float v_opencircuit = v - (i * R_INTERNAL);
+            
+            // Improved voltage-to-SOC curve (non-linear Li-ion discharge)
+            float v_clamped = v_opencircuit;
+            if(v_clamped < V_MIN) v_clamped = V_MIN;
+            if(v_clamped > V_MAX) v_clamped = V_MAX;
+            
+            // Non-linear voltage curve approximation for Li-ion
+            float v_norm = (v_clamped - V_MIN) / (V_MAX - V_MIN);
+            float v_soc = 0.0f;
+            if(v_norm < 0.1f) {
+                v_soc = v_norm * 50.0f; // Steep drop at low voltage (0-5%)
+            } else if(v_norm < 0.3f) {
+                v_soc = 5.0f + (v_norm - 0.1f) * 75.0f; // 5-20%
+            } else {
+                v_soc = 20.0f + (v_norm - 0.3f) * 114.3f; // 20-100%
+            }
+            
             // Coulomb counting integration
             uint32_t now = furi_get_tick();
-            if(last_ms == 0) last_ms = now;
+            if(last_ms == 0) {
+                // First run: initialize from voltage
+                last_ms = now;
+                soc_percent = v_soc;
+                curr_soc_percent = v_soc;
+            }
             uint32_t dt_ms = now - last_ms;
             last_ms = now;
-
-            // i is in A (can be negative for charging/discharging depending on wiring)
-            // Compute delta mAh = i(A) * dt(h) * 1000
+            
+            // Skip update if time delta is too small (avoid noise)
+            if(dt_ms < 100) {
+                return (uint8_t)(curr_soc_percent + 0.5f);
+            }
+            
+            // Compute capacity change
+            // i negative = discharge (removes capacity), i positive = charge (adds capacity)
             float delta_mAh = i * ((float)dt_ms / 3600000.0f) * 1000.0f;
-
-            // Update soc_percent by delta
             float delta_percent = (delta_mAh / battery_capacity_mAh) * 100.0f;
-            soc_percent -= delta_percent; // discharge reduces SOC
-
-            // Blend with voltage-based estimate to correct drift
-            float blended = (0.7f * soc_percent) + (0.3f * (v_frac * 100.0f));
+            // Positive i adds to SOC (charging), negative i reduces SOC (discharging)
+            float coulomb_soc = soc_percent + delta_percent;
+            
+            // Adaptive blending: trust coulomb counting more during active use,
+            // trust voltage more when current is low (settling)
+            float abs_i = (i < 0.0f) ? -i : i;
+            float weight_coulomb = 0.9f;
+            if(abs_i < 0.01f) { // Very low current (<10mA)
+                weight_coulomb = 0.3f; // Trust voltage more when idle
+            } else if(abs_i < 0.05f) {
+                weight_coulomb = 0.7f;
+            }
+            float weight_voltage = 1.0f - weight_coulomb;
+            
+            float blended = (weight_coulomb * coulomb_soc) + (weight_voltage * v_soc);
+            
+            // Apply bounds
             if(blended < 0.0f) blended = 0.0f;
             if(blended > 100.0f) blended = 100.0f;
             soc_percent = blended;
-            FURI_LOG_D(TAG, "INA219 voltage=%.3f V, current=%.3f A, SOC=%.2f%%", (double)vbat, (double)i, (double)soc_percent);
-            // if delta_mAh is smaller than 0, means discharging, in this case if soc_percent is greater than curr_soc_percent, do not update curr_soc_percent to avoid increasing soc_percent during discharging
-            if(delta_mAh < 0.0f) {
+            
+            // Monotonic enforcement: prevent counter-intuitive changes
+            // During discharge (i < -0.01A): SOC should not increase
+            // During charge (i > 0.01A): SOC should not decrease
+            if(i < -0.01f) { // Discharging
                 if(soc_percent > curr_soc_percent) {
-                    soc_percent = curr_soc_percent;
-                } else {
-                    curr_soc_percent = soc_percent;
+                    soc_percent = curr_soc_percent; // Don't increase during discharge
                 }
-            }
-            // if delta_mAh is greater than 0, means charging, in this case if soc_percent is less than curr_soc_percent, do not update curr_soc_percent to avoid decreasing soc_percent during charging
-            else if(delta_mAh > 0.0f) {
+            } else if(i > 0.01f) { // Charging
                 if(soc_percent < curr_soc_percent) {
-                    soc_percent = curr_soc_percent;
-                } else {
-                    curr_soc_percent = soc_percent;
+                    soc_percent = curr_soc_percent; // Don't decrease during charge
                 }
-            } else {
-                curr_soc_percent = soc_percent;
             }
-            return (uint8_t)(soc_percent + 0.5f);
+            
+            // Low-pass filter to smooth output (reduce jitter)
+            const float ALPHA = 0.3f; // Filter coefficient (0 = no smoothing, 1 = no filtering)
+            curr_soc_percent = (ALPHA * soc_percent) + ((1.0f - ALPHA) * curr_soc_percent);
+            
+            FURI_LOG_D(TAG, "INA219: V=%.3fV Voc=%.3fV I=%.3fA Vsoc=%.1f%% Csoc=%.1f%% Final=%.1f%%", 
+                      (double)v, (double)v_opencircuit, (double)i, (double)v_soc, (double)coulomb_soc, (double)curr_soc_percent);
+            
+            return (uint8_t)(curr_soc_percent + 0.5f);
         }
     }
 #endif
