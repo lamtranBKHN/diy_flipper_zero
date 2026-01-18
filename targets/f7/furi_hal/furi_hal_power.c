@@ -31,7 +31,7 @@
 #define TAG "FuriHalPower"
 
 // Remove TAG definition as logging won't happen
-// #define TAG "FuriHalPower"
+#define TAG "FuriHalPower"
 
 // Remove debug GPIO defines
 // #ifndef FURI_HAL_POWER_DEBUG_WFI_GPIO
@@ -47,20 +47,20 @@
 // #endif
 
 // Remove internal state struct
-// typedef struct {
-//     volatile uint8_t insomnia;
-//     volatile uint8_t suppress_charge;
-//     bool gauge_ok;
-//     bool charger_ok;
-// } FuriHalPower;
+typedef struct {
+    volatile uint8_t insomnia;
+    volatile uint8_t suppress_charge;
+    bool gauge_ok;
+    bool charger_ok;
+} FuriHalPower;
 
 // Remove global state variable
-// static volatile FuriHalPower furi_hal_power = {
-//     .insomnia = 0,
-//     .suppress_charge = 0,
-//     .gauge_ok = false,
-//     .charger_ok = false,
-// };
+static volatile FuriHalPower furi_hal_power = {
+    .insomnia = 0,
+    .suppress_charge = 0,
+    .gauge_ok = false,
+    .charger_ok = false,
+};
 
 // Remove extern declaration
 // extern const BQ27220DMData furi_hal_power_gauge_data_memory[];
@@ -109,21 +109,31 @@ bool furi_hal_power_is_shutdown_requested(void) {
 
 uint16_t furi_hal_power_insomnia_level(void) {
     // Return a default "no insomnia" state
-    return 0;
+    // return 0;
+    return furi_hal_power.insomnia;
 }
 
 void furi_hal_power_insomnia_enter(void) {
     // Do nothing
+    FURI_CRITICAL_ENTER();
+    furi_check(furi_hal_power.insomnia < UINT8_MAX);
+    furi_hal_power.insomnia++;
+    FURI_CRITICAL_EXIT();
 }
 
 void furi_hal_power_insomnia_exit(void) {
     // Do nothing
+    FURI_CRITICAL_ENTER();
+    furi_check(furi_hal_power.insomnia > 0);
+    furi_hal_power.insomnia--;
+    FURI_CRITICAL_EXIT();
 }
 
 bool furi_hal_power_sleep_available(void) {
     // Return a default "always available" state
     // return true;
-    return false;
+    // return false;
+    return furi_hal_power.insomnia == 0;
 }
 
 // Remove internal static functions as they are no longer needed

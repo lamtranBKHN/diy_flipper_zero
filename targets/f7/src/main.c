@@ -33,25 +33,24 @@ int main(void) {
     FuriThread* main_thread = furi_thread_alloc_ex("InitSrv", 4096, init_task, NULL);
     furi_thread_set_priority(main_thread, FuriThreadPriorityInit);
 
-// #ifdef FURI_RAM_EXEC
-//     // Prevent entering sleep mode when executed from RAM
-//     furi_hal_power_insomnia_enter();
-//     furi_thread_start(main_thread);
-// #else
-  //  furi_hal_light_sequence("RGB");
+#ifdef FURI_RAM_EXEC
+    // Prevent entering sleep mode when executed from RAM
+    // furi_hal_power_insomnia_enter();
+    furi_thread_start(main_thread);
+#else
+   furi_hal_light_sequence("RGB");
 
     // Delay is for button sampling
     furi_delay_ms(100);
 
    FuriHalRtcBootMode boot_mode = furi_hal_rtc_get_boot_mode();
-   // if(boot_mode == FuriHalRtcBootModeDfu || !furi_hal_gpio_read(&gpio_button_left)) {
-   //     furi_hal_light_sequence("rgb WB");
-   //     furi_hal_rtc_set_boot_mode(FuriHalRtcBootModeNormal);
-   //     flipper_boot_dfu_exec();
-   //     furi_hal_power_reset();
-    // //} else 
-    if(boot_mode == FuriHalRtcBootModeUpdate) {
-     //   furi_hal_light_sequence("rgb BR");
+   if(boot_mode == FuriHalRtcBootModeDfu) {
+       furi_hal_light_sequence("rgb WB");
+       furi_hal_rtc_set_boot_mode(FuriHalRtcBootModeNormal);
+       flipper_boot_dfu_exec();
+       furi_hal_power_reset();
+    } else if(boot_mode == FuriHalRtcBootModeUpdate) {
+       furi_hal_light_sequence("rgb BR");
         // Do update
         flipper_boot_update_exec();
         // if things go nice, we shouldn't reach this point.
@@ -64,14 +63,17 @@ int main(void) {
     //     flipper_boot_recovery_exec();
     //     furi_hal_power_reset();
     // } else {
-       // furi_hal_light_sequence("rgb G");
+       furi_hal_light_sequence("rgb G");
         if(boot_mode != FuriHalRtcBootModePostUpdate && boot_mode != FuriHalRtcBootModePreUpdate) {
             furi_hal_set_is_normal_boot(true);
         }
+        // Prevent entering sleep mode when executed from RAM
+        furi_hal_power_insomnia_enter();
+        
         furi_thread_start(main_thread);
-      //  button_sr_service_start();
+    //    button_sr_service_start();
     }
-//#endif
+#endif
 
     // Run Kernel
     furi_run();
