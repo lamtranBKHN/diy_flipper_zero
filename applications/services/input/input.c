@@ -230,19 +230,20 @@ int32_t input_srv(void* p) {
                 uint16_t prev = g_mcp_gpio_state;
                 g_mcp_gpio_state = new_state;
                 if(prev != new_state) {
-                    FURI_LOG_I(TAG, "MCP GPIO state changed 0x%04X -> 0x%04X", prev, new_state);
+                    // FURI_LOG_I(TAG, "MCP GPIO state changed 0x%04X -> 0x%04X", prev, new_state);
                     uint16_t changed = prev ^ new_state;
                     for(size_t j = 0; j < input_pins_count; j++) {
                         uint16_t mask = input_mcp_mask_for_index(j);
                         if(mask && (changed & mask)) {
                             bool now = (new_state & mask) != 0;
-                            FURI_LOG_I(
-                                TAG,
-                                "  Input idx %u (%s) MCPbit %u changed: %s",
-                                (unsigned)j,
-                                input_pins[j].name,
-                                (unsigned)(mcp_pin_map_default[j]),
-                                now ? "1" : "0");
+                            UNUSED(now);
+                            // FURI_LOG_I(
+                            //     TAG,
+                            //     "  Input idx %u (%s) MCPbit %u changed: %s",
+                            //     (unsigned)j,
+                            //     input_pins[j].name,
+                            //     (unsigned)(mcp_pin_map_default[j]),
+                            //     now ? "1" : "0");
                         }
                     }
                 }
@@ -283,7 +284,7 @@ int32_t input_srv(void* p) {
                     }
                     if(pin_states[i].press_counter < INPUT_LONG_PRESS_COUNTS) {
                         event.type = InputTypeShort;
-                        FURI_LOG_I(TAG, "Publish Short: key=%d seq=%u", event.key, event.sequence_counter);
+                        // FURI_LOG_I(TAG, "Publish Short: key=%d seq=%u", event.key, event.sequence_counter);
                         furi_pubsub_publish(event_pubsub, &event);
                     }
                     pin_states[i].press_counter = 0;
@@ -291,14 +292,14 @@ int32_t input_srv(void* p) {
 
                 // Send Press/Release event
                 event.type = pin_states[i].state ? InputTypePress : InputTypeRelease;
-                FURI_LOG_I(TAG, "Publish %s: key=%d seq=%u", pin_states[i].state ? "Press" : "Release", event.key, event.sequence_counter);
+                // FURI_LOG_I(TAG, "Publish %s: key=%d seq=%u", pin_states[i].state ? "Press" : "Release", event.key, event.sequence_counter);
                 furi_pubsub_publish(event_pubsub, &event);
 
 #ifdef INPUT_MCP_IMMEDIATE_PUBLISH
                 // Also publish an immediate short event for quicker UI testing
                 InputEvent dbg = event;
                 dbg.type = InputTypeShort;
-                FURI_LOG_I(TAG, "Immediate publish debug: key=%d", dbg.key);
+                // FURI_LOG_I(TAG, "Immediate publish debug: key=%d", dbg.key);
                 furi_pubsub_publish(event_pubsub, &dbg);
 #endif
                 // vibro signal if user setup vibro touch level in Settings-Input.

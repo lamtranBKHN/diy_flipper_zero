@@ -155,6 +155,9 @@ uint8_t furi_hal_power_get_pct(void) {
     const float V_MAX = 4.20f; // 100%
     static float soc_percent = 100.0f; // runtime state-of-charge estimate
     static uint32_t last_ms = 0;
+    static float smoothed_v = 0.0f;
+    static float smoothed_i = 0.0f;
+    static uint32_t transient_since_ms = 0;
     const float battery_capacity_mAh = 120.0f; // default battery capacity
 
 #ifdef USE_INA219
@@ -165,7 +168,8 @@ uint8_t furi_hal_power_get_pct(void) {
             // NEGATIVE current = discharge, POSITIVE current = charge
             
             // Load-compensated voltage estimate (approximate internal resistance)
-            const float R_INTERNAL = 0.2f; // Ohms - typical for small Li-ion
+            // Use a slightly larger internal resistance to better compensate
+            const float R_INTERNAL = 0.45f; // Ohms - tuned for observed swings
             // During discharge (i<0), measured V is lower than open-circuit
             // V_oc = V_measured - i*R (since i is negative, this adds |i|*R)
             float v_opencircuit = v - (i * R_INTERNAL);
@@ -187,15 +191,38 @@ uint8_t furi_hal_power_get_pct(void) {
             }
             
             // Coulomb counting integration
+            // Apply exponential smoothing to raw measurements to reduce transients
             uint32_t now = furi_get_tick();
             if(last_ms == 0) {
-                // First run: initialize from voltage
+                // First run: initialize from voltage/current
                 last_ms = now;
                 soc_percent = v_soc;
                 curr_soc_percent = v_soc;
+                smoothed_v = v_opencircuit;
+                smoothed_i = i;
+                transient_since_ms = 0;
             }
             uint32_t dt_ms = now - last_ms;
             last_ms = now;
+
+            // EMA smoothing (fixed alpha to avoid overreacting to short spikes)
+            const float ALPHA_V_EMA = 0.12f;
+            const float ALPHA_I_EMA = 0.12f;
+            float prev_smoothed_v = smoothed_v;
+            smoothed_v = (ALPHA_V_EMA * v_opencircuit) + ((1.0f - ALPHA_V_EMA) * smoothed_v);
+            smoothed_i = (ALPHA_I_EMA * i) + ((1.0f - ALPHA_I_EMA) * smoothed_i);
+
+            // Detect sudden voltage jumps (plug/unplug) and mark transient period
+            if(fabsf(v_opencircuit - prev_smoothed_v) > 0.07f) {
+                // Large change (>70mV) considered transient
+                transient_since_ms = now;
+            }
+
+            bool in_transient = false;
+            const uint32_t TRANSIENT_MS = 8000; // 8s settling window
+            if(transient_since_ms != 0 && (now - transient_since_ms) < TRANSIENT_MS) {
+                in_transient = true;
+            }
             
             // Skip update if time delta is too small (avoid noise)
             if(dt_ms < 100) {
@@ -209,24 +236,66 @@ uint8_t furi_hal_power_get_pct(void) {
             // Positive i adds to SOC (charging), negative i reduces SOC (discharging)
             float coulomb_soc = soc_percent + delta_percent;
             
-            // Adaptive blending: trust coulomb counting more during active use,
-            // trust voltage more when current is low (settling)
+            // Adaptive blending: trust coulomb counting during solid currents,
+            // but reduce trust during charge taper (near full voltage and low current)
             float abs_i = (i < 0.0f) ? -i : i;
-            float weight_coulomb = 0.9f;
-            if(abs_i < 0.01f) { // Very low current (<10mA)
-                weight_coulomb = 0.3f; // Trust voltage more when idle
-            } else if(abs_i < 0.05f) {
-                weight_coulomb = 0.7f;
+            // Use actual configured battery capacity when available
+            float battery_full = (float)furi_hal_power_get_battery_full_capacity();
+            if(battery_full <= 0.0f) battery_full = battery_capacity_mAh;
+
+            float weight_coulomb = 0.85f; // default
+            if(abs_i < 0.005f) { // extremely low current (<5mA)
+                // Very likely in taper/float — trust voltage more
+                weight_coulomb = 0.25f;
+            } else if(abs_i < 0.02f) { // low current (<20mA)
+                weight_coulomb = 0.5f;
+            } else if(abs_i < 0.1f) { // modest currents
+                weight_coulomb = 0.75f;
             }
+
+            // Use smoothed voltage for taper detection
+            float v_taper_check = smoothed_v;
+            // If voltage is very close to V_MAX, reduce coulomb trust (taper/float)
+            if(v_taper_check > (V_MAX - 0.03f)) { // within 30mV of max
+                // proportionally lower the coulomb weight as we approach full voltage
+                float near_full = (V_MAX - v_taper_check) / 0.03f; // 0..1 reversed
+                if(near_full < 0.0f) near_full = 0.0f;
+                if(near_full > 1.0f) near_full = 1.0f;
+                // when near_full==0 (at V_MAX), weight_coulomb minimal
+                weight_coulomb *= near_full;
+            }
+
+
             float weight_voltage = 1.0f - weight_coulomb;
-            
+
+            // If we are in a transient, favor previous smoothed SOC and voltage
+            if(in_transient) {
+                // During transient, reduce trust in instant voltage and favor
+                // previous SOC / coulomb estimate to avoid jumps on plug/unplug
+                weight_voltage = 0.15f;
+                weight_coulomb = 1.0f - weight_voltage;
+            }
+
             float blended = (weight_coulomb * coulomb_soc) + (weight_voltage * v_soc);
-            
+
             // Apply bounds
             if(blended < 0.0f) blended = 0.0f;
             if(blended > 100.0f) blended = 100.0f;
+
+            // Rate limit instantaneous SOC changes to avoid big jumps
+            // Allow at most 2% change per second (configurable)
+            float max_delta_per_sec = 2.0f; // percent per second
+            // During transients, be more conservative
+            if(in_transient) max_delta_per_sec = 0.5f;
+            float dt_sec = (float)dt_ms / 1000.0f;
+            if(dt_sec <= 0.0f) dt_sec = 1.0f;
+            float max_delta = max_delta_per_sec * dt_sec;
+            float delta = blended - curr_soc_percent;
+            if(delta > max_delta) blended = curr_soc_percent + max_delta;
+            else if(delta < -max_delta) blended = curr_soc_percent - max_delta;
+
             soc_percent = blended;
-            
+
             // Monotonic enforcement: prevent counter-intuitive changes
             // During discharge (i < -0.01A): SOC should not increase
             // During charge (i > 0.01A): SOC should not decrease
@@ -239,9 +308,10 @@ uint8_t furi_hal_power_get_pct(void) {
                     soc_percent = curr_soc_percent; // Don't decrease during charge
                 }
             }
-            
+
             // Low-pass filter to smooth output (reduce jitter)
-            const float ALPHA = 0.3f; // Filter coefficient (0 = no smoothing, 1 = no filtering)
+            // Use stronger smoothing to avoid quick jumps while charging
+            const float ALPHA = 0.25f; // lower alpha = stronger smoothing
             curr_soc_percent = (ALPHA * soc_percent) + ((1.0f - ALPHA) * curr_soc_percent);
             
             FURI_LOG_D(TAG, "INA219: V=%.3fV Voc=%.3fV I=%.3fA Vsoc=%.1f%% Csoc=%.1f%% Final=%.1f%%", 
