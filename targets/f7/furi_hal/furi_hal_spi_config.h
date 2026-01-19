@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
 /** Preset for ST25R916 */
-extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC;
+// extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC;
 
 /** Preset for CC1101 */
 extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m;

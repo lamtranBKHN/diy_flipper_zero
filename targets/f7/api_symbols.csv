@@ -1559,9 +1559,9 @@ Function,+,furi_hal_mcp23017_handle_int,void,
 Function,+,furi_hal_mcp23017_init,_Bool,
 Function,+,furi_hal_mcp23017_init_ex,_Bool,uint8_t
 Function,+,furi_hal_mcp23017_read_gpio,_Bool,uint16_t*
+Function,+,furi_hal_mcp23017_set_pin_direction,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_mcp23017_write_gpio,_Bool,uint16_t
 Function,+,furi_hal_mcp23017_write_pin,_Bool,"uint8_t, _Bool"
-Function,+,furi_hal_mcp23017_set_pin_direction,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_memory_alloc,void*,size_t
 Function,+,furi_hal_memory_get_free,size_t,
 Function,+,furi_hal_memory_init,void,
@@ -4359,7 +4359,6 @@ Variable,+,furi_hal_spi_bus_handle_subghz,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_preset_1edge_low_16m,const LL_SPI_InitTypeDef,
 Variable,+,furi_hal_spi_preset_1edge_low_2m,const LL_SPI_InitTypeDef,
 Variable,+,furi_hal_spi_preset_1edge_low_8m,const LL_SPI_InitTypeDef,
-Variable,+,furi_hal_spi_preset_1edge_low_8m_NFC,const LL_SPI_InitTypeDef,
 Variable,+,gpio_adc_battery_voltage,const GpioPin,
 Variable,+,gpio_cc1101_g0,const GpioPin,
 Variable,+,gpio_ext_pa4,const GpioPin,

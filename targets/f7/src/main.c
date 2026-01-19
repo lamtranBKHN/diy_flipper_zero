@@ -30,7 +30,7 @@ int main(void) {
     furi_hal_init_early();
 
     furi_hal_set_is_normal_boot(false);
-    FuriThread* main_thread = furi_thread_alloc_ex("InitSrv", 4096, init_task, NULL);
+    FuriThread* main_thread = furi_thread_alloc_ex("InitSrv", 1024, init_task, NULL);
     furi_thread_set_priority(main_thread, FuriThreadPriorityInit);
 
 #ifdef FURI_RAM_EXEC
@@ -69,7 +69,7 @@ int main(void) {
         }
         // Prevent entering sleep mode when executed from RAM
         furi_hal_power_insomnia_enter();
-        
+
         furi_thread_start(main_thread);
     //    button_sr_service_start();
     }

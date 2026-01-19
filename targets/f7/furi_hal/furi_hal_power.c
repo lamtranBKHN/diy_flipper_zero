@@ -73,7 +73,6 @@ float curr_soc_percent = 100.0f;
 void furi_hal_power_init(void) {
 #ifdef USE_INA219
     FURI_LOG_I(TAG, "Initializing INA219 power sensor");
-    // furi_delay_ms(2000);
     // Initialize our INA219 wrapper; detection result stored internally
     furi_hal_ina219_init();
     FURI_LOG_I(TAG, "INA219 initialization complete");

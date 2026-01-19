@@ -5,27 +5,13 @@
 #include <furi.h>
 
 // Include necessary LL drivers
-#include <stm32wbxx_ll_spi.h>
-#include <stm32wbxx_ll_gpio.h>
+// #include <stm32wbxx_ll_spi.h>
+// #include <stm32wbxx_ll_gpio.h>
 
 #define TAG "FuriHalSpiConfig"
 
 
-
-// const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m = {
-//     .TransferDirection = LL_SPI_FULL_DUPLEX,
-//     .Mode = LL_SPI_MODE_MASTER,
-//     .DataWidth = LL_SPI_DATAWIDTH_8BIT,
-//     .ClockPolarity = LL_SPI_POLARITY_LOW,
-//     .ClockPhase = LL_SPI_PHASE_1EDGE, // Mode 0
-//     .NSS = LL_SPI_NSS_SOFT,
-//     .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32, // ~8 MHz @ 64MHz Clock
-//     .BitOrder = LL_SPI_MSB_FIRST,
-//     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
-//     .CRCPoly = 7,
-// };
-
-const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC = {
+const LL_SPI_InitTypeDef furi_hal_spi_preset_2edge_low_8m = {
     .Mode = LL_SPI_MODE_MASTER,
     .TransferDirection = LL_SPI_FULL_DUPLEX,
     .DataWidth = LL_SPI_DATAWIDTH_8BIT,
@@ -38,19 +24,6 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m_NFC = {
     .CRCPoly = 7,
 };
 
-const LL_SPI_InitTypeDef furi_hal_spi_preset_2edge_low_8m = {
-    .Mode = LL_SPI_MODE_MASTER,
-    .TransferDirection = LL_SPI_FULL_DUPLEX,
-    .DataWidth = LL_SPI_DATAWIDTH_8BIT,
-    .ClockPolarity = LL_SPI_POLARITY_LOW,
-    .ClockPhase = LL_SPI_PHASE_2EDGE,
-    .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
-    .BitOrder = LL_SPI_MSB_FIRST,
-    .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
-    .CRCPoly = 7,
-};
-
 const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m = {
     .Mode = LL_SPI_MODE_MASTER,
     .TransferDirection = LL_SPI_FULL_DUPLEX,
@@ -58,20 +31,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
-    .BitOrder = LL_SPI_MSB_FIRST,
-    .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
-    .CRCPoly = 7,
-};
-
-const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_BTN = {
-    .Mode = LL_SPI_MODE_MASTER,
-    .TransferDirection = LL_SPI_FULL_DUPLEX,
-    .DataWidth = LL_SPI_DATAWIDTH_8BIT,
-    .ClockPolarity = LL_SPI_POLARITY_LOW,
-    .ClockPhase = LL_SPI_PHASE_1EDGE,
-    .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV64,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV8,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -84,7 +44,7 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_4m = {
     .ClockPolarity = LL_SPI_POLARITY_LOW,
     .ClockPhase = LL_SPI_PHASE_1EDGE,
     .NSS = LL_SPI_NSS_SOFT,
-    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV16,
     .BitOrder = LL_SPI_MSB_FIRST,
     .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
     .CRCPoly = 7,
@@ -448,11 +408,11 @@ static void furi_hal_spi_bus_handle_subghz_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_8m);
 }
 
-static void furi_hal_spi_bus_handle_nfc_wrapper_event_callback(
-    const FuriHalSpiBusHandle* handle,
-    FuriHalSpiBusHandleEvent event) {
-    furi_hal_spi_bus_nfc_handle_event_callback(handle, event, &furi_hal_spi_preset_1edge_low_8m_NFC);
-}
+// static void furi_hal_spi_bus_handle_nfc_wrapper_event_callback(
+//     const FuriHalSpiBusHandle* handle,
+//     FuriHalSpiBusHandleEvent event) {
+//     furi_hal_spi_bus_nfc_handle_event_callback(handle, event, &furi_hal_spi_preset_1edge_low_8m_NFC);
+// }
 
 // Wrapper for External handles - calls the specific external callback implementation
 static void furi_hal_spi_bus_handle_external_wrapper_event_callback(
@@ -500,26 +460,16 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_subghz = {
     .cs = &gpio_subghz_cs,
 };
 
-const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc = {
-    .bus = &furi_hal_spi_bus,
-    .callback = furi_hal_spi_bus_handle_nfc_wrapper_event_callback,
-    .miso = &gpio_spi_miso,
-    .mosi = &gpio_spi_mosi,
-    .sck = &gpio_spi_sck,
-    .cs = &gpio_nfc_cs,
-};
+const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc;
 
-// +++++++++ MOVED BLOCK START +++++++++
-// (Moved from above for better organization)
-// const FuriHalSpiBusHandle furi_hal_spi_bus_handle_button_sr = {
+// const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc = {
 //     .bus = &furi_hal_spi_bus,
-//     .callback = furi_hal_spi_bus_handle_button_sr_event_callback,
-//     .miso = &gpio_spi_miso_BTN,
+//     .callback = furi_hal_spi_bus_handle_nfc_wrapper_event_callback,
+//     .miso = &gpio_spi_miso,
 //     .mosi = &gpio_spi_mosi,
-//     .sck =  &gpio_spi_sck,
-//     .cs = &gpio_button_sr_latch,
+//     .sck = &gpio_spi_sck,
+//     .cs = &gpio_nfc_cs,
 // };
-
 
 // External Handles reinstated - pointing to shared SPI pins
 const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external = {
