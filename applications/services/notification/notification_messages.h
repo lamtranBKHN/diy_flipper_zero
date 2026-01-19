@@ -50,7 +50,7 @@ extern const NotificationMessage message_delay_1000;
 // Sound
 extern const NotificationMessage message_sound_off;
 
-// Vibration (dummy - no vibration hardware on this DIY device)
+// Vibration
 extern const NotificationMessage message_vibro_on;
 extern const NotificationMessage message_vibro_off;
 
@@ -59,7 +59,8 @@ extern const NotificationMessage message_do_not_reset;
 
 // Override user settings
 extern const NotificationMessage message_force_speaker_volume_setting_1f;
-
+extern const NotificationMessage message_force_vibro_setting_on;
+extern const NotificationMessage message_force_vibro_setting_off;
 extern const NotificationMessage message_force_display_brightness_setting_1f;
 
 // LCD Messages
@@ -74,8 +75,10 @@ extern const NotificationSequence sequence_reset_blue;
 extern const NotificationSequence sequence_reset_rgb;
 extern const NotificationSequence sequence_reset_display;
 extern const NotificationSequence sequence_reset_sound;
+extern const NotificationSequence sequence_reset_vibro;
 
-
+// Vibro
+extern const NotificationSequence sequence_set_vibro_on;
 
 // Display
 /** Display: backlight wakeup */

@@ -443,6 +443,7 @@ Function,-,SystemCoreClockUpdate,void,
 Function,-,SystemInit,void,
 Function,-,_Exit,void,int
 Function,+,__aeabi_uldivmod,void*,"uint64_t, uint64_t"
+Function,+,__aeabi_f2d,double,"float"
 Function,-,__assert,void,"const char*, int, const char*"
 Function,+,__assert_func,void,"const char*, int, const char*, const char*"
 Function,+,__clear_cache,void,"void*, void*"
@@ -4422,6 +4423,8 @@ Variable,+,message_display_backlight_on,const NotificationMessage,
 Variable,+,message_do_not_reset,const NotificationMessage,
 Variable,+,message_force_display_brightness_setting_1f,const NotificationMessage,
 Variable,+,message_force_speaker_volume_setting_1f,const NotificationMessage,
+Variable,+,message_force_vibro_setting_off,const NotificationMessage,
+Variable,+,message_force_vibro_setting_on,const NotificationMessage,
 Variable,+,message_green_0,const NotificationMessage,
 Variable,+,message_green_255,const NotificationMessage,
 Variable,+,message_lcd_contrast_update,const NotificationMessage,
@@ -4587,6 +4590,7 @@ Variable,+,sequence_reset_green,const NotificationSequence,
 Variable,+,sequence_reset_red,const NotificationSequence,
 Variable,+,sequence_reset_rgb,const NotificationSequence,
 Variable,+,sequence_reset_sound,const NotificationSequence,
+Variable,+,sequence_reset_vibro,const NotificationSequence,
 Variable,+,sequence_semi_success,const NotificationSequence,
 Variable,+,sequence_set_blue_255,const NotificationSequence,
 Variable,+,sequence_set_green_255,const NotificationSequence,
@@ -4594,6 +4598,7 @@ Variable,+,sequence_set_only_blue_255,const NotificationSequence,
 Variable,+,sequence_set_only_green_255,const NotificationSequence,
 Variable,+,sequence_set_only_red_255,const NotificationSequence,
 Variable,+,sequence_set_red_255,const NotificationSequence,
+Variable,+,sequence_set_vibro_on,const NotificationSequence,
 Variable,+,sequence_single_vibro,const NotificationSequence,
 Variable,+,sequence_solid_yellow,const NotificationSequence,
 Variable,+,sequence_success,const NotificationSequence,
