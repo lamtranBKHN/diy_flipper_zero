@@ -235,6 +235,37 @@ uint8_t furi_hal_power_get_pct(void) {
             float delta_percent = (delta_mAh / battery_capacity_mAh) * 100.0f;
             // Positive i adds to SOC (charging), negative i reduces SOC (discharging)
             float coulomb_soc = soc_percent + delta_percent;
+
+            // Charging-only mode: when charger is present (positive charge current),
+            // rely exclusively on coulomb counting using the configured
+            // `battery_capacity_mAh`. This prevents instantaneous voltage jumps
+            // (charger plug-in) from instantly pushing SOC to ~100%.
+            if(i > 0.01f) {
+                float new_soc = coulomb_soc;
+                if(new_soc < 0.0f) new_soc = 0.0f;
+                if(new_soc > 100.0f) new_soc = 100.0f;
+
+                // Rate limit instantaneous SOC changes to avoid big jumps
+                float max_delta_per_sec = 2.0f; // percent per second
+                if(in_transient) max_delta_per_sec = 0.5f;
+                float dt_sec_local = (float)dt_ms / 1000.0f;
+                if(dt_sec_local <= 0.0f) dt_sec_local = 1.0f;
+                float max_delta = max_delta_per_sec * dt_sec_local;
+                float delta_local = new_soc - curr_soc_percent;
+                if(delta_local > max_delta) new_soc = curr_soc_percent + max_delta;
+                else if(delta_local < -max_delta) new_soc = curr_soc_percent - max_delta;
+
+                soc_percent = new_soc;
+
+                // Low-pass filter to smooth output (reduce jitter)
+                const float ALPHA_LOCAL = 0.25f;
+                curr_soc_percent = (ALPHA_LOCAL * soc_percent) + ((1.0f - ALPHA_LOCAL) * curr_soc_percent);
+
+                FURI_LOG_D(TAG, "INA219 CHARGING-ONLY: V=%.3fV Voc=%.3fV I=%.3fA Csoc=%.1f%% Final=%.1f%%",
+                          (double)v, (double)v_opencircuit, (double)i, (double)coulomb_soc, (double)curr_soc_percent);
+
+                return (uint8_t)(curr_soc_percent + 0.5f);
+            }
             
             // Adaptive blending: trust coulomb counting during solid currents,
             // but reduce trust during charge taper (near full voltage and low current)
@@ -255,24 +286,43 @@ uint8_t furi_hal_power_get_pct(void) {
 
             // Use smoothed voltage for taper detection
             float v_taper_check = smoothed_v;
-            // If voltage is very close to V_MAX, reduce coulomb trust (taper/float)
+            // If voltage is very close to V_MAX and current is very low, reduce
+            // coulomb trust (taper/float). For charger plug-in events (sudden
+            // voltage rise) we do NOT want voltage to dominate the SOC
+            // estimate, so only apply taper when the current is extremely low.
             if(v_taper_check > (V_MAX - 0.03f)) { // within 30mV of max
-                // proportionally lower the coulomb weight as we approach full voltage
                 float near_full = (V_MAX - v_taper_check) / 0.03f; // 0..1 reversed
                 if(near_full < 0.0f) near_full = 0.0f;
                 if(near_full > 1.0f) near_full = 1.0f;
-                // when near_full==0 (at V_MAX), weight_coulomb minimal
-                weight_coulomb *= near_full;
+                // Only reduce coulomb weight when current is extremely low
+                if(abs_i < 0.005f) {
+                    weight_coulomb *= near_full;
+                }
             }
-
 
             float weight_voltage = 1.0f - weight_coulomb;
 
-            // If we are in a transient, favor previous smoothed SOC and voltage
+            // If we are in a transient, favor coulomb counting (avoid voltage jumps)
             if(in_transient) {
-                // During transient, reduce trust in instant voltage and favor
-                // previous SOC / coulomb estimate to avoid jumps on plug/unplug
-                weight_voltage = 0.15f;
+                // During transient, strongly reduce trust in instant voltage to
+                // avoid immediate SOC jumps when the charger is plugged or
+                // when the measured voltage steps suddenly.
+                // If charging, be extra conservative.
+                if(i > 0.01f) {
+                    // Charging: almost ignore instantaneous voltage for a short time
+                    weight_voltage = 0.02f;
+                } else {
+                    // Not charging: still favour coulomb estimate but allow a little
+                    weight_voltage = 0.08f;
+                }
+                weight_coulomb = 1.0f - weight_voltage;
+            }
+
+            // If we see a sudden voltage rise while charging, further deprioritize
+            // the voltage-based SOC for a short window to avoid the plug-in jump.
+            if(i > 0.01f && fabsf(v_opencircuit - prev_smoothed_v) > 0.03f) {
+                float adj = 0.05f; // base voltage trust during charger transient
+                if(weight_voltage > adj) weight_voltage = adj;
                 weight_coulomb = 1.0f - weight_voltage;
             }
 
@@ -373,14 +423,25 @@ bool furi_hal_power_is_charging_done(void) {
     return false;
 }
 
-FURI_NORETURN void furi_hal_power_shutdown(void) {
+void furi_hal_power_shutdown(void) {
     // Must not return
+    // TODO: Clear and deinit the screen first
+
+    // TODO: Then deinit peripherals
+
+    // Then Prepare Wakeup pin (boot0 pin)
+
+    // Then Release RCC semaphore
+
+    // Finally, vibrate briefly to indicate shutdown
+    
     while(1) {
     }
 }
 
 void furi_hal_power_off(void) {
     // Do nothing
+    furi_hal_power_shutdown();
 }
 
 FURI_NORETURN void furi_hal_power_reset(void) {

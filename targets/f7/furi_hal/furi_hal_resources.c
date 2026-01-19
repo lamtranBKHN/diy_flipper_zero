@@ -32,7 +32,7 @@ const GpioPin gpio_nfc_cs = {.port = NFC_CS_GPIO_Port, .pin = NFC_CS_Pin};
 
 const GpioPin gpio_spi_miso = {.port = SPI_MISO_GPIO_Port, .pin = SPI_MISO_Pin};
 const GpioPin gpio_spi_mosi = {.port = SPI_MOSI_GPIO_Port, .pin = SPI_MOSI_Pin};
-const GpioPin gpio_spi_mosi1 = {.port = SPI_MOSI_GPIO_Port1, .pin = SPI_MOSI_Pin1};
+// const GpioPin gpio_spi_mosi1 = {.port = SPI_MOSI_GPIO_Port1, .pin = SPI_MOSI_Pin1};
 const GpioPin gpio_spi_sck = {.port = SPI_SCK_GPIO_Port, .pin = SPI_SCK_Pin};
 
 const GpioPin gpio_ext_pc0 = {.port = PC0_GPIO_Port, .pin = PC0_Pin};

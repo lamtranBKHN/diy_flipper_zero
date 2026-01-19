@@ -80,7 +80,7 @@ extern const GpioPin gpio_nfc_cs;
 
 extern const GpioPin gpio_spi_miso;
 extern const GpioPin gpio_spi_mosi;
-extern const GpioPin gpio_spi_mosi1;
+// extern const GpioPin gpio_spi_mosi1;
 extern const GpioPin gpio_spi_sck;
 
 extern const GpioPin gpio_ext_pc0;
@@ -148,10 +148,10 @@ extern const GpioPin gpio_adc_battery_voltage;
 
 #define PA4_GPIO_Port GPIOA
 #define PA4_Pin       LL_GPIO_PIN_4
-#define PA6_GPIO_Port GPIOB
-#define PA6_Pin       LL_GPIO_PIN_4
-#define PA7_GPIO_Port GPIOB
-#define PA7_Pin       LL_GPIO_PIN_5
+#define PA6_GPIO_Port GPIOA
+#define PA6_Pin       LL_GPIO_PIN_6
+#define PA7_GPIO_Port GPIOA
+#define PA7_Pin       LL_GPIO_PIN_7
 #define PB2_GPIO_Port GPIOB
 #define PB2_Pin       LL_GPIO_PIN_2
 #define PB3_GPIO_Port GPIOB
@@ -184,11 +184,12 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define SD_CS_GPIO_Port GPIOA
 #define SD_CS_Pin       LL_GPIO_PIN_10
 
-#define SPEAKER_GPIO_Port GPIOA
 // MCP23017 interrupt default pin
 #define MCP_INT_GPIO_Port GPIOB
 #define MCP_INT_Pin       LL_GPIO_PIN_0
-#define SPEAKER_Pin       LL_GPIO_PIN_6
+
+#define SPEAKER_GPIO_Port GPIOB
+#define SPEAKER_Pin       LL_GPIO_PIN_8
 
 #define VIBRO_GPIO_Port GPIOC
 #define VIBRO_Pin       LL_GPIO_PIN_0
@@ -201,12 +202,12 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define USART1_RX_Pin  LL_GPIO_PIN_7
 #define USART1_RX_Port GPIOB
 
-#define SPI_MISO_GPIO_Port GPIOB
-#define SPI_MISO_Pin       LL_GPIO_PIN_4
-#define SPI_MOSI_GPIO_Port1 GPIOC
-#define SPI_MOSI_Pin1       LL_GPIO_PIN_0
-#define SPI_MOSI_GPIO_Port GPIOB
-#define SPI_MOSI_Pin       LL_GPIO_PIN_5
+#define SPI_MISO_GPIO_Port GPIOA
+#define SPI_MISO_Pin       LL_GPIO_PIN_6
+// #define SPI_MOSI_GPIO_Port1 GPIOC
+// #define SPI_MOSI_Pin1       LL_GPIO_PIN_0
+#define SPI_MOSI_GPIO_Port GPIOA
+#define SPI_MOSI_Pin       LL_GPIO_PIN_7
 #define SPI_SCK_GPIO_Port  GPIOB
 #define SPI_SCK_Pin        LL_GPIO_PIN_3
 

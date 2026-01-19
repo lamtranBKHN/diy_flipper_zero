@@ -442,8 +442,8 @@ Function,-,SK6805_update,void,
 Function,-,SystemCoreClockUpdate,void,
 Function,-,SystemInit,void,
 Function,-,_Exit,void,int
+Function,+,__aeabi_f2d,double,float
 Function,+,__aeabi_uldivmod,void*,"uint64_t, uint64_t"
-Function,+,__aeabi_f2d,double,"float"
 Function,-,__assert,void,"const char*, int, const char*"
 Function,+,__assert_func,void,"const char*, int, const char*, const char*"
 Function,+,__clear_cache,void,"void*, void*"
@@ -4383,7 +4383,6 @@ Variable,+,gpio_sdcard_cs,const GpioPin,
 Variable,+,gpio_speaker,const GpioPin,
 Variable,+,gpio_spi_miso,const GpioPin,
 Variable,+,gpio_spi_mosi,const GpioPin,
-Variable,+,gpio_spi_mosi1,const GpioPin,
 Variable,+,gpio_spi_sck,const GpioPin,
 Variable,+,gpio_subghz_cs,const GpioPin,
 Variable,+,gpio_swclk,const GpioPin,
