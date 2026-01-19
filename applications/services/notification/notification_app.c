@@ -57,9 +57,25 @@ static void
     }
 }
 
-static void notification_apply_lcd_contrast(NotificationApp* app) {
+static void notification_apply_lcd_contrast(NotificationApp* app, uint8_t contrast) {
+    UNUSED(app);
     Gui* gui = furi_record_open(RECORD_GUI);
-    u8x8_d_st756x_set_contrast(&gui->canvas->fb.u8x8, app->settings.contrast);
+    u8x8_t* u8x8 = &gui->canvas->fb.u8x8;
+
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    
+    uint32_t i2c_addr = (uint32_t)u8x8_GetI2CAddress(u8x8);
+    // FURI_LOG_I(TAG, "u8x8 I2C address (raw) = 0x%02X", (unsigned int)i2c_addr);
+
+    uint8_t tx_buf0[3];
+    tx_buf0[0] = 0x00; // control byte: Co=0, D/C#=0 (command)
+    tx_buf0[1] = 0x81; // SETCONTRAST
+    tx_buf0[2] = (uint8_t)contrast;
+
+    bool ok1 = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, i2c_addr, tx_buf0, sizeof(tx_buf0), 50);
+    FURI_LOG_D(TAG, "Direct I2C (control=0x00) map=%d tx result: %d", (int)contrast, (int)ok1);
+    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+
     furi_record_close(RECORD_GUI);
 }
 
@@ -129,7 +145,12 @@ static void notification_reset_notification_layer(
     }
     if(reset_mask & reset_display_mask) {
         if(!float_is_equal(display_brightness_set, app->settings.display_brightness)) {
-            furi_hal_light_set(LightBacklight, app->settings.display_brightness * 0xFF);
+            // furi_hal_light_set(LightBacklight, app->settings.display_brightness * 0xFF);
+            // Update LCD contrast after brightness change so SH1106 reflects new value
+            int contrast = 127 + (app->settings.contrast * 20); // 20 = 255 / (2 * 8)
+            if(contrast < 0) contrast = 0;
+            if(contrast > 255) contrast = 255;
+            notification_apply_lcd_contrast(app, (uint8_t)contrast);
         }
         furi_timer_start(app->display_timer, notification_settings_display_off_delay_ticks(app));
     }
@@ -354,7 +375,11 @@ static void notification_process_notification_message(
             reset_mask |= reset_blue_mask;
             break;
         case NotificationMessageTypeLcdContrastUpdate:
-            notification_apply_lcd_contrast(app);
+            // FURI_LOG_I(TAG, "Received LcdContrastUpdate message");
+            int contrast = 127 + (app->settings.contrast * 20); // 20 = 255 / (2 * 8)
+            if(contrast < 0) contrast = 0;
+            if(contrast > 255) contrast = 255;  
+            notification_apply_lcd_contrast(app, (uint8_t)contrast);
             break;
         }
         notification_message_index++;
@@ -521,8 +546,10 @@ static void notification_apply_settings(NotificationApp* app) {
     if(!notification_load_settings(app)) {
         // notification_save_settings(app);
     }
-
-    notification_apply_lcd_contrast(app);
+    int contrast = 127 + (app->settings.contrast * 20); // 20 = 255 / (2 * 8)
+    if(contrast < 0) contrast = 0;
+    if(contrast > 255) contrast = 255;
+    notification_apply_lcd_contrast(app, (uint8_t)contrast);
 }
 
 static void notification_init_settings(NotificationApp* app) {

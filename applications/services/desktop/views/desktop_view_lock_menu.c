@@ -115,7 +115,9 @@ void desktop_lock_menu_draw_callback(Canvas* canvas, void* model) {
             break;
         case DesktopLockMenuIndexBrightness:
             icon = &I_Pin_star_7x7;
-            value = total - m->lock_menu->notification->settings.display_brightness * total;
+            // Contrast is -8..+8; map to 0..total and invert for visual
+            // (contrast + 8) -> 0..16, then scale to total
+            value = total - ((int)(m->lock_menu->notification->settings.contrast + 8) * total + 8) / 16;
             break;
         case DesktopLockMenuIndexVolume:
             icon = m->stealth_mode ? &I_Muted_8x8 : &I_Volup_8x6;
@@ -325,11 +327,19 @@ bool desktop_lock_menu_input_callback(InputEvent* event, void* context) {
                 float value;
                 switch(idx) {
                 case DesktopLockMenuIndexBrightness:
-                    value = lock_menu->notification->settings.display_brightness + 0.05 * offset;
-                    lock_menu->notification->settings.display_brightness =
-                        value < 0.00f ? 0.00f : (value > 1.00f ? 1.00f : value);
-                    lock_menu->save_notification = true;
-                    notification_message(lock_menu->notification, &sequence_display_backlight_on);
+                    // Contrast setting is from -8 to 8
+                    {
+                        int8_t contrast_offset = lock_menu->notification->settings.contrast + offset;
+                        if(contrast_offset < -8) {
+                            contrast_offset = -8;
+                        } else if(contrast_offset > 8) {
+                            contrast_offset = 8;
+                        }
+                        lock_menu->notification->settings.contrast = contrast_offset;
+                        lock_menu->save_notification = true;
+                        // Update OLED contrast
+                        notification_message(lock_menu->notification, &sequence_lcd_contrast_update);
+                    }
                     break;
                 case DesktopLockMenuIndexVolume:
                     value = lock_menu->notification->settings.speaker_volume + 0.05 * offset;
