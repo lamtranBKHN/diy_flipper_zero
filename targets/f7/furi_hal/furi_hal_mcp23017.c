@@ -260,3 +260,53 @@ bool furi_hal_mcp23017_set_pin_direction(uint8_t pin, bool is_input) {
     if(!mcp_write_reg(iodir_reg, cur)) return false;
     return true;
 }
+
+// LED control functions - RGB LEDs on MCP23017 port B (B1=RED, B2=GREEN, B3=BLUE)
+// Initialize RGB LED pins as outputs and turn them off
+bool furi_hal_mcp23017_led_init(void) {
+    // Configure B1, B2, B3 as outputs (0 = output)
+    // B1 = pin 9, B2 = pin 10, B3 = pin 11
+    if(!furi_hal_mcp23017_set_pin_direction(9, false)) return false;
+    if(!furi_hal_mcp23017_set_pin_direction(10, false)) return false;
+    if(!furi_hal_mcp23017_set_pin_direction(11, false)) return false;
+    
+    // Turn all LEDs off
+    if(!furi_hal_mcp23017_write_pin(9, false)) return false;
+    if(!furi_hal_mcp23017_write_pin(10, false)) return false;
+    if(!furi_hal_mcp23017_write_pin(11, false)) return false;
+    
+    FURI_LOG_I(TAG, "RGB LED initialized on MCP23017");
+    return true;
+}
+
+// Set individual LED colors (on/off only, no PWM)
+bool furi_hal_mcp23017_led_set_red(bool on) {
+    return furi_hal_mcp23017_write_pin(9, on);
+}
+
+bool furi_hal_mcp23017_led_set_green(bool on) {
+    return furi_hal_mcp23017_write_pin(10, on);
+}
+
+bool furi_hal_mcp23017_led_set_blue(bool on) {
+    return furi_hal_mcp23017_write_pin(11, on);
+}
+
+// Set all three LED colors at once
+bool furi_hal_mcp23017_led_set_color(bool red, bool green, bool blue) {
+    if(!furi_hal_mcp23017_led_set_red(red)) return false;
+    if(!furi_hal_mcp23017_led_set_green(green)) return false;
+    if(!furi_hal_mcp23017_led_set_blue(blue)) return false;
+    return true;
+}
+
+// Set LED with brightness value (0x00 = off, 0xFF = on)
+bool furi_hal_mcp23017_led_set(uint8_t red, uint8_t green, uint8_t blue) {
+    // Convert brightness to on/off: anything > 0x7F is considered "on"
+    return furi_hal_mcp23017_led_set_color(red > 0x7F, green > 0x7F, blue > 0x7F);
+}
+
+// Turn all LEDs off
+bool furi_hal_mcp23017_led_off(void) {
+    return furi_hal_mcp23017_led_set_color(false, false, false);
+}
