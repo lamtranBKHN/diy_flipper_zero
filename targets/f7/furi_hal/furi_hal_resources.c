@@ -52,11 +52,11 @@ const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
 const GpioPin gpio_usart_tx = {.port = USART1_TX_Port, .pin = USART1_TX_Pin};
 const GpioPin gpio_usart_rx = {.port = USART1_RX_Port, .pin = USART1_RX_Pin};
 
-const GpioPin gpio_i2c_sda = {.port = I2C_1_SDA_GPIO_Port, .pin = I2C_1_SDA_Pin};
-const GpioPin gpio_i2c_scl = {.port = I2C_1_SCL_GPIO_Port, .pin = I2C_1_SCL_Pin};
+const GpioPin gpio_i2c_1_sda = {.port = I2C_1_SDA_GPIO_Port, .pin = I2C_1_SDA_Pin};
+const GpioPin gpio_i2c_1_scl = {.port = I2C_1_SCL_GPIO_Port, .pin = I2C_1_SCL_Pin};
 
-const GpioPin gpio_i2c_1_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
-const GpioPin gpio_i2c_1_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
+const GpioPin gpio_i2c_3_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
+const GpioPin gpio_i2c_3_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
 
 
 const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};

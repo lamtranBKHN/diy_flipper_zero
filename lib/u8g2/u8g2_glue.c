@@ -31,19 +31,19 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
     case U8X8_MSG_GPIO_I2C_CLOCK:
         // Software I2C - control SCL pin (PA9)
         if(arg_int) {
-            furi_hal_gpio_init_simple(&gpio_i2c_scl, GpioModeInput);
+            furi_hal_gpio_init_simple(&gpio_i2c_1_scl, GpioModeInput);
         } else {
-            furi_hal_gpio_init_simple(&gpio_i2c_scl, GpioModeOutputOpenDrain);
-            furi_hal_gpio_write(&gpio_i2c_scl, false);
+            furi_hal_gpio_init_simple(&gpio_i2c_1_scl, GpioModeOutputOpenDrain);
+            furi_hal_gpio_write(&gpio_i2c_1_scl, false);
         }
         break;
     case U8X8_MSG_GPIO_I2C_DATA:
         // Software I2C - control SDA pin (PB9)
         if(arg_int) {
-            furi_hal_gpio_init_simple(&gpio_i2c_sda, GpioModeInput);
+            furi_hal_gpio_init_simple(&gpio_i2c_1_sda, GpioModeInput);
         } else {
-            furi_hal_gpio_init_simple(&gpio_i2c_sda, GpioModeOutputOpenDrain);
-            furi_hal_gpio_write(&gpio_i2c_sda, false);
+            furi_hal_gpio_init_simple(&gpio_i2c_1_sda, GpioModeOutputOpenDrain);
+            furi_hal_gpio_write(&gpio_i2c_1_sda, false);
         }
         break;
     default:

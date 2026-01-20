@@ -1567,6 +1567,7 @@ Function,+,furi_hal_mcp23017_led_set_color,_Bool,"_Bool, _Bool, _Bool"
 Function,+,furi_hal_mcp23017_led_set_green,_Bool,_Bool
 Function,+,furi_hal_mcp23017_led_set_red,_Bool,_Bool
 Function,+,furi_hal_mcp23017_read_gpio,_Bool,uint16_t*
+Function,+,furi_hal_mcp23017_set_i2c_bus,void,const FuriHalI2cBusHandle*
 Function,+,furi_hal_mcp23017_set_pin_direction,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_mcp23017_write_gpio,_Bool,uint16_t
 Function,+,furi_hal_mcp23017_write_pin,_Bool,"uint8_t, _Bool"
@@ -4378,8 +4379,8 @@ Variable,+,gpio_ext_pc1,const GpioPin,
 Variable,+,gpio_ext_pc3,const GpioPin,
 Variable,+,gpio_i2c_1_scl,const GpioPin,
 Variable,+,gpio_i2c_1_sda,const GpioPin,
-Variable,+,gpio_i2c_scl,const GpioPin,
-Variable,+,gpio_i2c_sda,const GpioPin,
+Variable,+,gpio_i2c_3_scl,const GpioPin,
+Variable,+,gpio_i2c_3_sda,const GpioPin,
 Variable,+,gpio_ibutton,const GpioPin,
 Variable,+,gpio_infrared_rx,const GpioPin,
 Variable,+,gpio_infrared_tx,const GpioPin,

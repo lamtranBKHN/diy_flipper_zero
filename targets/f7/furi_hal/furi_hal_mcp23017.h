@@ -3,12 +3,18 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "furi_hal_gpio.h"
+#include "furi_hal_i2c.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef void (*Mcp23017IntCallback)(void* ctx);
+
+// Set which I2C bus to use (power or external). Call BEFORE init().
+// Default is I2C1 (furi_hal_i2c_handle_power) for early boot compatibility.
+// Call this to switch to I2C3: furi_hal_mcp23017_set_i2c_bus(&furi_hal_i2c_handle_external);
+void furi_hal_mcp23017_set_i2c_bus(const FuriHalI2cBusHandle* bus_handle);
 
 // Initialize MCP23017 at given I2C address (7-bit)
 // Note: public no-arg API maintained for compatibility.

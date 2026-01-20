@@ -103,11 +103,11 @@ extern const GpioPin gpio_infrared_tx;
 extern const GpioPin gpio_usart_tx;
 extern const GpioPin gpio_usart_rx;
 
-extern const GpioPin gpio_i2c_sda;
-extern const GpioPin gpio_i2c_scl;
-
 extern const GpioPin gpio_i2c_1_sda;
 extern const GpioPin gpio_i2c_1_scl;
+
+extern const GpioPin gpio_i2c_3_sda;
+extern const GpioPin gpio_i2c_3_scl;
 
 extern const GpioPin gpio_speaker;
 
