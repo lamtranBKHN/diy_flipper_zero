@@ -106,6 +106,9 @@ extern const GpioPin gpio_usart_rx;
 extern const GpioPin gpio_i2c_sda;
 extern const GpioPin gpio_i2c_scl;
 
+extern const GpioPin gpio_i2c_1_sda;
+extern const GpioPin gpio_i2c_1_scl;
+
 extern const GpioPin gpio_speaker;
 
 //extern const GpioPin gpio_periph_power;
@@ -120,9 +123,9 @@ extern const GpioPin gpio_usb_dp;
 // extern const GpioPin gpio_button_sr_latch;
 
 // ADC for battery voltage measurement
-extern const GpioPin gpio_adc_battery_voltage;
-#define ADC_BATTERY_VOLTAGE_GPIO_Port GPIOA
-#define ADC_BATTERY_VOLTAGE_Pin       LL_GPIO_PIN_0
+// extern const GpioPin gpio_adc_battery_voltage;
+// #define ADC_BATTERY_VOLTAGE_GPIO_Port GPIOA
+// #define ADC_BATTERY_VOLTAGE_Pin       LL_GPIO_PIN_0
 
 //extern const GpioPin gpio_button_sr_latch;
 
@@ -138,10 +141,10 @@ extern const GpioPin gpio_adc_battery_voltage;
 // #define DISPLAY_RST_GPIO_Port GPIOB
 // #define DISPLAY_RST_Pin       LL_GPIO_PIN_0
 
-#define IR_RX_GPIO_Port GPIOB
-#define IR_RX_Pin       LL_GPIO_PIN_2
-#define IR_TX_GPIO_Port GPIOC
-#define IR_TX_Pin       LL_GPIO_PIN_0
+#define IR_RX_GPIO_Port GPIOA
+#define IR_RX_Pin       LL_GPIO_PIN_0
+#define IR_TX_GPIO_Port GPIOA
+#define IR_TX_Pin       LL_GPIO_PIN_8
 
 #define NFC_CS_GPIO_Port GPIOE
 #define NFC_CS_Pin       LL_GPIO_PIN_4
@@ -206,17 +209,22 @@ extern const GpioPin gpio_adc_battery_voltage;
 #define SPI_MISO_Pin       LL_GPIO_PIN_6
 // #define SPI_MOSI_GPIO_Port1 GPIOC
 // #define SPI_MOSI_Pin1       LL_GPIO_PIN_0
-#define SPI_MOSI_GPIO_Port GPIOA
-#define SPI_MOSI_Pin       LL_GPIO_PIN_7
+#define SPI_MOSI_GPIO_Port GPIOB
+#define SPI_MOSI_Pin       LL_GPIO_PIN_5
 #define SPI_SCK_GPIO_Port  GPIOB
 #define SPI_SCK_Pin        LL_GPIO_PIN_3
 
 // #define NFC_IRQ_Pin       LL_GPIO_PIN_2
 // #define NFC_IRQ_GPIO_Port GPIOA
 
-#define I2C_3_SCL_Pin       LL_GPIO_PIN_9
+#define I2C_1_SCL_Pin       LL_GPIO_PIN_9
+#define I2C_1_SCL_GPIO_Port GPIOA
+#define I2C_1_SDA_Pin       LL_GPIO_PIN_9
+#define I2C_1_SDA_GPIO_Port GPIOB
+
+#define I2C_3_SCL_Pin       LL_GPIO_PIN_7
 #define I2C_3_SCL_GPIO_Port GPIOA
-#define I2C_3_SDA_Pin       LL_GPIO_PIN_9
+#define I2C_3_SDA_Pin       LL_GPIO_PIN_4
 #define I2C_3_SDA_GPIO_Port GPIOB
 
 void furi_hal_resources_init_early(void);

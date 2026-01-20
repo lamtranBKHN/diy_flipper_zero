@@ -122,9 +122,9 @@ void furi_hal_i2c_bus_handle_external_event(
     FuriHalI2cBusHandleEvent event) {
     if(event == FuriHalI2cBusHandleEventActivate) {
         furi_hal_gpio_init_ex(
-            &gpio_ext_pc0, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedLow, GpioAltFn4I2C3);
+            &gpio_i2c_1_scl, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedLow, GpioAltFn4I2C3);
         furi_hal_gpio_init_ex(
-            &gpio_ext_pc1, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedLow, GpioAltFn4I2C3);
+            &gpio_i2c_1_sda, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedLow, GpioAltFn4I2C3);
 
         LL_I2C_InitTypeDef I2C_InitStruct;
         I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
@@ -143,12 +143,12 @@ void furi_hal_i2c_bus_handle_external_event(
         LL_I2C_EnableClockStretching(handle->bus->i2c);
     } else if(event == FuriHalI2cBusHandleEventDeactivate) {
         LL_I2C_Disable(handle->bus->i2c);
-        furi_hal_gpio_write(&gpio_ext_pc0, 1);
-        furi_hal_gpio_write(&gpio_ext_pc1, 1);
+        furi_hal_gpio_write(&gpio_i2c_1_scl, 1);
+        furi_hal_gpio_write(&gpio_i2c_1_sda, 1);
         furi_hal_gpio_init_ex(
-            &gpio_ext_pc0, GpioModeAnalog, GpioPullNo, GpioSpeedLow, GpioAltFnUnused);
+            &gpio_i2c_1_scl, GpioModeAnalog, GpioPullNo, GpioSpeedLow, GpioAltFnUnused);
         furi_hal_gpio_init_ex(
-            &gpio_ext_pc1, GpioModeAnalog, GpioPullNo, GpioSpeedLow, GpioAltFnUnused);
+            &gpio_i2c_1_sda, GpioModeAnalog, GpioPullNo, GpioSpeedLow, GpioAltFnUnused);
     }
 }
 
@@ -156,9 +156,10 @@ FuriHalI2cBus furi_hal_i2c_bus_external = {
     .i2c = I2C3,
     .callback = furi_hal_i2c_bus_external_event,
 };
-// const FuriHalI2cBusHandle furi_hal_i2c_handle_external = {
-//     .bus = &furi_hal_i2c_bus_external,
-//     .callback = furi_hal_i2c_bus_handle_external_event,
-// };
 
-const FuriHalI2cBusHandle furi_hal_i2c_handle_external =  furi_hal_i2c_handle_power;
+const FuriHalI2cBusHandle furi_hal_i2c_handle_external = {
+    .bus = &furi_hal_i2c_bus_external,
+    .callback = furi_hal_i2c_bus_handle_external_event,
+};
+
+// const FuriHalI2cBusHandle furi_hal_i2c_handle_external =  furi_hal_i2c_handle_power;

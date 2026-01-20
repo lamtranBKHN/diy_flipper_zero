@@ -40,26 +40,26 @@ bool furi_hal_mcp23017_init_ex(uint8_t i2c_addr) {
     mcp_addr = i2c_addr;
     FURI_LOG_I(TAG, "Initializing MCP23017 at I2C address 0x%02X", mcp_addr);
     // Acquire bus and probe device similarly to INA219 driver
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool detected = false;
     // Quick device ready probe using 7-bit address
-    if(furi_hal_i2c_is_device_ready(&furi_hal_i2c_handle_external, mcp_addr, 100)) {
+    if(furi_hal_i2c_is_device_ready(&furi_hal_i2c_handle_power, mcp_addr, 100)) {
         detected = true;
     } else {
         // Try direct register read probes using both 7-bit and 8-bit address forms
         uint8_t probe = 0;
-        if(furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_external, mcp_addr, MCP_IOCON, &probe, 200)) {
+        if(furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_power, mcp_addr, MCP_IOCON, &probe, 200)) {
             detected = true;
         } else {
             uint8_t probe8 = (uint8_t)(mcp_addr << 1);
-            if(furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_external, probe8, MCP_IOCON, &probe, 200)) {
+            if(furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_power, probe8, MCP_IOCON, &probe, 200)) {
                 detected = true;
             }
         }
     }
 
     if(!detected) {
-        furi_hal_i2c_release(&furi_hal_i2c_handle_external);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         FURI_LOG_E(TAG, "MCP23017 not detected at 0x%02X", mcp_addr);
         return false;
     }
@@ -85,10 +85,10 @@ bool furi_hal_mcp23017_init_ex(uint8_t i2c_addr) {
 
     if(!io_ok) {
         FURI_LOG_E(TAG, "Failed to write IOCON");
-        furi_hal_i2c_release(&furi_hal_i2c_handle_external);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         return false; // MIRROR=1, INTPOL=0, ODR=1
     }
-    furi_hal_i2c_release(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     FURI_LOG_I(TAG, "MCP23017 initialized");
     return true;
 }
@@ -101,27 +101,27 @@ bool furi_hal_mcp23017_init(void) {
 
 static bool mcp_write_reg(uint8_t reg, uint8_t val) {
     bool ret = false;
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     if(mcp_use_8bit_addr) {
         uint8_t addr8 = (uint8_t)(mcp_addr << 1);
-        ret = furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_external, addr8, reg, val, 200);
+        ret = furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_power, addr8, reg, val, 200);
     } else {
-        ret = furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_external, mcp_addr, reg, val, 200);
+        ret = furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_power, mcp_addr, reg, val, 200);
     }
-    furi_hal_i2c_release(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     return ret;
 }
 
 static bool mcp_read_reg(uint8_t reg, uint8_t* val) {
     bool ret = false;
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     if(mcp_use_8bit_addr) {
         uint8_t addr8 = (uint8_t)(mcp_addr << 1);
-        ret = furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_external, addr8, reg, val, 200);
+        ret = furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_power, addr8, reg, val, 200);
     } else {
-        ret = furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_external, mcp_addr, reg, val, 200);
+        ret = furi_hal_i2c_read_reg_8(&furi_hal_i2c_handle_power, mcp_addr, reg, val, 200);
     }
-    furi_hal_i2c_release(&furi_hal_i2c_handle_external);
+    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     return ret;
 }
 
@@ -129,13 +129,13 @@ static bool mcp_write_reg_locked(uint8_t reg, uint8_t val) {
     // Caller must hold the I2C bus
     if(mcp_use_8bit_addr) {
         uint8_t addr8 = (uint8_t)(mcp_addr << 1);
-        return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_external, addr8, reg, val, 200);
+        return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_power, addr8, reg, val, 200);
     }
-    return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_external, mcp_addr, reg, val, 200);
+    return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_power, mcp_addr, reg, val, 200);
 }
 
 static bool mcp_write_reg_locked_addr(uint8_t addr, uint8_t reg, uint8_t val) {
-    return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_external, addr, reg, val, 200);
+    return furi_hal_i2c_write_reg_8(&furi_hal_i2c_handle_power, addr, reg, val, 200);
 }
 
 // mcp_read_reg_locked removed (not needed). Use mcp_read_reg which acquires/releases bus.

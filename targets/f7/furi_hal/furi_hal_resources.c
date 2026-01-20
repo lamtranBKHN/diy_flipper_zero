@@ -52,8 +52,12 @@ const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
 const GpioPin gpio_usart_tx = {.port = USART1_TX_Port, .pin = USART1_TX_Pin};
 const GpioPin gpio_usart_rx = {.port = USART1_RX_Port, .pin = USART1_RX_Pin};
 
-const GpioPin gpio_i2c_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
-const GpioPin gpio_i2c_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
+const GpioPin gpio_i2c_sda = {.port = I2C_1_SDA_GPIO_Port, .pin = I2C_1_SDA_Pin};
+const GpioPin gpio_i2c_scl = {.port = I2C_1_SCL_GPIO_Port, .pin = I2C_1_SCL_Pin};
+
+const GpioPin gpio_i2c_1_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
+const GpioPin gpio_i2c_1_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
+
 
 const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};
 
@@ -62,7 +66,7 @@ const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};
 const GpioPin gpio_usb_dm = {.port = GPIOA, .pin = LL_GPIO_PIN_11};
 const GpioPin gpio_usb_dp = {.port = GPIOA, .pin = LL_GPIO_PIN_12};
 
-const GpioPin gpio_adc_battery_voltage = {.port = ADC_BATTERY_VOLTAGE_GPIO_Port, .pin = ADC_BATTERY_VOLTAGE_Pin};
+// const GpioPin gpio_adc_battery_voltage = {.port = ADC_BATTERY_VOLTAGE_GPIO_Port, .pin = ADC_BATTERY_VOLTAGE_Pin};
 
 const GpioPinRecord gpio_pins[] = {
     // 5V: 1
@@ -138,20 +142,15 @@ const GpioPinRecord gpio_pins[] = {
      .number = 17,
      .debug = true},
     // GND: 18
-    {.pin = &gpio_adc_battery_voltage,
-     .name = "PC4",
-     .channel = FuriHalAdcChannel5,
-     .number = 19,
-     .debug = false},
 
     /* Dangerous pins, may damage hardware */
     {.pin = &gpio_speaker,
-     .name = "PA6",
+     .name = "PB8",
      .channel = FuriHalAdcChannelNone,
      .number = 0,
      .debug = true},
     {.pin = &gpio_infrared_tx,
-     .name = "PB9",
+     .name = "PA8",
      .channel = FuriHalAdcChannelNone,
      .number = 0,
      .debug = true},
