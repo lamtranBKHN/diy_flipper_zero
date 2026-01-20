@@ -118,13 +118,13 @@ static void furi_hal_infrared_tim_rx_isr(void* context) {
         }
     }
 
-    /* Rising Edge */
+    /* Falling Edge - Mark (IR signal ON) */
     if(LL_TIM_IsActiveFlag_CC1(INFRARED_RX_TIMER)) {
         LL_TIM_ClearFlag_CC1(INFRARED_RX_TIMER);
         furi_check(furi_hal_infrared_state == InfraredStateAsyncRx);
 
         if(READ_BIT(INFRARED_RX_TIMER->CCMR1, TIM_CCMR1_CC1S)) {
-            /* Low pin level is a Mark state of INFRARED signal. Invert level for further processing. */
+            /* High to Low transition - Mark state of INFRARED signal (active-low). */
             uint32_t duration = LL_TIM_IC_GetCaptureCH1(INFRARED_RX_TIMER) - previous_captured_ch2;
             if(infrared_tim_rx.capture_callback)
                 infrared_tim_rx.capture_callback(infrared_tim_rx.capture_context, 1, duration);
@@ -133,13 +133,13 @@ static void furi_hal_infrared_tim_rx_isr(void* context) {
         }
     }
 
-    /* Falling Edge */
+    /* Rising Edge - Space (IR signal OFF) */
     if(LL_TIM_IsActiveFlag_CC2(INFRARED_RX_TIMER)) {
         LL_TIM_ClearFlag_CC2(INFRARED_RX_TIMER);
         furi_check(furi_hal_infrared_state == InfraredStateAsyncRx);
 
         if(READ_BIT(INFRARED_RX_TIMER->CCMR1, TIM_CCMR1_CC2S)) {
-            /* High pin level is a Space state of INFRARED signal. Invert level for further processing. */
+            /* Low to High transition - Space state of INFRARED signal (active-low). */
             uint32_t duration = LL_TIM_IC_GetCaptureCH2(INFRARED_RX_TIMER);
             previous_captured_ch2 = duration;
             if(infrared_tim_rx.capture_callback)
@@ -156,8 +156,8 @@ void furi_hal_infrared_async_rx_start(void) {
     furi_hal_gpio_init_ex(
         &gpio_infrared_rx,
         GpioModeAltFunctionPushPull,
-        GpioPullNo,
-        GpioSpeedLow,
+        GpioPullUp,
+        GpioSpeedHigh,
         INFRARED_RX_GPIO_ALT);
 
     furi_hal_bus_enable(INFRARED_RX_TIMER_BUS);
@@ -175,7 +175,7 @@ void furi_hal_infrared_async_rx_start(void) {
     LL_TIM_SetSlaveMode(INFRARED_RX_TIMER, LL_TIM_SLAVEMODE_RESET);
     LL_TIM_CC_DisableChannel(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2);
     LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV1);
-    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
+    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
     LL_TIM_DisableIT_TRIG(INFRARED_RX_TIMER);
     LL_TIM_DisableDMAReq_TRIG(INFRARED_RX_TIMER);
     LL_TIM_SetTriggerOutput(INFRARED_RX_TIMER, LL_TIM_TRGO_RESET);
@@ -183,7 +183,7 @@ void furi_hal_infrared_async_rx_start(void) {
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
     LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV1);
-    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_RISING);
+    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_FALLING);
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_INDIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
 
