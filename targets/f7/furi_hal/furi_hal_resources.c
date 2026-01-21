@@ -44,7 +44,12 @@ const GpioPin gpio_ext_pa4 = {.port = PA4_GPIO_Port, .pin = PA4_Pin};
 const GpioPin gpio_ext_pa6 = {.port = PA6_GPIO_Port, .pin = PA6_Pin};
 const GpioPin gpio_ext_pa7 = {.port = PA7_GPIO_Port, .pin = PA7_Pin};
 
-// NFC/RFID pins omitted for this board
+const GpioPin gpio_button_up;
+const GpioPin gpio_button_down;
+const GpioPin gpio_button_right;
+const GpioPin gpio_button_left;
+const GpioPin gpio_button_ok;
+const GpioPin gpio_button_back;
 
 const GpioPin gpio_infrared_rx = {.port = IR_RX_GPIO_Port, .pin = IR_RX_Pin};
 const GpioPin gpio_infrared_tx = {.port = IR_TX_GPIO_Port, .pin = IR_TX_Pin};
@@ -137,7 +142,7 @@ const GpioPinRecord gpio_pins[] = {
      .number = 16,
      .debug = false},
     {.pin = &gpio_ibutton,
-     .name = "PB14",
+     .name = "PA3",
      .channel = FuriHalAdcChannelNone,
      .number = 17,
      .debug = true},
@@ -234,24 +239,12 @@ void furi_hal_resources_init_early(void) {
     furi_hal_gpio_init_simple(&gpio_usb_dp, GpioModeAnalog);
     furi_hal_gpio_write(&gpio_usb_dm, 0);
     furi_hal_gpio_write(&gpio_usb_dp, 0);
-    
-    // furi_hal_gpio_write(&gpio_speaker, 1);
 
-    // quick test: drive buzzer with GPIO
-    // furi_hal_gpio_init(&gpio_speaker, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
-    // for (int i=0;i<1000;i++) {
-    //     furi_hal_gpio_write(&gpio_speaker, true);
-    //     furi_delay_ms(1);
-    //     furi_hal_gpio_write(&gpio_speaker, false);
-    //     furi_delay_ms(1);
-    // }
-    // furi_delay_ms(100);
     // External header pins
     furi_hal_resources_init_gpio_pins(GpioModeAnalog);
 }
 
 void furi_hal_resources_deinit_early(void) {
-    // furi_hal_resources_init_input_pins(GpioModeAnalog);
     furi_hal_bus_disable(FuriHalBusGPIOA);
     furi_hal_bus_disable(FuriHalBusGPIOB);
     furi_hal_bus_disable(FuriHalBusGPIOC);
@@ -261,14 +254,9 @@ void furi_hal_resources_deinit_early(void) {
 }
 
 void furi_hal_resources_init(void) {
-    // Button pins
-//    furi_hal_resources_init_input_pins(GpioModeInterruptRiseFall);
 
-    // SD pins
- //   furi_hal_gpio_init(&gpio_sdcard_cd, GpioModeInput, GpioPullNo, GpioSpeedLow);
-  //  furi_hal_gpio_write(&gpio_sdcard_cd, 0);
-
-  //  furi_hal_gpio_init(&gpio_ibutton, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+    
+   furi_hal_gpio_init(&gpio_ibutton, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
 
     // furi_hal_gpio_init(&gpio_nfc_irq_rfid_pull, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
     // FURI_LOG_T(TAG, "IRQ4");

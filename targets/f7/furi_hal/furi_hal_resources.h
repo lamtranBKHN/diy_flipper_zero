@@ -76,6 +76,13 @@ extern const GpioPin gpio_sdcard_cs;
 //extern const GpioPin gpio_sdcard_cd;
 extern const GpioPin gpio_nfc_cs;
 
+// Dont need them but keep them to avoid missing symbol errors
+extern const GpioPin gpio_button_up;
+extern const GpioPin gpio_button_down;
+extern const GpioPin gpio_button_right;
+extern const GpioPin gpio_button_left;
+extern const GpioPin gpio_button_ok;
+extern const GpioPin gpio_button_back;
 
 
 extern const GpioPin gpio_spi_miso;
@@ -149,22 +156,44 @@ extern const GpioPin gpio_usb_dp;
 #define NFC_CS_GPIO_Port GPIOE
 #define NFC_CS_Pin       LL_GPIO_PIN_4
 
-#define PA4_GPIO_Port GPIOA
-#define PA4_Pin       LL_GPIO_PIN_4
+/*
+Header pins
+5V - 5V
+A7 - B5
+A6 - A6
+A4 - A4
+B3 - B3
+B2 - B2
+C3 - A5
+GND - GND
+
+3V3 - 3V3
+SWC - SWC (PA14)
+GND - GND
+SWD - SWD (PA13)
+TX - USART1 TX (PB6)
+RX - USART1 RX (PB7)
+C1 - B4
+C0 - A7
+iButton - A3
+GND - GND
+*/
+#define PA7_GPIO_Port GPIOB
+#define PA7_Pin       LL_GPIO_PIN_5
 #define PA6_GPIO_Port GPIOA
 #define PA6_Pin       LL_GPIO_PIN_6
-#define PA7_GPIO_Port GPIOA
-#define PA7_Pin       LL_GPIO_PIN_7
-#define PB2_GPIO_Port GPIOB
-#define PB2_Pin       LL_GPIO_PIN_2
+#define PA4_GPIO_Port GPIOA
+#define PA4_Pin       LL_GPIO_PIN_4
 #define PB3_GPIO_Port GPIOB
 #define PB3_Pin       LL_GPIO_PIN_3
+#define PB2_GPIO_Port GPIOB
+#define PB2_Pin       LL_GPIO_PIN_2
+#define PC3_GPIO_Port GPIOA
+#define PC3_Pin       LL_GPIO_PIN_5
+#define PC1_GPIO_Port GPIOB
+#define PC1_Pin       LL_GPIO_PIN_4
 #define PC0_GPIO_Port GPIOA
 #define PC0_Pin       LL_GPIO_PIN_7
-#define PC1_GPIO_Port GPIOA
-#define PC1_Pin       LL_GPIO_PIN_6
-#define PC3_GPIO_Port GPIOA
-#define PC3_Pin       LL_GPIO_PIN_8
 
 #define QUARTZ_32MHZ_IN_GPIO_Port  GPIOC
 #define QUARTZ_32MHZ_IN_Pin        LL_GPIO_PIN_14
@@ -197,8 +226,8 @@ extern const GpioPin gpio_usb_dp;
 #define VIBRO_GPIO_Port GPIOC
 #define VIBRO_Pin       LL_GPIO_PIN_0
 
-#define iBTN_GPIO_Port GPIOC
-#define iBTN_Pin       LL_GPIO_PIN_0
+#define iBTN_GPIO_Port GPIOA
+#define iBTN_Pin       LL_GPIO_PIN_3
 
 #define USART1_TX_Pin  LL_GPIO_PIN_6
 #define USART1_TX_Port GPIOB
@@ -207,8 +236,6 @@ extern const GpioPin gpio_usb_dp;
 
 #define SPI_MISO_GPIO_Port GPIOA
 #define SPI_MISO_Pin       LL_GPIO_PIN_6
-// #define SPI_MOSI_GPIO_Port1 GPIOC
-// #define SPI_MOSI_Pin1       LL_GPIO_PIN_0
 #define SPI_MOSI_GPIO_Port GPIOB
 #define SPI_MOSI_Pin       LL_GPIO_PIN_5
 #define SPI_SCK_GPIO_Port  GPIOB
@@ -222,10 +249,11 @@ extern const GpioPin gpio_usb_dp;
 #define I2C_1_SDA_Pin       LL_GPIO_PIN_9
 #define I2C_1_SDA_GPIO_Port GPIOB
 
-#define I2C_3_SCL_Pin       LL_GPIO_PIN_7
 #define I2C_3_SCL_GPIO_Port GPIOA
-#define I2C_3_SDA_Pin       LL_GPIO_PIN_4
+#define I2C_3_SCL_Pin       LL_GPIO_PIN_7
 #define I2C_3_SDA_GPIO_Port GPIOB
+#define I2C_3_SDA_Pin       LL_GPIO_PIN_4
+
 
 void furi_hal_resources_init_early(void);
 
