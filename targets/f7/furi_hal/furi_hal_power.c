@@ -164,6 +164,15 @@ uint8_t furi_hal_power_get_pct(void) {
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
+            // If is charging and charge current is less than 80mA, set pct to 99%
+            bool is_charging = furi_hal_power_is_charging();
+            if(is_charging && i > -0.0f && i < 0.08f) {
+                FURI_LOG_D(TAG, "INA219 CHARGING LOW CURRENT: Setting SOC to 99%% (I=%.3fA)", (double)i);
+                soc_percent = 99.0f;
+                curr_soc_percent = 99.0f;
+                last_ms = 0; // Reset timer
+                return 99;
+            }
             // Current sign convention (reversed shunt wiring): 
             // NEGATIVE current = discharge, POSITIVE current = charge
             
@@ -519,7 +528,7 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
             float vbat = v;
             FURI_LOG_D(TAG, "INA219 battery voltage=%.3f V", (double)vbat);
-            if(vbat < 3.2f) vbat = 0.0f;
+            if(vbat < 0.0f) vbat = 0.0f;
             if(vbat > 4.2f) vbat = 4.2f;
             return vbat;
         }
