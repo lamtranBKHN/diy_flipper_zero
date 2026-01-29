@@ -68,6 +68,7 @@ static volatile FuriHalPower furi_hal_power = {
 #ifdef USE_INA219
 // INA219 wrapper state is tracked in its module
 float curr_soc_percent = 100.0f;
+const float R_INTERNAL = 0.45f;
 #endif
 
 void furi_hal_power_init(void) {
@@ -164,9 +165,9 @@ uint8_t furi_hal_power_get_pct(void) {
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
-            // If is charging and charge current is less than 80mA, set pct to 99%
+            // If is charging and charge current is less than 100mA, set pct to 99%
             bool is_charging = furi_hal_power_is_charging();
-            if(is_charging && i > -0.0f && i < 0.08f) {
+            if(is_charging && i > -0.0f && i < 0.1f) {
                 FURI_LOG_D(TAG, "INA219 CHARGING LOW CURRENT: Setting SOC to 99%% (I=%.3fA)", (double)i);
                 soc_percent = 99.0f;
                 curr_soc_percent = 99.0f;
@@ -178,7 +179,7 @@ uint8_t furi_hal_power_get_pct(void) {
             
             // Load-compensated voltage estimate (approximate internal resistance)
             // Use a slightly larger internal resistance to better compensate
-            const float R_INTERNAL = 0.45f; // Ohms - tuned for observed swings
+            // const float R_INTERNAL = 0.45f; // Ohms - tuned for observed swings
             // During discharge (i<0), measured V is lower than open-circuit
             // V_oc = V_measured - i*R (since i is negative, this adds |i|*R)
             float v_opencircuit = v - (i * R_INTERNAL);
@@ -270,10 +271,12 @@ uint8_t furi_hal_power_get_pct(void) {
                 const float ALPHA_LOCAL = 0.25f;
                 curr_soc_percent = (ALPHA_LOCAL * soc_percent) + ((1.0f - ALPHA_LOCAL) * curr_soc_percent);
 
+                // Since it is charging-only, cap at 99%
+                curr_soc_percent = (uint8_t)(curr_soc_percent + 0.5f);
+                if(curr_soc_percent > 99.0f) curr_soc_percent = 99.0f;
                 FURI_LOG_D(TAG, "INA219 CHARGING-ONLY: V=%.3fV Voc=%.3fV I=%.3fA Csoc=%.1f%% Final=%.1f%%",
-                          (double)v, (double)v_opencircuit, (double)i, (double)coulomb_soc, (double)curr_soc_percent);
-
-                return (uint8_t)(curr_soc_percent + 0.5f);
+                        (double)v, (double)v_opencircuit, (double)i, (double)coulomb_soc, (double)curr_soc_percent);
+                return curr_soc_percent;
             }
             
             // Adaptive blending: trust coulomb counting during solid currents,
@@ -526,6 +529,11 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
+            // If it is discharging, compensate for internal resistance drop
+            if (furi_hal_power_is_charging()) {
+                float v_opencircuit = v - (i * R_INTERNAL);
+                v = v_opencircuit;
+            } 
             float vbat = v;
             FURI_LOG_D(TAG, "INA219 battery voltage=%.3f V", (double)vbat);
             if(vbat < 0.0f) vbat = 0.0f;
