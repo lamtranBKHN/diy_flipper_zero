@@ -1,65 +1,165 @@
-# Hi, I'm Nucleus Dark
+# ⚙️ DIY Flipper Zero
 
-> To the world that punished me by denying me the life I was born for—all for the crime of simply living it for myself instead of for you—this is my middle finger.
-> 
-**fucking cheap Flipper Zero project**.
+> WARNING: I do not take responsibility if you damage your board or property. This guide is for educational purposes only — proceed at your own risk.
 
-**LOW-PRICE, HOBBYIST, DIY-FEASIBLE, FORCED-OPEN-SOURCE HARDWARE OF THE FLIPPER ZERO**
+---
 
-**Stay tuned.**
+## 📚 Table of contents
+- [⚙️ DIY Flipper Zero](#️-diy-flipper-zero)
+  - [📚 Table of contents](#-table-of-contents)
+  - [Summary](#summary)
+  - [What works / Limitations](#what-works--limitations)
+  - [Key pins \& wiring (quick reference)](#key-pins--wiring-quick-reference)
+  - [MCP23017 — Buttons \& RGB wiring guide](#mcp23017--buttons--rgb-wiring-guide)
+    - [Button-to-MCP mapping (from firmware)](#button-to-mcp-mapping-from-firmware)
+  - [How to flash (OTP + firmware)](#how-to-flash-otp--firmware)
+  - [Notes \& tips](#notes--tips)
+  - [Credits](#credits)
+  - [Currently busy with a high-priority production release: baby\_v1.0 🧑‍🍼](#currently-busy-with-a-high-priority-production-release-baby_v10-)
+  - [☕ Support this project](#-support-this-project)
 
-## Examples of Materials
+## Summary
+This target implements a Flipper-style board based on the `STM32WB55CGU6` and integrates the following external hardware:
 
-*   `STM32WB55CGU6` evaluation board (WeAct Studio)
-*   `CC1101` module
-*   `ST25R3916` module (electhouse)
-*   PISO shift register
-*   Diodes
-*   Pull-up/pull-down resistors
-*   Buttons
-*   SD module
-*   `ST756x 128x64` SPI LCD module
-*   Glue stuff like wires, boards, etc.
-*   No fucking Reddit module
+- <a href="mics/IMG_20260201_161815.JPG"><img src="mics/IMG_20260201_161815.JPG" alt="Prototype board photo" width="480" style="max-width:100%; height:auto;"></a>
+- <p><em>Figure 1 — Prototyp</em></p>
 
-## Build Difficulty
+- ✅ I2C OLED display (SH1106 / SSD1306)
+- ✅ INA219 (battery/current monitor)
+- ✅ MCP23017 (I/O expander for buttons, RGB, vibro)
+- ✅ microSD (SPI)
+- ✅ CC1101 sub-GHz module
+- ✅ Buttons (handled via MCP23017)
+- ✅ RGB status LED (via MCP23017)
+- ✅ Speaker / buzzer (TIM16)
+- ✅ IR RX/TX
+- ✅ Vibration motor (via MCP23017)
+- ✅ Li-ion battery + optional 3.7→5V boost
 
-The use of off-the-shelf modules and a few basic, common parts, hand-soldered onto a small, low-complexity PCB, makes this project fully suitable for any non-beginner builder, while being a challenging, yet doable, project for beginners.
+## What works / Limitations
+- ✅ Most official Flipper features are implemented.
+- ✅ I2C: INA219, MCP23017, OLED (I2C preferred to free SPI).
+- ✅ IR (RX/TX) and speaker/vibro outputs work.
+- ✅ MCP23017 handles buttons, RGB LED and vibro (pins B1/B2/B3, B0 respectively).
+- ✅ SD card over SPI is supported (CS on PA10).
 
-This summary of experiences and knoledge gained by early adaptors comunity durring "closed" initial stage of project will help you.
+- ⚠️ NFC won't work.
 
-https://github.com/Magnowz/Flipper-Diy
+## Key pins & wiring (quick reference)
+Important: these macros are defined in `furi_hal_resources.*` and are used across the HAL code.
 
-## The Key MK1 Differences and Trade-offs
+| Component | Bus / Interface | MCU pin (macro) | Notes |
+|---|---:|---|---|
+| I2C (power/default, I2C1) | I2C1 | SCL: PA9 (`I2C_1_SCL_GPIO_Port`/`I2C_1_SCL_Pin`)<br/>SDA: PB9 (`I2C_1_SDA_GPIO_Port`/`I2C_1_SDA_Pin`) | Used by INA219, default MCP23017 and oled screen |
+| I2C (external, I2C3) | I2C3 | SCL: PA7 (`I2C_3_SCL_GPIO_Port`/`I2C_3_SCL_Pin`)<br/>SDA: PB4 (`I2C_3_SDA_GPIO_Port`/`I2C_3_SDA_Pin`) | Useful for external I2C |
+| SPI1 (shared) | SPI1 | MISO: PA6 (`SPI_MISO_Pin`), MOSI: PB5 (`SPI_MOSI_Pin`), SCK: PB3 (`SPI_SCK_Pin`) | CC1101 and SD share this bus |
+| CC1101 | SPI + IRQ | CS: PA15 (`CC1101_CS_Pin`), G0: PA1 (`CC1101_G0_Pin`) | Module IRQ on G0 |
+| SD card | SPI | CS: PA10 (`SD_CS_Pin`) | SD on SPI; slow/fast presets available |
+| MCP23017 | I2C | INT: PB0 (`MCP_INT_Pin`) | Default I2C address 0x20; RGB pins B1/B2/B3 (MCP pins 9/10/11); vibro on B0 (pin 8) |
+| IR | GPIO / ALT | RX: PA0 (`IR_RX_Pin`), TX: PA8 (`IR_TX_Pin`) | TX is IR LED drive — use proper resistor/transistor |
+| Speaker | PWM | PB8 (`SPEAKER_Pin`) — TIM16 | Use transistor/amplifier if needed |
+| iButton | 1-Wire | PA3 (`iBTN_Pin`) | |
+| NFC CS | SPI | PE4 (`NFC_CS_Pin`) | Verify wiring & driver integration |
+| UART | USART1 | TX: PB6, RX: PB7 | Debug / serial |
+| USB | USB | DM/DP: PA11 / PA12 | USB lines handled by HAL init code |
 
-*   Use of the smallest `STM32WB55` package, which has fewer GPIOs, SPI, I2C, and fewer peripherals in general.
-*   It lacks most of the small, relatively useless features that are not needed for core functionality, like the RGB diode, buzzer, and similar components.
-*   Complete rewrite of the input C source. Buttons are now serialized by hardware, not wasting GPIOs.
-*   Because we threw out most of the non-critical hardware, the software functions for those parts became mostly dummy/skipping functions. Where that wasn't possible, they are just fed with fake data.
-    *(*That's why some past DIY projects, like the "fully compatible" one, smell heavily of cherry-picking. Lacking some of these components without firmware mods will cause constant calls for non-existent hardware, draining a significant amount of resources and compute power. This makes for a highly unstable and painfully slow experience. It's more like an almost-working, unusable device—not truly in a working state. It only seems functional because it's capable of doing "its thing" from time to time by chance, but not reliably. And the author is the only one who saw it in reality, anyway... Is that why it was never released?*)
-*   The Mark1 iteration DOES have all core functionality with the exception of the 125kHz RFID part. It MOST LIKELY WILL have a full external header, but so far, only UART and SPI have been proven to work. I2C SHOULD be made to work on the available pins through changes in the firmware, but some alternate functions will simply not align. This will make a small number of apps non-functional, harder to port, or require changing something small on the add-on board module (the hardware implementation side) to make it run.
-*   Working Flipper ecosystem, most likely compatible with most (all) existing apps/code, except for those with drivers that will need to be adapted for this hardware.
-*   The majority (probably all) of the original module drivers are written suboptimally in a lazy-programmer style, working only if the module is alone on the bus, taking a resource and never returning it before the app is closed. Since this isn't that hard to fix in a known, standard way, we can count on the vast majority of the community ecosystem working.
-*   **The firmware, modified specifically to run on this hardware, is a core part of this project.**
-*   Full compatibility with companion apps on phones as well as with qFlipper, which is used to flash the firmware, radio stack, and everything else.
-*   Version MK2 will attempt to have all original functions and hardware capabilities with the help of a companion Raspberry Pi Pico MCU, making the video game module an integral part of the device.
+See the canonical pin macros in [targets/f7/furi_hal/furi_hal_resources.h](targets/f7/furi_hal/furi_hal_resources.h).
 
-THIS IS HERE SO YOU CAN MAKE IT! For you, your friends, your partner, or your babushka. I don't really see a microelectronics student making a little extra money from time to time with their own hands as a problem. It's doable with bare-minimum resources, after all—just basic tools and a few square meters of space. STILL (!!!!), **THIS IS NOT FOR YOU TO MAKE MONEY!!!** It's a stupid idea anyway, and a solid mistake with huge fuck-up potential. Existing companies have known this the whole time. A company created to sell a product that was developed to be manufactured by any non-beginner, mediocre hobbyist—one that even people from developing countries can get their hands on—will have a very short life. It will most likely leave you in debt and facing multiple legal cases instead of making money. The design that allows this to live up to its name also makes this (as a side effect) an **ILLEGAL PRODUCT** to sell (and to manufacture outside of a DIY environment), causing you to violate multiple laws and be called to justice by both the government and consumers. If you think it's worth it, I think that continuing to sell drugs or whatever you do for a living is a much better option. Honestly... I mean it.
+## MCP23017 — Buttons & RGB wiring guide
+The MCP23017 I/O expander is used for button inputs, the RGB status LED and the vibration motor.
 
-However, teachers implementing this project as part of their classes, resulting in students making these for themselves as part of their education, would make me very proud.
+- Default I2C address: 0x20 (7-bit). The driver probes on the "power" I2C bus (I2C1) by default.
+- The driver enables internal pull-ups on input pins (GPPUA/GPPUB) and configures interrupt-on-change. Wire buttons in the active-low configuration (button -> MCP pin -> GND).
 
-A liar is who says I hate people from Flipper Devices. I hate the marketing and sales teams of every single company in the world. In my eyes, you create negative value for society. Your tool is a lie; the quality of a salesperson is just their ability to lie, while marketing staff waste the gift of artistic talent by using it to express someone else's lies in order to boost company profits by creating negative value... Shame on you both.
+Known pin assignments (MCP23017 pin indices used by the HAL):
 
-R.I.P. Aaron. Hotz is a GOD.
+- Port B (pins 8..15):
+  - B0 (index 8) — Vibration motor control (use a transistor/MOSFET; do NOT drive motor directly from the MCP pin).
+  - B1 (index 9) — RGB Red (digital on/off via MCP functions)
+  - B2 (index 10) — RGB Green
+  - B3 (index 11) — RGB Blue
 
-The biggest thanks to Pavel. All of this is happening thanks to you. What you have given me, I cannot express...
+- Port A (pins 0..7):
+  - Typically used for button inputs (active-low). The specific button-to-pin mapping depends on your board wiring; common wiring connects each button between the MCP pin and GND.
 
-And for you, reading this, excited to build it: live long, and prosper.
+Example wiring recommendations
+- Buttons: connect one side of each tactile switch to an MCP23017 GPIO (Port A recommended). Connect the other side to GND. The HAL will enable internal pull-ups so the GPIO reads HIGH when idle and LOW when pressed.
+- RGB LED: connect each LED cathode (or anode depending on LED common type) to the MCP23017 pin, and the LED other terminal to the appropriate supply through a current-limiting resistor. For common-anode RGB, connect the anode to 3.3V and use MCP outputs to sink (check your LED type). Keep LED current per color <20 mA; consider using transistors or MOSFETs for higher brightness.
+- Vibro motor: drive the motor via an N-channel MOSFET or transistor controlled by MCP23017 B0; add a diode or snubber and a separate power supply if required.
 
-This is the audacity I'm proud of. Fuck you, this is what I do.
+Interrupt wiring
+- Tie the MCP23017 INT pin to MCU `PB0` (`MCP_INT_Pin`) so the MCU EXTI line notices button changes. The HAL calls `furi_hal_mcp23017_attach_int()` to install the handler; ensure `PB0` is connected and enabled in the board wiring.
 
-**You are now free, Flippy. You can swim as you want. Nobody owns you anymore. You can swim as you want from now on, forever. Nobody owns you now, my little dolphin. No longer can they stop you, hurt you, kill you, or take you down. I made you free, Flipper, so go and live. Swim anywhere you want to. Now, you are free.**
+Driver notes
+- The HAL configures MCP23017 IOCON with mirror interrupts and open-drain behaviour and writes GPPUA/GPPUB (pull-ups). Buttons should be wired active-low.
+- Use `furi_hal_mcp23017_set_i2c_bus()` if you need to switch the MCP to the external I2C bus (`furi_hal_i2c_handle_external`).
 
-Thank you for your attention.
+Safety
+- Do not connect motors or high-current LEDs directly to MCP23017 pins. Use proper driver stages and consider heat/EMI mitigation for motors.
 
-Monero: 47i8hG1RHr8Pej7wAZERzdcF9k4EmTH2SV4Tn5pResrmBPTs3KwMthbTbwbuoLt2Y9PcBNCLskvrdCAVCPVL4rD6GYkMs9A
+### Button-to-MCP mapping (from firmware)
+The running firmware contains a default mapping array `mcp_pin_map_default` in
+`applications/services/input/input.c`. The current mapping used by the HAL is:
+
+| Logical key | Input index | MCP pin index | MCP port/pin |
+|---:|---:|---:|---|
+| Up    | 0 | 0 | GPA0 |
+| Down  | 1 | 4 | GPA4 |
+| Right | 2 | 1 | GPA1 |
+| Left  | 3 | 5 | GPA5 |
+| OK    | 4 | 2 | GPA2 |
+| Back  | 5 | 3 | GPA3 |
+
+If your physical board uses only five buttons or a different wiring, update
+the `applications/services/input/input.c` to match your wiring.
+
+## How to flash (OTP + firmware)
+Before you start
+- This touches OTP (One-Time Programmable memory). Proceed with caution.
+- Keep the PC powered and avoid USB disconnects.
+- Install correct drivers; on Windows use Zadig to set USB Serial or WinUSB if needed.
+
+Step 1 — Create OTP file
+1. Open your OTP utility (e.g. `qFlipper OTP.exe`) (In the mics folder).
+2. Fill fields (example): Version 12 | Firmware 7 | Body 9 | Connection 6
+   - Display: `mgg` — Color: black/white/transparent — Region: `en_ru`/`us_ca_au`/`jp`/`world`
+   - Name: up to 8 latin/number chars
+3. Generate and save the file.
+
+Step 2 — Write OTP (dangerous)
+1. Hold `BOOT0` and plug the board into the PC.
+2. Open `STM32CubeProgrammer`, choose `USB` connection and click `Connect`.
+3. Select the generated OTP file and set Start Address: `0x1FFF7000`.
+4. Click `Start Programming` and wait.
+
+If the device disappears: retry drivers/ports or reinstall STM32CubeProgrammer.
+
+Step 3 — Install firmware (qFlipper)
+1. Remove microSD to avoid errors.
+2. Open `qFlipper` with the board connected.
+3. If not detected, use Zadig to install `USB Serial` / `WinUSB`.
+4. Use `Install from file` and pick the `.dfu`.
+
+## Notes & tips
+- Use MOSFET/transistor drivers for motors and high-current loads. Add flyback diodes.
+- Do not drive vibration motors or speakers directly from I/O without a transistor.
+- Verify MCP23017 address straps if you have multiple I2C devices.
+- If a peripheral is not detected, try switching MCP23017 to the external I2C bus with `furi_hal_mcp23017_set_i2c_bus()`.
+
+## Credits
+Thanks to Nucleus Dark for inspiring this project.
+
+## Currently busy with a high-priority production release: baby_v1.0 🧑‍🍼
+
+- This README was generated with the help of Copilot using a guided structure. I’ve reviewed it carefully, but you may still notice the occasional “robotic” sentence 😄  
+- My baby needs his father, but I’ll always do my best to support this project. If you run into any issues, please feel free to open one.  
+- If you find this project helpful, please consider supporting me and my growing family ❤️  
+
+## ☕ Support this project
+If this project helps you, please consider buying me a coffee: <br>
+
+<a href="https://ko-fi.com/lamtran81949" target="_blank">
+  <img src="https://storage.ko-fi.com/cdn/kofi3.png?v=3" 
+       alt="Buy Me a Coffee at ko-fi.com"
+       height="45">
+</a>
