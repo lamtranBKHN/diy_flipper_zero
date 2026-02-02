@@ -64,11 +64,11 @@ static volatile FuriHalPower furi_hal_power = {
 
 // Remove extern declaration
 // extern const BQ27220DMData furi_hal_power_gauge_data_memory[];
-
+const int32_t BATTERY_CAPACITY = 3000;
 #ifdef USE_INA219
 // INA219 wrapper state is tracked in its module
 float curr_soc_percent = 100.0f;
-const float R_INTERNAL = 0.45f;
+const float R_INTERNAL = 0.25f;
 #endif
 
 void furi_hal_power_init(void) {
@@ -86,16 +86,6 @@ FURI_LOG_I(TAG, "INA219 support not enabled at build time");
     furi_hal_adc_init();
 }
 
-// Helper: get pin index (0..15) from LL_GPIO_PIN_x mask
-// static int furi_hal_get_pin_index(const GpioPin* p) {
-//     uint32_t pin = p->pin;
-//     int idx = 0;
-//     while(pin > 1) {
-//         pin >>= 1;
-//         idx++;
-//     }
-//     return idx;
-// }
 
 bool furi_hal_power_gauge_is_ok(void) {
     // Return a default "OK" state
@@ -159,7 +149,7 @@ uint8_t furi_hal_power_get_pct(void) {
     static float smoothed_v = 0.0f;
     static float smoothed_i = 0.0f;
     static uint32_t transient_since_ms = 0;
-    const float battery_capacity_mAh = 120.0f; // default battery capacity
+    const float battery_capacity_mAh = BATTERY_CAPACITY; // default battery capacity
 
 #ifdef USE_INA219
     if(furi_hal_ina219_is_ready()) {
@@ -507,17 +497,17 @@ void furi_hal_power_check_otg_status(void) {
 
 uint32_t furi_hal_power_get_battery_remaining_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 300;
+    return BATTERY_CAPACITY;
 }
 
 uint32_t furi_hal_power_get_battery_full_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 300;
+    return BATTERY_CAPACITY;
 }
 
 uint32_t furi_hal_power_get_battery_design_capacity(void) {
     // Return a default capacity (e.g., in mAh)
-    return 310;
+    return BATTERY_CAPACITY;
 }
 
 float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
@@ -529,13 +519,7 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
     if(furi_hal_ina219_is_ready()) {
         float v = 0.0f, i = 0.0f;
         if(furi_hal_ina219_get_voltage_current(&v, &i)) {
-            // If it is discharging, compensate for internal resistance drop
-            if (furi_hal_power_is_charging()) {
-                float v_opencircuit = v - (i * R_INTERNAL);
-                v = v_opencircuit;
-            } 
-            float vbat = v;
-            FURI_LOG_D(TAG, "INA219 battery voltage=%.3f V", (double)vbat);
+            float vbat = v - (i * R_INTERNAL);
             if(vbat < 0.0f) vbat = 0.0f;
             if(vbat > 4.2f) vbat = 4.2f;
             return vbat;
@@ -562,8 +546,6 @@ float furi_hal_power_get_battery_voltage(FuriHalPowerIC ic) {
     if(vbat > 4.2f) vbat = 4.2f;
 
     return vbat;
-    // UNUSED(vbat);
-    // return 3.7f; // fallback
 }
 
 float furi_hal_power_get_battery_current(FuriHalPowerIC ic) {
