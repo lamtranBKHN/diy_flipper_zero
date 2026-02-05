@@ -52,6 +52,6 @@ For example:
 
 ## Related documentation
 
-- [Apps On SD Card](AppsOnSDCard.md) - Information about FAP (Flipper App Package) files
+- [Apps on SD Card](AppsOnSDCard.md) - Information about FAP (Flipper App Package) files
 - [FBT Build Tool](fbt.md) - Build system documentation including resource targets
 - [OTA Updates](OTA.md) - Over-the-air update information including resource packages
