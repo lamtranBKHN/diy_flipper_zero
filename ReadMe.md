@@ -14,6 +14,7 @@
     - [Button-to-MCP mapping (from firmware)](#button-to-mcp-mapping-from-firmware)
   - [How to flash (OTP + firmware)](#how-to-flash-otp--firmware)
   - [Notes \& tips](#notes--tips)
+  - [📖 Additional documentation](#-additional-documentation)
   - [Credits](#credits)
   - [Currently busy with a high-priority production release: baby\_v1.0 🧑‍🍼](#currently-busy-with-a-high-priority-production-release-baby_v10-)
   - [☕ Support this project](#-support-this-project)
@@ -145,6 +146,12 @@ Step 3 — Install firmware (qFlipper)
 - Do not drive vibration motors or speakers directly from I/O without a transistor.
 - Verify MCP23017 address straps if you have multiple I2C devices.
 - If a peripheral is not detected, try switching MCP23017 to the external I2C bus with `furi_hal_mcp23017_set_i2c_bus()`.
+
+## 📖 Additional documentation
+- **[SD Card Contents](documentation/SDCardContents.md)** — Where to find SD card files in the repository
+- **[Build Tool (fbt)](documentation/fbt.md)** — How to build firmware and resources
+- **[Apps on SD Card](documentation/AppsOnSDCard.md)** — External app development (FAPs)
+- **[OTA Updates](documentation/OTA.md)** — Firmware update information
 
 ## Credits
 Thanks to Nucleus Dark for inspiring this project.
