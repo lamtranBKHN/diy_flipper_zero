@@ -206,6 +206,10 @@ bool furi_hal_spi_bus_trx_dma(
         return furi_hal_spi_bus_trx(handle, tx_buffer, rx_buffer, size, timeout_ms);
     }
 
+    const uint32_t timeout_scale = MAX((uint32_t)1, (uint32_t)((size + 511) / 512));
+    const uint32_t dma_timeout_ms =
+        timeout_ms == FuriWaitForever ? FuriWaitForever : timeout_ms * timeout_scale;
+
     // Lock DMA
     furi_check(furi_semaphore_acquire(spi_dma_lock, FuriWaitForever) == FuriStatusOk);
 
@@ -257,15 +261,20 @@ bool furi_hal_spi_bus_trx_dma(
         }
 
         // acquire semaphore before enabling DMA
-        furi_check(furi_semaphore_acquire(spi_dma_completed, timeout_ms) == FuriStatusOk);
+        furi_check(furi_semaphore_acquire(spi_dma_completed, dma_timeout_ms) == FuriStatusOk);
 
         LL_DMA_EnableIT_TC(SPI_DMA_TX_DEF);
         LL_DMA_EnableChannel(SPI_DMA_TX_DEF);
 
         // and wait for it to be released (DMA transfer complete)
-        if(furi_semaphore_acquire(spi_dma_completed, timeout_ms) != FuriStatusOk) {
+        if(furi_semaphore_acquire(spi_dma_completed, dma_timeout_ms) != FuriStatusOk) {
             ret = false;
-            FURI_LOG_E(TAG, "DMA timeout\r\n");
+            FURI_LOG_E(
+                TAG,
+                "DMA timeout size=%lu timeout=%lu scaled=%lu",
+                (unsigned long)size,
+                (unsigned long)timeout_ms,
+                (unsigned long)dma_timeout_ms);
         }
         // release semaphore, because we are using it as a flag
         furi_semaphore_release(spi_dma_completed);
@@ -337,16 +346,21 @@ bool furi_hal_spi_bus_trx_dma(
         }
 
         // acquire semaphore before enabling DMA
-        furi_check(furi_semaphore_acquire(spi_dma_completed, timeout_ms) == FuriStatusOk);
+        furi_check(furi_semaphore_acquire(spi_dma_completed, dma_timeout_ms) == FuriStatusOk);
 
         LL_DMA_EnableIT_TC(SPI_DMA_RX_DEF);
         LL_DMA_EnableChannel(SPI_DMA_RX_DEF);
         LL_DMA_EnableChannel(SPI_DMA_TX_DEF);
 
         // and wait for it to be released (DMA transfer complete)
-        if(furi_semaphore_acquire(spi_dma_completed, timeout_ms) != FuriStatusOk) {
+        if(furi_semaphore_acquire(spi_dma_completed, dma_timeout_ms) != FuriStatusOk) {
             ret = false;
-            FURI_LOG_E(TAG, "DMA timeout\r\n");
+            FURI_LOG_E(
+                TAG,
+                "DMA timeout size=%lu timeout=%lu scaled=%lu",
+                (unsigned long)size,
+                (unsigned long)timeout_ms,
+                (unsigned long)dma_timeout_ms);
         }
         // release semaphore, because we are using it as a flag
         furi_semaphore_release(spi_dma_completed);

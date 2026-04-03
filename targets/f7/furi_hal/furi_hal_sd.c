@@ -250,19 +250,19 @@ static void sd_spi_bus_rise_up(void) {
         GpioModeAltFunctionPushPull,
         GpioPullUp,
         GpioSpeedVeryHigh,
-        GpioAltFn5SPI2);
+        GpioAltFn5SPI1);
     furi_hal_gpio_init_ex(
         furi_hal_sd_spi_handle->mosi,
         GpioModeAltFunctionPushPull,
         GpioPullUp,
         GpioSpeedVeryHigh,
-        GpioAltFn5SPI2);
+        GpioAltFn5SPI1);
     furi_hal_gpio_init_ex(
         furi_hal_sd_spi_handle->sck,
         GpioModeAltFunctionPushPull,
         GpioPullUp,
         GpioSpeedVeryHigh,
-        GpioAltFn5SPI2);
+        GpioAltFn5SPI1);
 }
 
 static inline uint8_t sd_spi_read_byte(void) {
