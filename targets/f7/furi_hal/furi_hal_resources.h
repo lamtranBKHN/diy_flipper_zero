@@ -241,8 +241,10 @@ GND - GND
 #define SPI_SCK_GPIO_Port  GPIOB
 #define SPI_SCK_Pin        LL_GPIO_PIN_3
 
-// #define NFC_IRQ_Pin       LL_GPIO_PIN_2
-// #define NFC_IRQ_GPIO_Port GPIOA
+// Legacy NFC IRQ aliases required by external ST25R3916-based apps.
+// Route them to the configured board interrupt input.
+#define NFC_IRQ_Pin       MCP_INT_Pin
+#define NFC_IRQ_GPIO_Port MCP_INT_GPIO_Port
 
 #define I2C_1_SCL_Pin       LL_GPIO_PIN_9
 #define I2C_1_SCL_GPIO_Port GPIOA
