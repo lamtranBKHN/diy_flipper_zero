@@ -305,7 +305,9 @@ int32_t input_srv(void* p) {
 #ifdef INPUT_DEBUG
             // furi_hal_gpio_write(&gpio_ext_pa4, 0);
 #endif
-            furi_thread_flags_wait(INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, FuriWaitForever);
+            // Polling fallback: do not block forever waiting for INT.
+            // Some board revisions have missing/unstable PCF8574 INT wiring.
+            (void)furi_thread_flags_wait(INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, 5);
         }
     }
 
