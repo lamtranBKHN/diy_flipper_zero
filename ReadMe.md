@@ -10,8 +10,8 @@
   - [Summary](#summary)
   - [What works / Limitations](#what-works--limitations)
   - [Key pins \& wiring (quick reference)](#key-pins--wiring-quick-reference)
-  - [MCP23017 — Buttons \& RGB wiring guide](#mcp23017--buttons--rgb-wiring-guide)
-    - [Button-to-MCP mapping (from firmware)](#button-to-mcp-mapping-from-firmware)
+  - [PCF8574 — Buttons, vibro and buzzer wiring guide](#pcf8574--buttons-vibro-and-buzzer-wiring-guide)
+    - [Button-to-PCF mapping (from firmware)](#button-to-pcf-mapping-from-firmware)
   - [How to flash (OTP + firmware)](#how-to-flash-otp--firmware)
   - [Notes \& tips](#notes--tips)
   - [Credits](#credits)
@@ -50,7 +50,7 @@ Important: these macros are defined in `furi_hal_resources.*` and are used acros
 |---|---:|---|---|
 | I2C (power/default, I2C1) | I2C1 | SCL: PA9 (`I2C_1_SCL_GPIO_Port`/`I2C_1_SCL_Pin`)<br/>SDA: PB9 (`I2C_1_SDA_GPIO_Port`/`I2C_1_SDA_Pin`) | Used by OLED, PCF8574 (`0x20`) and PN532 (`0x24`) |
 | I2C (external, I2C3) | I2C3 | SCL: PA7 (`I2C_3_SCL_GPIO_Port`/`I2C_3_SCL_Pin`)<br/>SDA: PB4 (`I2C_3_SDA_GPIO_Port`/`I2C_3_SDA_Pin`) | Useful for external I2C |
-| SPI1 (shared) | SPI1 | MISO: PA6 (`SPI_MISO_Pin`), MOSI: PB5 (`SPI_MOSI_Pin`), SCK: PB3 (`SPI_SCK_Pin`) | CC1101 and SD share this bus |
+| SPI1 (shared) | SPI1 | MISO: PA6 (`SPI_MISO_Pin`), MOSI: PB5 (`SPI_MOSI_Pin`), SCK: PA5 (`SPI_SCK_Pin`) | Aligned with UBYTE STM32WB55CGU6 SPI1 alternate functions |
 | CC1101 | SPI + IRQ | CS: PA15 (`CC1101_CS_Pin`), G0: PA1 (`CC1101_G0_Pin`) | Module IRQ on G0 |
 | SD card | SPI | CS: PA10 (`SD_CS_Pin`) | SD on SPI; slow/fast presets available |
 | PCF8574 | I2C | INT: PB0 (`MCP_INT_Pin`) | Address `0x20`; P0..P5 inputs, P6 vibro out, P7 buzzer out |
@@ -95,11 +95,11 @@ The running firmware contains a default mapping array `pcf_pin_map_default` in
 | Logical key | Input index | PCF pin |
 |---:|---:|---:|
 | Up    | 0 | P0 |
-| Down  | 1 | P4 |
-| Right | 2 | P1 |
-| Left  | 3 | P5 |
-| OK    | 4 | P2 |
-| Back  | 5 | P3 |
+| Down  | 1 | P1 |
+| Right | 2 | P3 |
+| Left  | 3 | P2 |
+| OK    | 4 | P4 |
+| Back  | 5 | P5 |
 
 If your physical board uses only five buttons or a different wiring, update
 the `applications/services/input/input.c` to match your wiring.

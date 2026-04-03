@@ -32,7 +32,7 @@ const GpioPin gpio_rfid_carrier_out = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0
 const GpioPin gpio_rfid_data_in = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
 const GpioPin gpio_rfid_carrier = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
 
-// MCU button GpioPin definitions removed — board uses MCP23017 for inputs.
+// MCU button GpioPin definitions removed — board uses PCF8574 for inputs.
 
 const GpioPin gpio_spi_miso = {.port = SPI_MISO_GPIO_Port, .pin = SPI_MISO_Pin};
 const GpioPin gpio_spi_mosi = {.port = SPI_MOSI_GPIO_Port, .pin = SPI_MOSI_Pin};
@@ -167,7 +167,7 @@ const GpioPinRecord gpio_pins[] = {
 
 const size_t gpio_pins_count = COUNT_OF(gpio_pins);
 
-// Old MCU-driven input pin array removed — input is handled via MCP23017 on this board.
+// Old MCU-driven input pin array removed — input is handled via PCF8574 on this board.
 
 const InputPin input_pins[] = {
     {.gpio = NULL, .key = InputKeyUp, .inverted = true, .name = "Up"},
@@ -282,7 +282,7 @@ void furi_hal_resources_init(void) {
     NVIC_SetPriority(EXTI4_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
     NVIC_EnableIRQ(EXTI4_IRQn);
 
-    // EXTI6 not used in this board configuration (MCP23017 INT line is routed elsewhere)
+    // EXTI6 not used in this board configuration (PCF8574 INT is on PB0 / EXTI0)
 
     NVIC_SetPriority(EXTI9_5_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
     NVIC_EnableIRQ(EXTI9_5_IRQn);

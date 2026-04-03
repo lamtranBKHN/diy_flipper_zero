@@ -126,7 +126,7 @@ extern const GpioPin gpio_speaker;
 extern const GpioPin gpio_usb_dm;
 extern const GpioPin gpio_usb_dp;
 
-// gpio_button_* MCU pin definitions removed: inputs are provided via MCP23017 wiring
+// gpio_button_* MCU pin definitions removed: inputs are provided via PCF8574 wiring
 
 // extern const GpioPin gpio_button_IRQ;
 // extern const GpioPin gpio_spi_miso_BTN;
@@ -211,8 +211,8 @@ GND - GND
 // #define RFID_RF_IN_Pin         LL_GPIO_PIN_0
 // #define RFID_CARRIER_GPIO_Port GPIOC
 // #define RFID_CARRIER_Pin       LL_GPIO_PIN_0
-#define RF_SW_0_GPIO_Port GPIOC
-#define RF_SW_0_Pin       LL_GPIO_PIN_0
+#define RF_SW_0_GPIO_Port GPIOB
+#define RF_SW_0_Pin       LL_GPIO_PIN_1
 
 #define SD_CD_GPIO_Port GPIOC
 #define SD_CD_Pin       LL_GPIO_PIN_0
@@ -241,8 +241,8 @@ GND - GND
 #define SPI_MISO_Pin       LL_GPIO_PIN_6
 #define SPI_MOSI_GPIO_Port GPIOB
 #define SPI_MOSI_Pin       LL_GPIO_PIN_5
-#define SPI_SCK_GPIO_Port  GPIOB
-#define SPI_SCK_Pin        LL_GPIO_PIN_3
+#define SPI_SCK_GPIO_Port  GPIOA
+#define SPI_SCK_Pin        LL_GPIO_PIN_5
 
 // Legacy NFC IRQ aliases required by external ST25R3916-based apps.
 // Route them to the configured board interrupt input.
