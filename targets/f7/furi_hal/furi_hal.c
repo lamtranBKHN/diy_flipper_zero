@@ -1,7 +1,6 @@
 #include <furi_hal.h>
 #include <furi_hal_mpu.h>
 #include <furi_hal_memory.h>
-#include <furi_hal_pn532.h>
 
 #include <stm32wbxx_ll_cortex.h>
 
@@ -69,8 +68,10 @@ void furi_hal_init(void) {
     furi_hal_usb_init();
     furi_hal_vibro_init();
     furi_hal_subghz_init();
-    furi_hal_pn532_init();
-    furi_hal_nfc_init();
+    // Keep NFC stack lazy-initialized by apps/services.
+    // Eager init here can stall boot on unstable/missing NFC wiring and trap device in DFU loops.
+    // furi_hal_pn532_init();
+    // furi_hal_nfc_init();
     // furi_hal_rfid_init();
     // furi_hal_adc_init();
 #endif
