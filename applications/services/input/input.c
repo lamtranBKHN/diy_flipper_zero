@@ -85,14 +85,12 @@ void input_press_timer_callback(void* arg) {
     if(input_pin->press_counter == INPUT_LONG_PRESS_COUNTS) {
         event.type = InputTypeLong;
         if(input_pin->event_pubsub) {
-            FURI_LOG_I(TAG, "Timer publish: key=%d type=Long seq=%u", event.key, event.sequence_counter);
             furi_pubsub_publish(input_pin->event_pubsub, &event);
         }
     } else if(input_pin->press_counter > INPUT_LONG_PRESS_COUNTS) {
         input_pin->press_counter--;
         event.type = InputTypeRepeat;
         if(input_pin->event_pubsub) {
-            FURI_LOG_I(TAG, "Timer publish: key=%d type=Repeat seq=%u", event.key, event.sequence_counter);
             furi_pubsub_publish(input_pin->event_pubsub, &event);
         }
     }
@@ -204,22 +202,12 @@ int32_t input_srv(void* p) {
 
     while(1) {
         bool is_changing = false;
+        uint8_t new_state = g_pcf_state;
+        if(furi_hal_pcf8574_read(&new_state)) {
+            g_pcf_state = new_state;
+        }
+
         for(size_t i = 0; i < input_pins_count; i++) {
-            uint8_t new_state = 0xFF;
-            if(furi_hal_pcf8574_read(&new_state)) {
-                uint8_t prev = g_pcf_state;
-                g_pcf_state = new_state;
-                if(prev != new_state) {
-                    uint8_t changed = prev ^ new_state;
-                    for(size_t j = 0; j < input_pins_count; j++) {
-                        uint8_t mask = input_pcf_mask_for_index(j);
-                        if(mask && (changed & mask)) {
-                            bool now = (new_state & mask) != 0;
-                            UNUSED(now);
-                        }
-                    }
-                }
-            }
             bool state;
             state = GPIO_Read_PCF_BY_IDX(i);
             if(state) {
