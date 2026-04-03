@@ -107,7 +107,8 @@ static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handl
 }
 
 FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
-    FURI_LOG_I(TAG, "Checking if HAL is ready");
+    FURI_LOG_I(TAG, "Checking if HAL is ready [PN532-R2]");
+    FURI_LOG_I(TAG, "PN532 backend init begin");
     if(furi_hal_nfc_pn532_backend_init()) {
         if(furi_hal_nfc.mutex == NULL) {
             furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
@@ -116,6 +117,7 @@ FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
         return FuriHalNfcErrorNone;
     }
 
+    FURI_LOG_W(TAG, "PN532 backend init failed");
     if(FURI_HAL_NFC_PN532_ONLY) {
         FURI_LOG_E(TAG, "PN532 backend not available");
         return FuriHalNfcErrorCommunication;
