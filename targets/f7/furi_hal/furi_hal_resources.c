@@ -28,6 +28,9 @@ const GpioPin gpio_sdcard_cs = {.port = SD_CS_GPIO_Port, .pin = SD_CS_Pin};
 // SD card CD not used
 const GpioPin gpio_nfc_cs = {.port = NFC_CS_GPIO_Port, .pin = NFC_CS_Pin};
 const GpioPin gpio_nfc_irq_rfid_pull = {.port = NFC_IRQ_GPIO_Port, .pin = NFC_IRQ_Pin};
+const GpioPin gpio_rfid_carrier_out = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
+const GpioPin gpio_rfid_data_in = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
+const GpioPin gpio_rfid_carrier = {.port = RF_SW_0_GPIO_Port, .pin = RF_SW_0_Pin};
 
 // MCU button GpioPin definitions removed — board uses MCP23017 for inputs.
 
