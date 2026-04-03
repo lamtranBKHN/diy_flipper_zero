@@ -53,7 +53,7 @@ Important: these macros are defined in `furi_hal_resources.*` and are used acros
 | SPI1 (shared) | SPI1 | MISO: PA6 (`SPI_MISO_Pin`), MOSI: PB5 (`SPI_MOSI_Pin`), SCK: PA5 (`SPI_SCK_Pin`) | Aligned with UBYTE STM32WB55CGU6 SPI1 alternate functions |
 | CC1101 | SPI + IRQ | CS: PA15 (`CC1101_CS_Pin`), G0: PA1 (`CC1101_G0_Pin`) | Module IRQ on G0 |
 | SD card | SPI | CS: PA10 (`SD_CS_Pin`) | SD on SPI; slow/fast presets available |
-| PCF8574 | I2C | INT: PB0 (`MCP_INT_Pin`) | Address `0x20`; P0..P5 inputs, P6 vibro out, P7 buzzer out |
+| PCF8574 | I2C | INT: PB0 (`PCF8574_INT_Pin`) | Address `0x20`; P0..P5 inputs, P6 vibro out, P7 buzzer out |
 | IR | GPIO / ALT | RX: PA0 (`IR_RX_Pin`), TX: PA8 (`IR_TX_Pin`) | TX is IR LED drive — use proper resistor/transistor |
 | Speaker/Buzzer | GPIO expander | PCF8574 P7 | Active-high digital output line |
 | iButton | 1-Wire | PA3 (`iBTN_Pin`) | |
@@ -80,7 +80,7 @@ Example wiring recommendations
 - Vibro and buzzer: drive through transistor/MOSFET stages; do not drive motors or high-current buzzers directly from PCF8574.
 
 Interrupt wiring
-- Tie the PCF8574 INT pin to MCU `PB0` (`MCP_INT_Pin`) so EXTI notices button changes. HAL callback uses `furi_hal_pcf8574_attach_int()`.
+- Tie the PCF8574 INT pin to MCU `PB0` (`PCF8574_INT_Pin`) so EXTI notices button changes. HAL callback uses `furi_hal_pcf8574_attach_int()`.
 
 Driver notes
 - If PCF8574 is absent, boot continues but input/vibro/buzzer functions will not operate.

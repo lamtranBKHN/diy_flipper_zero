@@ -192,10 +192,11 @@ int32_t input_srv(void* p) {
         // Attach INT callback: when PCF reports interrupt, call input_isr
         furi_hal_pcf8574_attach_int(input_isr, (void*)thread_id);
         // Ensure the MCU INT pin is configured as an interrupt input with pull-up
-        furi_hal_gpio_init(&gpio_mcp_int, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
+        furi_hal_gpio_init(&gpio_pcf8574_int, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
         // Attach the expander INT line to the MCU EXTI pin
-        furi_hal_gpio_add_int_callback(&gpio_mcp_int, (GpioExtiCallback)furi_hal_pcf8574_handle_int, NULL);
-        furi_hal_gpio_enable_int_callback(&gpio_mcp_int);
+        furi_hal_gpio_add_int_callback(
+            &gpio_pcf8574_int, (GpioExtiCallback)furi_hal_pcf8574_handle_int, NULL);
+        furi_hal_gpio_enable_int_callback(&gpio_pcf8574_int);
     } else {
         FURI_LOG_E(TAG, "PCF8574 input expander not detected");
     }

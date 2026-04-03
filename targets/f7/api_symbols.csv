@@ -293,7 +293,7 @@ Header,+,targets/f7/furi_hal/furi_hal_ibutton.h,,
 Header,+,targets/f7/furi_hal/furi_hal_idle_timer.h,,
 Header,+,targets/f7/furi_hal/furi_hal_ina219.h,,
 Header,+,targets/f7/furi_hal/furi_hal_interrupt.h,,
-Header,+,targets/f7/furi_hal/furi_hal_mcp23017.h,,
+Header,+,targets/f7/furi_hal/furi_hal_pcf8574.h,,
 Header,+,targets/f7/furi_hal/furi_hal_os.h,,
 Header,+,targets/f7/furi_hal/furi_hal_pwm.h,,
 Header,+,targets/f7/furi_hal/furi_hal_resources.h,,
@@ -1554,23 +1554,12 @@ Function,+,furi_hal_light_blink_stop,void,
 Function,-,furi_hal_light_init,void,
 Function,+,furi_hal_light_sequence,void,const char*
 Function,+,furi_hal_light_set,void,"Light, uint8_t"
-Function,+,furi_hal_mcp23017_attach_int,void,"GpioExtiCallback, void*"
-Function,+,furi_hal_mcp23017_configure_interrupts,_Bool,uint16_t
-Function,+,furi_hal_mcp23017_handle_int,void,
-Function,+,furi_hal_mcp23017_init,_Bool,
-Function,+,furi_hal_mcp23017_init_ex,_Bool,uint8_t
-Function,+,furi_hal_mcp23017_led_init,_Bool,
-Function,+,furi_hal_mcp23017_led_off,_Bool,
-Function,+,furi_hal_mcp23017_led_set,_Bool,"uint8_t, uint8_t, uint8_t"
-Function,+,furi_hal_mcp23017_led_set_blue,_Bool,_Bool
-Function,+,furi_hal_mcp23017_led_set_color,_Bool,"_Bool, _Bool, _Bool"
-Function,+,furi_hal_mcp23017_led_set_green,_Bool,_Bool
-Function,+,furi_hal_mcp23017_led_set_red,_Bool,_Bool
-Function,+,furi_hal_mcp23017_read_gpio,_Bool,uint16_t*
-Function,+,furi_hal_mcp23017_set_i2c_bus,void,const FuriHalI2cBusHandle*
-Function,+,furi_hal_mcp23017_set_pin_direction,_Bool,"uint8_t, _Bool"
-Function,+,furi_hal_mcp23017_write_gpio,_Bool,uint16_t
-Function,+,furi_hal_mcp23017_write_pin,_Bool,"uint8_t, _Bool"
+Function,+,furi_hal_pcf8574_attach_int,void,"GpioExtiCallback, void*"
+Function,+,furi_hal_pcf8574_handle_int,void,
+Function,+,furi_hal_pcf8574_init,_Bool,
+Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
+Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
+Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_memory_alloc,void*,size_t
 Function,+,furi_hal_memory_get_free,size_t,
 Function,+,furi_hal_memory_init,void,
@@ -4390,7 +4379,7 @@ Variable,+,gpio_i2c_3_sda,const GpioPin,
 Variable,+,gpio_ibutton,const GpioPin,
 Variable,+,gpio_infrared_rx,const GpioPin,
 Variable,+,gpio_infrared_tx,const GpioPin,
-Variable,+,gpio_mcp_int,const GpioPin,
+Variable,+,gpio_pcf8574_int,const GpioPin,
 Variable,+,gpio_nfc_cs,const GpioPin,
 Variable,+,gpio_pins,const GpioPinRecord[],
 Variable,+,gpio_pins_count,const size_t,

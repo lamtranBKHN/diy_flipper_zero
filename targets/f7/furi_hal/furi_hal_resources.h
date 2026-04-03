@@ -65,7 +65,7 @@ extern const GpioPin gpio_swclk;
 extern const GpioPin gpio_ibutton;
 
 extern const GpioPin gpio_cc1101_g0;
-extern const GpioPin gpio_mcp_int;
+extern const GpioPin gpio_pcf8574_int;
 //extern const GpioPin gpio_rf_sw_0;
 
 extern const GpioPin gpio_subghz_cs;
@@ -219,9 +219,9 @@ GND - GND
 #define SD_CS_GPIO_Port GPIOA
 #define SD_CS_Pin       LL_GPIO_PIN_10
 
-// MCP23017 interrupt default pin
-#define MCP_INT_GPIO_Port GPIOB
-#define MCP_INT_Pin       LL_GPIO_PIN_0
+// PCF8574 interrupt default pin
+#define PCF8574_INT_GPIO_Port GPIOB
+#define PCF8574_INT_Pin       LL_GPIO_PIN_0
 
 #define SPEAKER_GPIO_Port GPIOB
 #define SPEAKER_Pin       LL_GPIO_PIN_8
@@ -246,8 +246,8 @@ GND - GND
 
 // Legacy NFC IRQ aliases required by external ST25R3916-based apps.
 // Route them to the configured board interrupt input.
-#define NFC_IRQ_Pin       MCP_INT_Pin
-#define NFC_IRQ_GPIO_Port MCP_INT_GPIO_Port
+#define NFC_IRQ_Pin       PCF8574_INT_Pin
+#define NFC_IRQ_GPIO_Port PCF8574_INT_GPIO_Port
 
 #define I2C_1_SCL_Pin       LL_GPIO_PIN_9
 #define I2C_1_SCL_GPIO_Port GPIOA

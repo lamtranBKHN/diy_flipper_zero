@@ -23,7 +23,7 @@ void furi_hal_light_set(Light light, uint8_t value) {
 }
 
 void furi_hal_light_blink_start(Light light, uint8_t brightness, uint16_t on_time, uint16_t period) {
-    // MCP23017 doesn't support hardware blinking, so just turn LED on at max brightness
+    // No dedicated RGB expander on this board, so just force on.
     UNUSED(brightness);
     UNUSED(on_time);
     UNUSED(period);
