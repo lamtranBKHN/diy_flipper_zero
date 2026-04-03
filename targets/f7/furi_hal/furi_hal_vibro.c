@@ -1,29 +1,22 @@
 #include <furi_hal_vibro.h>
 #include <furi_hal_gpio.h>
-#include <furi_hal_mcp23017.h>
+#include <furi_hal_pcf8574.h>
 
 #define TAG "FuriHalVibro"
 
 void furi_hal_vibro_init(void) {
-   // Use MCP23017 pin B0 (pin index 8) for the vibro motor
-   const uint8_t vibro_pin = 8; // B0
-   if(!furi_hal_mcp23017_init()) {
-      FURI_LOG_E(TAG, "MCP23017 init failed");
+   if(!furi_hal_pcf8574_init()) {
+      FURI_LOG_E(TAG, "PCF8574 init failed");
    } else {
-      // Configure pin as output and clear it
-      if(!furi_hal_mcp23017_set_pin_direction(vibro_pin, false)) {
-         FURI_LOG_E(TAG, "Failed to set vibro pin direction");
-      }
-      if(!furi_hal_mcp23017_write_pin(vibro_pin, false)) {
+      if(!furi_hal_pcf8574_write_pin(PCF8574_PIN_VIBRO, false)) {
          FURI_LOG_E(TAG, "Failed to clear vibro pin");
       }
-      FURI_LOG_I(TAG, "Vibro bound to MCP23017 pin B0 (8)");
+      FURI_LOG_I(TAG, "Vibro bound to PCF8574 pin %u", PCF8574_PIN_VIBRO);
    }
 }
 
 void furi_hal_vibro_on(bool value) {
-      const uint8_t vibro_pin = 8; // B0
-      if(!furi_hal_mcp23017_write_pin(vibro_pin, value)) {
+      if(!furi_hal_pcf8574_write_pin(PCF8574_PIN_VIBRO, value)) {
          FURI_LOG_E(TAG, "Failed to set vibro pin");
       }
 }

@@ -25,90 +25,81 @@ This target implements a Flipper-style board based on the `STM32WB55CGU6` and in
 - <p><em>Figure 1 — Prototyp</em></p>
 
 - ✅ I2C OLED display (SH1106 / SSD1306)
-- ✅ INA219 (battery/current monitor)
-- ✅ MCP23017 (I/O expander for buttons, RGB, vibro)
+- ✅ PCF8574 (I/O expander for buttons + buzzer/vibro control lines)
 - ✅ microSD (SPI)
 - ✅ CC1101 sub-GHz module
-- ✅ Buttons (handled via MCP23017)
-- ✅ RGB status LED (via MCP23017)
-- ✅ Speaker / buzzer (TIM16)
+- ✅ Buttons (handled via PCF8574)
+- ✅ Speaker / buzzer (via PCF8574 output line)
 - ✅ IR RX/TX
-- ✅ Vibration motor (via MCP23017)
+- ✅ Vibration motor (via PCF8574 output line)
 - ✅ Li-ion battery + optional 3.7→5V boost
 
 ## What works / Limitations
 - ✅ Most official Flipper features are implemented.
-- ✅ I2C: INA219, MCP23017, OLED (I2C preferred to free SPI).
+- ✅ I2C: PCF8574, PN532, OLED (I2C preferred to free SPI).
 - ✅ IR (RX/TX) and speaker/vibro outputs work.
-- ✅ MCP23017 handles buttons, RGB LED and vibro (pins B1/B2/B3, B0 respectively).
+- ✅ PCF8574 handles buttons and auxiliary outputs.
 - ✅ SD card over SPI is supported (CS on PA10).
 
-- ⚠️ NFC won't work.
+- ✅ NFC/RFID HAL path now initializes PN532 over I2C (address `0x24`) before NFC HAL startup.
 
 ## Key pins & wiring (quick reference)
 Important: these macros are defined in `furi_hal_resources.*` and are used across the HAL code.
 
 | Component | Bus / Interface | MCU pin (macro) | Notes |
 |---|---:|---|---|
-| I2C (power/default, I2C1) | I2C1 | SCL: PA9 (`I2C_1_SCL_GPIO_Port`/`I2C_1_SCL_Pin`)<br/>SDA: PB9 (`I2C_1_SDA_GPIO_Port`/`I2C_1_SDA_Pin`) | Used by INA219, default MCP23017 and oled screen |
+| I2C (power/default, I2C1) | I2C1 | SCL: PA9 (`I2C_1_SCL_GPIO_Port`/`I2C_1_SCL_Pin`)<br/>SDA: PB9 (`I2C_1_SDA_GPIO_Port`/`I2C_1_SDA_Pin`) | Used by OLED, PCF8574 (`0x20`) and PN532 (`0x24`) |
 | I2C (external, I2C3) | I2C3 | SCL: PA7 (`I2C_3_SCL_GPIO_Port`/`I2C_3_SCL_Pin`)<br/>SDA: PB4 (`I2C_3_SDA_GPIO_Port`/`I2C_3_SDA_Pin`) | Useful for external I2C |
 | SPI1 (shared) | SPI1 | MISO: PA6 (`SPI_MISO_Pin`), MOSI: PB5 (`SPI_MOSI_Pin`), SCK: PB3 (`SPI_SCK_Pin`) | CC1101 and SD share this bus |
 | CC1101 | SPI + IRQ | CS: PA15 (`CC1101_CS_Pin`), G0: PA1 (`CC1101_G0_Pin`) | Module IRQ on G0 |
 | SD card | SPI | CS: PA10 (`SD_CS_Pin`) | SD on SPI; slow/fast presets available |
-| MCP23017 | I2C | INT: PB0 (`MCP_INT_Pin`) | Default I2C address 0x20; RGB pins B1/B2/B3 (MCP pins 9/10/11); vibro on B0 (pin 8) |
+| PCF8574 | I2C | INT: PB0 (`MCP_INT_Pin`) | Address `0x20`; P0..P5 inputs, P6 vibro out, P7 buzzer out |
 | IR | GPIO / ALT | RX: PA0 (`IR_RX_Pin`), TX: PA8 (`IR_TX_Pin`) | TX is IR LED drive — use proper resistor/transistor |
-| Speaker | PWM | PB8 (`SPEAKER_Pin`) — TIM16 | Use transistor/amplifier if needed |
+| Speaker/Buzzer | GPIO expander | PCF8574 P7 | Active-high digital output line |
 | iButton | 1-Wire | PA3 (`iBTN_Pin`) | |
-| NFC CS | SPI | PE4 (`NFC_CS_Pin`) | Verify wiring & driver integration |
+| PN532 NFC | I2C | I2C1 on PA9/PB9 | Address `0x24` (`PN532_I2C_ADDR_7BIT`) |
 | UART | USART1 | TX: PB6, RX: PB7 | Debug / serial |
 | USB | USB | DM/DP: PA11 / PA12 | USB lines handled by HAL init code |
 
 See the canonical pin macros in [targets/f7/furi_hal/furi_hal_resources.h](targets/f7/furi_hal/furi_hal_resources.h).
 
-## MCP23017 — Buttons & RGB wiring guide
-The MCP23017 I/O expander is used for button inputs, the RGB status LED and the vibration motor.
+## PCF8574 — Buttons, vibro and buzzer wiring guide
+The PCF8574 I/O expander is used for button inputs and output control lines.
 
-- Default I2C address: 0x20 (7-bit). The driver probes on the "power" I2C bus (I2C1) by default.
-- The driver enables internal pull-ups on input pins (GPPUA/GPPUB) and configures interrupt-on-change. Wire buttons in the active-low configuration (button -> MCP pin -> GND).
+- Default I2C address: `0x20` (7-bit). The driver uses the power I2C bus (I2C1).
+- Buttons are active-low (button to GND).
 
-Known pin assignments (MCP23017 pin indices used by the HAL):
+Known PCF8574 assignments used by HAL:
 
-- Port B (pins 8..15):
-  - B0 (index 8) — Vibration motor control (use a transistor/MOSFET; do NOT drive motor directly from the MCP pin).
-  - B1 (index 9) — RGB Red (digital on/off via MCP functions)
-  - B2 (index 10) — RGB Green
-  - B3 (index 11) — RGB Blue
-
-- Port A (pins 0..7):
-  - Typically used for button inputs (active-low). The specific button-to-pin mapping depends on your board wiring; common wiring connects each button between the MCP pin and GND.
+- P0..P5 — Buttons (Up, Down, Right, Left, OK, Back) via mapping in `applications/services/input/input.c`
+- P6 — Vibro output (`PCF8574_PIN_VIBRO`)
+- P7 — Buzzer output (`PCF8574_PIN_BUZZER`)
 
 Example wiring recommendations
-- Buttons: connect one side of each tactile switch to an MCP23017 GPIO (Port A recommended). Connect the other side to GND. The HAL will enable internal pull-ups so the GPIO reads HIGH when idle and LOW when pressed.
-- RGB LED: connect each LED cathode (or anode depending on LED common type) to the MCP23017 pin, and the LED other terminal to the appropriate supply through a current-limiting resistor. For common-anode RGB, connect the anode to 3.3V and use MCP outputs to sink (check your LED type). Keep LED current per color <20 mA; consider using transistors or MOSFETs for higher brightness.
-- Vibro motor: drive the motor via an N-channel MOSFET or transistor controlled by MCP23017 B0; add a diode or snubber and a separate power supply if required.
+- Buttons: connect one side of each tactile switch to PCF8574 P0..P5 and the other side to GND.
+- Vibro and buzzer: drive through transistor/MOSFET stages; do not drive motors or high-current buzzers directly from PCF8574.
 
 Interrupt wiring
-- Tie the MCP23017 INT pin to MCU `PB0` (`MCP_INT_Pin`) so the MCU EXTI line notices button changes. The HAL calls `furi_hal_mcp23017_attach_int()` to install the handler; ensure `PB0` is connected and enabled in the board wiring.
+- Tie the PCF8574 INT pin to MCU `PB0` (`MCP_INT_Pin`) so EXTI notices button changes. HAL callback uses `furi_hal_pcf8574_attach_int()`.
 
 Driver notes
-- The HAL configures MCP23017 IOCON with mirror interrupts and open-drain behaviour and writes GPPUA/GPPUB (pull-ups). Buttons should be wired active-low.
-- Use `furi_hal_mcp23017_set_i2c_bus()` if you need to switch the MCP to the external I2C bus (`furi_hal_i2c_handle_external`).
+- If PCF8574 is absent, boot continues but input/vibro/buzzer functions will not operate.
 
 Safety
-- Do not connect motors or high-current LEDs directly to MCP23017 pins. Use proper driver stages and consider heat/EMI mitigation for motors.
+- Do not connect motors or high-current loads directly to PCF8574 pins. Use proper driver stages and add flyback protection where needed.
 
-### Button-to-MCP mapping (from firmware)
-The running firmware contains a default mapping array `mcp_pin_map_default` in
+### Button-to-PCF mapping (from firmware)
+The running firmware contains a default mapping array `pcf_pin_map_default` in
 `applications/services/input/input.c`. The current mapping used by the HAL is:
 
-| Logical key | Input index | MCP pin index | MCP port/pin |
-|---:|---:|---:|---|
-| Up    | 0 | 0 | GPA0 |
-| Down  | 1 | 4 | GPA4 |
-| Right | 2 | 1 | GPA1 |
-| Left  | 3 | 5 | GPA5 |
-| OK    | 4 | 2 | GPA2 |
-| Back  | 5 | 3 | GPA3 |
+| Logical key | Input index | PCF pin |
+|---:|---:|---:|
+| Up    | 0 | P0 |
+| Down  | 1 | P4 |
+| Right | 2 | P1 |
+| Left  | 3 | P5 |
+| OK    | 4 | P2 |
+| Back  | 5 | P3 |
 
 If your physical board uses only five buttons or a different wiring, update
 the `applications/services/input/input.c` to match your wiring.
@@ -143,8 +134,8 @@ Step 3 — Install firmware (qFlipper)
 ## Notes & tips
 - Use MOSFET/transistor drivers for motors and high-current loads. Add flyback diodes.
 - Do not drive vibration motors or speakers directly from I/O without a transistor.
-- Verify MCP23017 address straps if you have multiple I2C devices.
-- If a peripheral is not detected, try switching MCP23017 to the external I2C bus with `furi_hal_mcp23017_set_i2c_bus()`.
+- Verify PCF8574 and PN532 I2C addresses if multiple devices share bus.
+- If PN532 is not detected at boot, verify wiring and `0x24` address first.
 
 ## Credits
 Thanks to Nucleus Dark for inspiring this project.

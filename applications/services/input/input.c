@@ -7,10 +7,7 @@
 #include <stdio.h>
 #include <furi.h>
 #include <furi_hal_gpio.h>
-#define USE_MCP23017
-#ifdef USE_MCP23017
-#include <furi_hal_mcp23017.h>
-#endif
+#include <furi_hal_pcf8574.h>
 #include <furi_hal_vibro.h>
 #include <toolbox/cli/cli_command.h>
 #include <cli/cli_main_commands.h>
@@ -42,9 +39,8 @@ typedef struct {
 
 // #define INPUT_DEBUG
 
-// When using MCP23017 we will read cached state from the expander.
-static volatile uint16_t g_mcp_gpio_state = 0;
-#define MCP_DEFAULT(pin) ((uint16_t)(1u << (pin)))
+// PCF8574 input cache
+static volatile uint8_t g_pcf_state = 0xFF;
 
 // Default mapping: map input indices to MCP pins 0..N-1. Update this array
 // to match your hardware wiring where MCP GPA0..GPA7 and GPB0..GPB7
@@ -63,7 +59,7 @@ static volatile uint16_t g_mcp_gpio_state = 0;
 // index 3 (Left)-> MCP pin 0
 // index 4 (OK)  -> MCP pin 1
 // index 5 (Back)-> MCP pin 4
-static const uint8_t mcp_pin_map_default[] = {
+static const uint8_t pcf_pin_map_default[] = {
     0, // input_pins[0] (Up)    -> MCP pin 0 (A0)
     4, // input_pins[1] (Down)  -> MCP pin 4 (A4)
     1, // input_pins[2] (Right) -> MCP pin 1 (A1)
@@ -72,16 +68,16 @@ static const uint8_t mcp_pin_map_default[] = {
     3, // input_pins[5] (Back)  -> MCP pin 3 (A3)
 };
 
-static uint16_t input_mcp_mask_for_index(size_t idx) {
-    size_t cnt = sizeof(mcp_pin_map_default) / sizeof(mcp_pin_map_default[0]);
+static uint8_t input_pcf_mask_for_index(size_t idx) {
+    size_t cnt = sizeof(pcf_pin_map_default) / sizeof(pcf_pin_map_default[0]);
     if(idx < cnt) {
-        uint8_t bit = mcp_pin_map_default[idx];
-        return (uint16_t)(1u << bit);
+        uint8_t bit = pcf_pin_map_default[idx];
+        return (uint8_t)(1u << bit);
     }
     // fallback: no mapping
     return 0;
 }
-#define GPIO_Read_MCP_BY_IDX(idx) (((g_mcp_gpio_state & input_mcp_mask_for_index(idx)) != 0) ^ (input_pins[idx].inverted))
+#define GPIO_Read_PCF_BY_IDX(idx) (((g_pcf_state & input_pcf_mask_for_index(idx)) != 0) ^ (input_pins[idx].inverted))
 
 void input_press_timer_callback(void* arg) {
     if(!arg) return;
@@ -169,11 +165,11 @@ int32_t input_srv(void* p) {
     }
     FURI_LOG_I(TAG, "Initializing input pins");
     for(size_t i = 0; i < input_pins_count; i++) {
-        // Using MCP23017 only: register a single callback later, don't attach per-pin
+        // Using PCF8574 only: register a single callback later, don't attach per-pin
         (void)input_pins;
-        FURI_LOG_I(TAG, "Using MCP23017, skipping GPIO callback attach for pin %u", (unsigned)i);
+        FURI_LOG_I(TAG, "Using PCF8574, skipping GPIO callback attach for pin %u", (unsigned)i);
         pin_states[i].pin = &input_pins[i];
-        pin_states[i].state = GPIO_Read_MCP_BY_IDX(i);
+        pin_states[i].state = GPIO_Read_PCF_BY_IDX(i);
         pin_states[i].debounce = INPUT_DEBOUNCE_TICKS_HALF;
         pin_states[i].press_timer = furi_timer_alloc(
             input_press_timer_callback, FuriTimerTypePeriodic, &pin_states[i]);
@@ -185,55 +181,46 @@ int32_t input_srv(void* p) {
         FURI_LOG_I(TAG, "Initialized pin %s", input_pins[i].name);
     }
 
-    // Initialize MCP23017 at default address (wrapper)
-    if(!furi_hal_mcp23017_init()) {
-        FURI_LOG_E(TAG, "MCP23017 init failed");
+    if(!furi_hal_pcf8574_init()) {
+        FURI_LOG_E(TAG, "PCF8574 init failed");
     } else {
-        FURI_LOG_I(TAG, "MCP23017 initialized");
-        // Build mask of pins we want as inputs based on MCP mapping.
-        // Use input_mcp_mask_for_index to map input indices -> MCP bit mask.
-        uint16_t mask = 0;
+        FURI_LOG_I(TAG, "PCF8574 initialized");
         for(size_t i = 0; i < input_pins_count; i++) {
-            mask |= input_mcp_mask_for_index(i);
+            (void)input_pcf_mask_for_index(i);
         }
-        // Pass full 16-bit mask: lower 8 bits -> GPIOA, upper 8 bits -> GPIOB
-        furi_hal_mcp23017_configure_interrupts(mask);
 
-        // Read current MCP state and seed cache so we don't generate spurious
+        // Read current PCF8574 state and seed cache so we don't generate spurious
         // events from the initial snapshot. Also mark debounces as stable.
-        uint16_t tmp_state = 0;
-        if(furi_hal_mcp23017_read_gpio(&tmp_state)) {
-            g_mcp_gpio_state = tmp_state;
+        uint8_t tmp_state = 0xFF;
+        if(furi_hal_pcf8574_read(&tmp_state)) {
+            g_pcf_state = tmp_state;
             for(size_t j = 0; j < input_pins_count; j++) {
-                // Initialize pin state according to MCP reading
-                pin_states[j].state = GPIO_Read_MCP_BY_IDX(j);
+                pin_states[j].state = GPIO_Read_PCF_BY_IDX(j);
                 pin_states[j].debounce = INPUT_DEBOUNCE_TICKS; // stable
             }
         }
 
-        // Attach INT callback: when MCP reports interrupt, call input_isr
-        furi_hal_mcp23017_attach_int(input_isr, (void*)thread_id);
+        // Attach INT callback: when PCF reports interrupt, call input_isr
+        furi_hal_pcf8574_attach_int(input_isr, (void*)thread_id);
         // Ensure the MCU INT pin is configured as an interrupt input with pull-up
         furi_hal_gpio_init(&gpio_mcp_int, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
         // Attach the expander INT line to the MCU EXTI pin
-        furi_hal_gpio_add_int_callback(&gpio_mcp_int, (GpioExtiCallback)furi_hal_mcp23017_handle_int, NULL);
+        furi_hal_gpio_add_int_callback(&gpio_mcp_int, (GpioExtiCallback)furi_hal_pcf8574_handle_int, NULL);
         furi_hal_gpio_enable_int_callback(&gpio_mcp_int);
     }
 
     while(1) {
         bool is_changing = false;
         for(size_t i = 0; i < input_pins_count; i++) {
-            // Update MCP state cache first if available
-#ifdef USE_MCP23017
-            uint16_t new_state = 0;
-            if(furi_hal_mcp23017_read_gpio(&new_state)) {
-                uint16_t prev = g_mcp_gpio_state;
-                g_mcp_gpio_state = new_state;
+            uint8_t new_state = 0xFF;
+            if(furi_hal_pcf8574_read(&new_state)) {
+                uint8_t prev = g_pcf_state;
+                g_pcf_state = new_state;
                 if(prev != new_state) {
                     // FURI_LOG_I(TAG, "MCP GPIO state changed 0x%04X -> 0x%04X", prev, new_state);
-                    uint16_t changed = prev ^ new_state;
+                    uint8_t changed = prev ^ new_state;
                     for(size_t j = 0; j < input_pins_count; j++) {
-                        uint16_t mask = input_mcp_mask_for_index(j);
+                        uint8_t mask = input_pcf_mask_for_index(j);
                         if(mask && (changed & mask)) {
                             bool now = (new_state & mask) != 0;
                             UNUSED(now);
@@ -242,19 +229,14 @@ int32_t input_srv(void* p) {
                             //     "  Input idx %u (%s) MCPbit %u changed: %s",
                             //     (unsigned)j,
                             //     input_pins[j].name,
-                            //     (unsigned)(mcp_pin_map_default[j]),
+                            //     (unsigned)(pcf_pin_map_default[j]),
                             //     now ? "1" : "0");
                         }
                     }
                 }
             }
-#endif
             bool state;
-#ifdef USE_MCP23017
-            state = GPIO_Read_MCP_BY_IDX(i);
-#else
-            state = GPIO_Read(pin_states[i]);
-#endif
+            state = GPIO_Read_PCF_BY_IDX(i);
             if(state) {
                 if(pin_states[i].debounce < INPUT_DEBOUNCE_TICKS) pin_states[i].debounce += 1;
             } else {
