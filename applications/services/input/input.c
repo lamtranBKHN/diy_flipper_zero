@@ -17,6 +17,7 @@
 #define INPUT_PRESS_TICKS         200
 #define INPUT_LONG_PRESS_COUNTS   5
 #define INPUT_THREAD_FLAG_ISR     0x00000001
+#define INPUT_IDLE_POLL_TICKS     20
 
 #define TAG "Input"
 
@@ -140,25 +141,20 @@ int32_t input_srv(void* p) {
     //define object input_settings, take memory load (or init) settings and create record for access to settings structure from outside
     InputSettings* settings = malloc(sizeof(InputSettings));
     input_settings_load(settings);
-    FURI_LOG_I(TAG, "furi_record_create INPUT_SETTINGS");
     furi_record_create(RECORD_INPUT_SETTINGS, settings);
-    FURI_LOG_I(TAG, "furi_record_create INPUT_SETTINGS done");
 
 #ifdef INPUT_DEBUG
     furi_hal_gpio_init_simple(&gpio_ext_pa4, GpioModeOutputPushPull);
 #endif
 
     InputPinState* pin_states = malloc(sizeof(InputPinState) * input_pins_count);
-    FURI_LOG_I(TAG, "Allocated pin states");
     if(!pin_states) {
         FURI_LOG_E(TAG, "Failed to allocate pin states");
         return 0;
     }
-    FURI_LOG_I(TAG, "Initializing input pins");
     for(size_t i = 0; i < input_pins_count; i++) {
         // Using expander backend only: register a single callback later, don't attach per-pin
         (void)input_pins;
-        FURI_LOG_I(TAG, "Using expander backend, skipping GPIO callback attach for pin %u", (unsigned)i);
         pin_states[i].pin = &input_pins[i];
         pin_states[i].state = false;
         pin_states[i].debounce = INPUT_DEBOUNCE_TICKS_HALF;
@@ -169,7 +165,6 @@ int32_t input_srv(void* p) {
         }
         pin_states[i].event_pubsub = event_pubsub;
         pin_states[i].press_counter = 0;
-        FURI_LOG_I(TAG, "Initialized pin %s", input_pins[i].name);
     }
 
     if(furi_hal_pcf8574_init()) {
@@ -236,7 +231,6 @@ int32_t input_srv(void* p) {
                     event.sequence_counter = pin_states[i].counter;
                     if(pin_states[i].press_timer) {
                         furi_timer_stop(pin_states[i].press_timer);
-                        while(furi_timer_is_running(pin_states[i].press_timer)) furi_delay_tick(1);
                     }
                     if(pin_states[i].press_counter < INPUT_LONG_PRESS_COUNTS) {
                         event.type = InputTypeShort;
@@ -281,7 +275,8 @@ int32_t input_srv(void* p) {
 #endif
             // Polling fallback: do not block forever waiting for INT.
             // Some board revisions have missing/unstable PCF8574 INT wiring.
-            (void)furi_thread_flags_wait(INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, 5);
+            (void)furi_thread_flags_wait(
+                INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, INPUT_IDLE_POLL_TICKS);
         }
     }
 

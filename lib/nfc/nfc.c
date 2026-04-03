@@ -254,7 +254,7 @@ Nfc* nfc_alloc(void) {
     furi_thread_set_name(instance->worker_thread, "NfcWorker");
     furi_thread_set_context(instance->worker_thread, instance);
     furi_thread_set_priority(instance->worker_thread, FuriThreadPriorityHighest);
-    furi_thread_set_stack_size(instance->worker_thread, 8 * 1024);
+    furi_thread_set_stack_size(instance->worker_thread, 12 * 1024);
     furi_hal_nfc_release();
 
     return instance;

@@ -6,8 +6,8 @@
 #include <string.h>
 
 #define PN532_NFCA_CT                 0x88
-#define PN532_EVENT_QUEUE_CAPACITY    4
-#define PN532_MAX_FRAME_SIZE          96
+#define PN532_EVENT_QUEUE_CAPACITY    8
+#define PN532_MAX_FRAME_SIZE          192
 
 typedef struct {
     bool active;

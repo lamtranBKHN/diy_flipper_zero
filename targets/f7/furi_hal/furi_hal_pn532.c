@@ -85,7 +85,7 @@ static bool pn532_read_response(
     size_t payload_size,
     size_t* out_len,
     uint32_t timeout_ms) {
-    uint8_t rx[96] = {0};
+    uint8_t rx[192] = {0};
     if(!pn532_wait_ready(timeout_ms)) return false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
@@ -124,7 +124,7 @@ bool furi_hal_pn532_init(void) {
         return false;
     }
     FURI_LOG_I(TAG, "PN532 firmware ACK received");
-    uint8_t fw_rsp[16];
+    uint8_t fw_rsp[24];
     size_t fw_len = 0;
     if(!pn532_read_response(fw_rsp, sizeof(fw_rsp), &fw_len, 250) || fw_len < 5 ||
        fw_rsp[0] != (PN532_CMD_GET_FIRMWARE_VERSION + 1)) {
@@ -139,7 +139,7 @@ bool furi_hal_pn532_init(void) {
         return false;
     }
     FURI_LOG_I(TAG, "PN532 SAM ACK received");
-    uint8_t sam_rsp[8];
+    uint8_t sam_rsp[16];
     size_t sam_len = 0;
     if(!pn532_read_response(sam_rsp, sizeof(sam_rsp), &sam_len, 250) || sam_len < 1 ||
        sam_rsp[0] != (PN532_CMD_SAM_CONFIGURATION + 1)) {
@@ -184,7 +184,7 @@ bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
     if(target) memset(target, 0, sizeof(*target));
 
     uint8_t cmd[] = {PN532_CMD_IN_LIST_PASSIVE, 0x01, 0x00};
-    uint8_t response[32] = {0};
+    uint8_t response[64] = {0};
     size_t response_len = 0;
 
     FuriHalPn532Error error =
@@ -227,7 +227,7 @@ FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     cmd[1] = target_number;
     if(tx_len) memcpy(&cmd[2], tx_data, tx_len);
 
-    uint8_t response[64] = {0};
+    uint8_t response[128] = {0};
     size_t response_len = 0;
     FuriHalPn532Error error =
         pn532_exchange(
