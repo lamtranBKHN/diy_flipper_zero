@@ -20,11 +20,6 @@
 
 #define TAG "Input"
 
-// Temporary testing helper: define to bypass debounce and publish immediately
-// when a raw MCP state change is detected. Disable for normal builds.
-// #define INPUT_MCP_IMMEDIATE_PUBLISH
-#define MCP_ADDR 0x20
-
 /** Input pin state */
 typedef struct {
     const InputPin* pin;
@@ -42,30 +37,28 @@ typedef struct {
 // PCF8574 input cache
 static volatile uint8_t g_pcf_state = 0xFF;
 
-// Default mapping: map input indices to MCP pins 0..N-1. Update this array
-// to match your hardware wiring where MCP GPA0..GPA7 and GPB0..GPB7
-// correspond to external connectors A0..A7, B0..B7, etc.
-// Wiring mapping provided by user: MCP physical pins 0..5 correspond to keys:
+// Default mapping: map input indices to PCF8574 P0..P7.
+// Wiring mapping provided by user: PCF8574 pins 0..5 correspond to keys:
 // pin0 -> key 3 (Back)
 // pin1 -> key 4 (OK)
 // pin2 -> key 1 (Down)
 // pin3 -> key 0 (Up)
 // pin4 -> key 5 (Left)
 // pin5 -> key 2 (Right)
-// We invert this to get per-input-index -> MCP pin mapping:
-// index 0 (Up)  -> MCP pin 3
-// index 1 (Down)-> MCP pin 2
-// index 2 (Right)-> MCP pin 5
-// index 3 (Left)-> MCP pin 0
-// index 4 (OK)  -> MCP pin 1
-// index 5 (Back)-> MCP pin 4
+// We invert this to get per-input-index -> PCF pin mapping:
+// index 0 (Up)   -> PCF pin 0
+// index 1 (Down) -> PCF pin 4
+// index 2 (Right)-> PCF pin 1
+// index 3 (Left) -> PCF pin 5
+// index 4 (OK)   -> PCF pin 2
+// index 5 (Back) -> PCF pin 3
 static const uint8_t pcf_pin_map_default[] = {
-    0, // input_pins[0] (Up)    -> MCP pin 0 (A0)
-    4, // input_pins[1] (Down)  -> MCP pin 4 (A4)
-    1, // input_pins[2] (Right) -> MCP pin 1 (A1)
-    5, // input_pins[3] (Left)  -> MCP pin 5 (A5)
-    2, // input_pins[4] (OK)    -> MCP pin 2 (A2 / enter)
-    3, // input_pins[5] (Back)  -> MCP pin 3 (A3)
+    0, // input_pins[0] (Up)    -> PCF pin 0
+    4, // input_pins[1] (Down)  -> PCF pin 4
+    1, // input_pins[2] (Right) -> PCF pin 1
+    5, // input_pins[3] (Left)  -> PCF pin 5
+    2, // input_pins[4] (OK)    -> PCF pin 2
+    3, // input_pins[5] (Back)  -> PCF pin 3
 };
 
 static uint8_t input_pcf_mask_for_index(size_t idx) {
@@ -165,11 +158,11 @@ int32_t input_srv(void* p) {
     }
     FURI_LOG_I(TAG, "Initializing input pins");
     for(size_t i = 0; i < input_pins_count; i++) {
-        // Using PCF8574 only: register a single callback later, don't attach per-pin
+        // Using expander backend only: register a single callback later, don't attach per-pin
         (void)input_pins;
-        FURI_LOG_I(TAG, "Using PCF8574, skipping GPIO callback attach for pin %u", (unsigned)i);
+        FURI_LOG_I(TAG, "Using expander backend, skipping GPIO callback attach for pin %u", (unsigned)i);
         pin_states[i].pin = &input_pins[i];
-        pin_states[i].state = GPIO_Read_PCF_BY_IDX(i);
+        pin_states[i].state = false;
         pin_states[i].debounce = INPUT_DEBOUNCE_TICKS_HALF;
         pin_states[i].press_timer = furi_timer_alloc(
             input_press_timer_callback, FuriTimerTypePeriodic, &pin_states[i]);
@@ -181,9 +174,7 @@ int32_t input_srv(void* p) {
         FURI_LOG_I(TAG, "Initialized pin %s", input_pins[i].name);
     }
 
-    if(!furi_hal_pcf8574_init()) {
-        FURI_LOG_E(TAG, "PCF8574 init failed");
-    } else {
+    if(furi_hal_pcf8574_init()) {
         FURI_LOG_I(TAG, "PCF8574 initialized");
         for(size_t i = 0; i < input_pins_count; i++) {
             (void)input_pcf_mask_for_index(i);
@@ -207,6 +198,8 @@ int32_t input_srv(void* p) {
         // Attach the expander INT line to the MCU EXTI pin
         furi_hal_gpio_add_int_callback(&gpio_mcp_int, (GpioExtiCallback)furi_hal_pcf8574_handle_int, NULL);
         furi_hal_gpio_enable_int_callback(&gpio_mcp_int);
+    } else {
+        FURI_LOG_E(TAG, "PCF8574 input expander not detected");
     }
 
     while(1) {
@@ -217,20 +210,12 @@ int32_t input_srv(void* p) {
                 uint8_t prev = g_pcf_state;
                 g_pcf_state = new_state;
                 if(prev != new_state) {
-                    // FURI_LOG_I(TAG, "MCP GPIO state changed 0x%04X -> 0x%04X", prev, new_state);
                     uint8_t changed = prev ^ new_state;
                     for(size_t j = 0; j < input_pins_count; j++) {
                         uint8_t mask = input_pcf_mask_for_index(j);
                         if(mask && (changed & mask)) {
                             bool now = (new_state & mask) != 0;
                             UNUSED(now);
-                            // FURI_LOG_I(
-                            //     TAG,
-                            //     "  Input idx %u (%s) MCPbit %u changed: %s",
-                            //     (unsigned)j,
-                            //     input_pins[j].name,
-                            //     (unsigned)(pcf_pin_map_default[j]),
-                            //     now ? "1" : "0");
                         }
                     }
                 }

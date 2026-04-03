@@ -17,10 +17,18 @@ bool furi_hal_pcf8574_init(void) {
     bool ok = false;
     uint8_t detected_addr = PCF8574_I2C_ADDR;
 
-    // Try both 7-bit (0x20) and 8-bit shifted (0x40) address forms.
-    const uint8_t candidates[] = {PCF8574_I2C_ADDR, (uint8_t)(PCF8574_I2C_ADDR << 1)};
+    // Try all PCF8574 address variants:
+    // 7-bit range 0x20..0x27 and their shifted forms 0x40..0x4E.
+    uint8_t candidates[16];
+    size_t cidx = 0;
+    for(uint8_t a = 0x20; a <= 0x27; a++) {
+        candidates[cidx++] = a;
+    }
+    for(uint8_t a = 0x20; a <= 0x27; a++) {
+        candidates[cidx++] = (uint8_t)(a << 1);
+    }
 
-    for(size_t i = 0; i < COUNT_OF(candidates); i++) {
+    for(size_t i = 0; i < cidx; i++) {
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
         ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, candidates[i], &probe, 1, 50);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
@@ -35,7 +43,7 @@ bool furi_hal_pcf8574_init(void) {
         uint32_t now = furi_get_tick();
         if((now - pcf8574_last_error_tick) > 1000) {
             pcf8574_last_error_tick = now;
-            FURI_LOG_E(TAG, "PCF8574 not detected (tried 0x%02X and 0x%02X)", PCF8574_I2C_ADDR, (uint8_t)(PCF8574_I2C_ADDR << 1));
+            FURI_LOG_E(TAG, "PCF8574 not detected on I2C (tried 0x20..0x27 and shifted forms)");
         }
         return false;
     }
