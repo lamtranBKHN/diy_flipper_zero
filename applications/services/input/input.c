@@ -46,19 +46,19 @@ static volatile uint8_t g_pcf_state = 0xFF;
 // pin4 -> key 5 (Left)
 // pin5 -> key 2 (Right)
 // We invert this to get per-input-index -> PCF pin mapping:
-// index 0 (Up)   -> PCF pin 0
-// index 1 (Down) -> PCF pin 4
-// index 2 (Right)-> PCF pin 1
-// index 3 (Left) -> PCF pin 5
-// index 4 (OK)   -> PCF pin 2
-// index 5 (Back) -> PCF pin 3
+// index 0 (Up)   -> PCF pin 3
+// index 1 (Down) -> PCF pin 2
+// index 2 (Right)-> PCF pin 5
+// index 3 (Left) -> PCF pin 4
+// index 4 (OK)   -> PCF pin 1
+// index 5 (Back) -> PCF pin 0
 static const uint8_t pcf_pin_map_default[] = {
-    0, // input_pins[0] (Up)    -> PCF pin 0
-    4, // input_pins[1] (Down)  -> PCF pin 4
-    1, // input_pins[2] (Right) -> PCF pin 1
-    5, // input_pins[3] (Left)  -> PCF pin 5
-    2, // input_pins[4] (OK)    -> PCF pin 2
-    3, // input_pins[5] (Back)  -> PCF pin 3
+    3, // input_pins[0] (Up)    -> PCF pin 3
+    2, // input_pins[1] (Down)  -> PCF pin 2
+    5, // input_pins[2] (Right) -> PCF pin 5
+    4, // input_pins[3] (Left)  -> PCF pin 4
+    1, // input_pins[4] (OK)    -> PCF pin 1
+    0, // input_pins[5] (Back)  -> PCF pin 0
 };
 
 static uint8_t input_pcf_mask_for_index(size_t idx) {
