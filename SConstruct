@@ -109,7 +109,10 @@ if GetOption("fullenv") or any(
     selfupdate_min_dist = distenv.DistCommand(
         "updater_minpackage",
         distenv["DIST_DEPENDS"],
-        DIST_EXTRA=dist_basic_arguments,
+        DIST_EXTRA=[
+            *dist_basic_arguments,
+            *dist_resource_arguments,
+        ],
     )
 
     # Updater debug
@@ -138,7 +141,8 @@ if GetOption("fullenv") or any(
     usb_minupdate_package = distenv.AddUsbFlashTarget(
         "#build/minusbinstall.flag", (selfupdate_min_dist,)
     )
-    distenv.Alias("flash_usb", usb_minupdate_package)
+    distenv.Alias("flash_usb_min", usb_minupdate_package)
+    distenv.Alias("flash_usb", usb_update_package)
 
 
 # Target for copying & renaming binaries to dist folder
