@@ -1,4 +1,5 @@
 #include "furi_hal_nfc_i.h"
+#include "furi_hal_nfc_pn532.h"
 #include "furi_hal_nfc_tech_i.h"
 
 #include <furi.h>
@@ -14,6 +15,10 @@
 static Iso14443_3aSignal* iso14443_3a_signal = NULL;
 
 static FuriHalNfcError furi_hal_nfc_iso14443a_common_init(const FuriHalSpiBusHandle* handle) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(handle);
+        return FuriHalNfcErrorNone;
+    }
     // Common NFC-A settings, 106 kbps
 
     // 1st stage zero = 600kHz, 3rd stage zero = 200 kHz
@@ -41,6 +46,10 @@ static FuriHalNfcError furi_hal_nfc_iso14443a_common_init(const FuriHalSpiBusHan
 }
 
 static FuriHalNfcError furi_hal_nfc_iso14443a_poller_init(const FuriHalSpiBusHandle* handle) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(handle);
+        return FuriHalNfcErrorNone;
+    }
     // Enable ISO14443A mode, OOK modulation
     st25r3916_change_reg_bits(
         handle,
@@ -58,6 +67,10 @@ static FuriHalNfcError furi_hal_nfc_iso14443a_poller_init(const FuriHalSpiBusHan
 }
 
 static FuriHalNfcError furi_hal_nfc_iso14443a_poller_deinit(const FuriHalSpiBusHandle* handle) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(handle);
+        return FuriHalNfcErrorNone;
+    }
     st25r3916_change_reg_bits(
         handle,
         ST25R3916_REG_ISO14443A_NFC,
@@ -129,6 +142,9 @@ static FuriHalNfcEvent furi_hal_nfc_iso14443_3a_listener_wait_event(uint32_t tim
 }
 
 FuriHalNfcError furi_hal_nfc_iso14443a_poller_trx_short_frame(FuriHalNfcaShortFrame frame) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_trx_short_frame(frame);
+    }
     FuriHalNfcError error = FuriHalNfcErrorNone;
 
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
@@ -161,6 +177,9 @@ FuriHalNfcError furi_hal_nfc_iso14443a_poller_trx_short_frame(FuriHalNfcaShortFr
 
 FuriHalNfcError furi_hal_nfc_iso14443a_tx_sdd_frame(const uint8_t* tx_data, size_t tx_bits) {
     FuriHalNfcError error = FuriHalNfcErrorNone;
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_tx(tx_data, tx_bits);
+    }
     // No anticollision is supported in this version of library
     error = furi_hal_nfc_poller_tx(tx_data, tx_bits);
 
@@ -183,6 +202,10 @@ FuriHalNfcError
 FuriHalNfcError
     furi_hal_nfc_iso14443a_poller_tx_custom_parity(const uint8_t* tx_data, size_t tx_bits) {
     furi_check(tx_data);
+
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_tx_custom_parity(tx_data, tx_bits);
+    }
 
     FuriHalNfcError err = FuriHalNfcErrorNone;
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;

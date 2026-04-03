@@ -1,4 +1,5 @@
 #include "furi_hal_nfc_i.h"
+#include "furi_hal_nfc_pn532.h"
 #include "furi_hal_nfc_tech_i.h"
 
 #include <lib/drivers/st25r3916.h>
@@ -7,6 +8,7 @@
 #include <furi_hal_spi.h>
 
 #define TAG "FuriHalNfc"
+#define FURI_HAL_NFC_PN532_ONLY true
 
 const FuriHalNfcTechBase* const furi_hal_nfc_tech[FuriHalNfcTechNum] = {
     [FuriHalNfcTechIso14443a] = &furi_hal_nfc_iso14443a,
@@ -106,6 +108,19 @@ static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handl
 
 FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
     FURI_LOG_I(TAG, "Checking if HAL is ready");
+    if(furi_hal_nfc_pn532_backend_init()) {
+        if(furi_hal_nfc.mutex == NULL) {
+            furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+        }
+        FURI_LOG_I(TAG, "HAL ready via PN532 backend");
+        return FuriHalNfcErrorNone;
+    }
+
+    if(FURI_HAL_NFC_PN532_ONLY) {
+        FURI_LOG_E(TAG, "PN532 backend not available");
+        return FuriHalNfcErrorCommunication;
+    }
+
     FuriHalNfcError error = FuriHalNfcErrorNone;
 
     do {
@@ -130,7 +145,20 @@ FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_init(void) {
-    furi_check(furi_hal_nfc.mutex == NULL);
+    if(furi_hal_nfc_pn532_backend_init()) {
+        if(furi_hal_nfc.mutex == NULL) {
+            furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+        }
+        FURI_LOG_I(TAG, "Initializing Furi HAL NFC with PN532 backend");
+        return FuriHalNfcErrorNone;
+    }
+
+    if(FURI_HAL_NFC_PN532_ONLY) {
+        FURI_LOG_E(TAG, "PN532 backend init failed");
+        return FuriHalNfcErrorCommunication;
+    }
+
+    if(furi_hal_nfc.mutex) return FuriHalNfcErrorNone;
     FURI_LOG_I(TAG, "Initializing Furi HAL NFC");
 
     furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
@@ -350,11 +378,15 @@ FuriHalNfcError furi_hal_nfc_acquire(void) {
     furi_check(furi_hal_nfc.mutex);
     FURI_LOG_T(TAG, "Acquiring NFC");
 
-    furi_hal_spi_acquire(&furi_hal_spi_bus_handle_nfc);
+    if(!furi_hal_nfc_pn532_is_active()) {
+        furi_hal_spi_acquire(&furi_hal_spi_bus_handle_nfc);
+    }
 
     FuriHalNfcError error = FuriHalNfcErrorNone;
     if(furi_mutex_acquire(furi_hal_nfc.mutex, 100) != FuriStatusOk) {
-        furi_hal_spi_release(&furi_hal_spi_bus_handle_nfc);
+        if(!furi_hal_nfc_pn532_is_active()) {
+            furi_hal_spi_release(&furi_hal_spi_bus_handle_nfc);
+        }
         FURI_LOG_W(TAG, "Failed to acquire mutex, NFC busy");
         error = FuriHalNfcErrorBusy;
     }
@@ -368,12 +400,17 @@ FuriHalNfcError furi_hal_nfc_release(void) {
     FURI_LOG_T(TAG, "Releasing NFC");
     furi_check(furi_mutex_release(furi_hal_nfc.mutex) == FuriStatusOk);
 
-    furi_hal_spi_release(&furi_hal_spi_bus_handle_nfc);
+    if(!furi_hal_nfc_pn532_is_active()) {
+        furi_hal_spi_release(&furi_hal_spi_bus_handle_nfc);
+    }
 
     return FuriHalNfcErrorNone;
 }
 
 FuriHalNfcError furi_hal_nfc_low_power_mode_start(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_low_power_mode_start();
+    }
     FURI_LOG_I(TAG, "Entering low power mode");
     FuriHalNfcError error = FuriHalNfcErrorNone;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
@@ -395,6 +432,9 @@ FuriHalNfcError furi_hal_nfc_low_power_mode_start(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_low_power_mode_stop(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_low_power_mode_stop();
+    }
     furi_hal_nfc_acquire();
     FURI_LOG_I(TAG, "Exiting low power mode");
     FuriHalNfcError error = FuriHalNfcErrorNone;
@@ -472,7 +512,15 @@ FuriHalNfcError furi_hal_nfc_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech) 
     furi_check(mode < FuriHalNfcModeNum);
     furi_check(tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Setting mode: %d, tech: %d", mode, tech);
-  //  furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
+    if(furi_hal_nfc_pn532_is_active()) {
+        FuriHalNfcError error = furi_hal_nfc_pn532_set_mode(mode, tech);
+        if(error == FuriHalNfcErrorNone) {
+            furi_hal_nfc.mode = mode;
+            furi_hal_nfc.tech = tech;
+        }
+        return error;
+    }
+   //  furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
  furi_hal_nfc_acquire();
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
 
@@ -506,6 +554,10 @@ FuriHalNfcError furi_hal_nfc_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech) 
 }
 
 FuriHalNfcError furi_hal_nfc_reset_mode(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        furi_hal_nfc_pn532_reset();
+        return FuriHalNfcErrorNone;
+    }
     FURI_LOG_I(TAG, "Resetting mode"); 
     FuriHalNfcError error = FuriHalNfcErrorNone;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
@@ -551,6 +603,9 @@ FuriHalNfcError furi_hal_nfc_reset_mode(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_field_detect_start(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_field_detect_start();
+    }
     FURI_LOG_I(TAG, "Starting field detection");
     FuriHalNfcError error = FuriHalNfcErrorNone;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
@@ -567,6 +622,9 @@ FuriHalNfcError furi_hal_nfc_field_detect_start(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_field_detect_stop(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_field_detect_stop();
+    }
     FURI_LOG_I(TAG, "Stopping field detection");
     FuriHalNfcError error = FuriHalNfcErrorNone;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
@@ -581,6 +639,9 @@ FuriHalNfcError furi_hal_nfc_field_detect_stop(void) {
 }
 
 bool furi_hal_nfc_field_is_present(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_field_is_present();
+    }
     FURI_LOG_T(TAG, "Checking for external field presence");
     bool is_present = false;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
@@ -601,6 +662,9 @@ bool furi_hal_nfc_field_is_present(void) {
 
 
 FuriHalNfcError furi_hal_nfc_poller_field_on(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_poller_field_on();
+    }
     FURI_LOG_T(TAG, "Turning poller field on");
     FuriHalNfcError error = FuriHalNfcErrorNone;
 
@@ -715,6 +779,9 @@ FuriHalNfcError furi_hal_nfc_poller_tx(const uint8_t* tx_data, size_t tx_bits) {
     furi_check(furi_hal_nfc.mode == FuriHalNfcModePoller);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Poller TX for tech %d", furi_hal_nfc.tech);
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_tx(tx_data, tx_bits);
+    }
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
         furi_hal_nfc_release();
@@ -725,6 +792,9 @@ FuriHalNfcError furi_hal_nfc_poller_rx(uint8_t* rx_data, size_t rx_data_size, si
     furi_check(furi_hal_nfc.mode == FuriHalNfcModePoller);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Poller RX for tech %d", furi_hal_nfc.tech);
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_rx(rx_data, rx_data_size, rx_bits);
+    }
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);
     
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
@@ -738,10 +808,18 @@ FuriHalNfcEvent furi_hal_nfc_poller_wait_event(uint32_t timeout_ms) {
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Poller wait event for tech %d", furi_hal_nfc.tech);
 
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_wait_event(timeout_ms);
+    }
+
     return furi_hal_nfc_tech[furi_hal_nfc.tech]->poller.wait_event(timeout_ms);
 }
 
 FuriHalNfcEvent furi_hal_nfc_listener_wait_event(uint32_t timeout_ms) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(timeout_ms);
+        return FuriHalNfcEventTimeout;
+    }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Listener wait event for tech %d", furi_hal_nfc.tech);
@@ -751,6 +829,11 @@ FuriHalNfcEvent furi_hal_nfc_listener_wait_event(uint32_t timeout_ms) {
 
 FuriHalNfcError furi_hal_nfc_listener_tx(const uint8_t* tx_data, size_t tx_bits) {
     furi_check(tx_data);
+
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(tx_bits);
+        return FuriHalNfcErrorCommunication;
+    }
 
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
@@ -785,6 +868,11 @@ FuriHalNfcError furi_hal_nfc_listener_rx(uint8_t* rx_data, size_t rx_data_size, 
     furi_check(rx_data);
     furi_check(rx_bits);
 
+    if(furi_hal_nfc_pn532_is_active()) {
+        UNUSED(rx_data_size);
+        return FuriHalNfcErrorCommunication;
+    }
+
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_T(TAG, "Listener RX for tech %d", furi_hal_nfc.tech);
@@ -797,6 +885,9 @@ FuriHalNfcError furi_hal_nfc_listener_rx(uint8_t* rx_data, size_t rx_data_size, 
 
 
 FuriHalNfcError furi_hal_nfc_trx_reset(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_trx_reset();
+    }
     FURI_LOG_I(TAG, "Resetting TRX");
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
     furi_hal_nfc_acquire();
@@ -809,6 +900,9 @@ FuriHalNfcError furi_hal_nfc_trx_reset(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_listener_sleep(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return FuriHalNfcErrorCommunication;
+    }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Listener entering sleep state for tech %d", furi_hal_nfc.tech);
@@ -819,6 +913,9 @@ FuriHalNfcError furi_hal_nfc_listener_sleep(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_listener_idle(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return FuriHalNfcErrorCommunication;
+    }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
     FURI_LOG_I(TAG, "Listener entering idle state for tech %d", furi_hal_nfc.tech);
@@ -829,6 +926,9 @@ FuriHalNfcError furi_hal_nfc_listener_idle(void) {
 }
 
 FuriHalNfcError furi_hal_nfc_listener_enable_rx(void) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return FuriHalNfcErrorCommunication;
+    }
     FURI_LOG_I(TAG, "Listener enabling RX (unmasking)");
     const FuriHalSpiBusHandle* handle = &furi_hal_spi_bus_handle_nfc;
     furi_check(furi_hal_nfc_acquire() == FuriHalNfcErrorNone);

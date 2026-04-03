@@ -17,8 +17,25 @@ typedef enum {
     FuriHalPn532ErrorInvalidFrame,
 } FuriHalPn532Error;
 
+typedef struct {
+    uint8_t target_number;
+    uint8_t atqa[2];
+    uint8_t sak;
+    uint8_t uid[10];
+    size_t uid_len;
+} FuriHalPn532Target;
+
 bool furi_hal_pn532_init(void);
 bool furi_hal_pn532_is_ready(void);
+bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target);
+FuriHalPn532Error furi_hal_pn532_in_data_exchange(
+    uint8_t target_number,
+    const uint8_t* tx_data,
+    size_t tx_len,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_len);
+
 
 #ifdef __cplusplus
 }
