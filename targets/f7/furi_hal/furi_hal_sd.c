@@ -5,6 +5,9 @@
 #include "../fatfs/sector_cache.h"
 #define TAG "SdSpi"
 
+/* Temporarily force-enable SD SPI debug for PA10/SD_CS diagnosis */
+#define FURI_HAL_SD_SPI_DEBUG 1
+
 #ifdef FURI_HAL_SD_SPI_DEBUG
 #define sd_spi_debug(...) FURI_LOG_I(TAG, __VA_ARGS__)
 #else
@@ -912,6 +915,9 @@ uint8_t furi_hal_sd_max_mount_retry_count(void) {
 }
 
 FuriStatus furi_hal_sd_init(bool power_reset) {
+    FURI_LOG_I(TAG, "SD init start (power_reset=%d) CS=PA%d",
+        power_reset,
+        (SD_CS_Pin == LL_GPIO_PIN_10) ? 10 : -1);
     // Slow speed init
     furi_hal_spi_acquire(&furi_hal_spi_bus_handle_sd_slow);
     furi_hal_sd_spi_handle = &furi_hal_spi_bus_handle_sd_slow;
@@ -948,6 +954,10 @@ FuriStatus furi_hal_sd_init(bool power_reset) {
             sd_spi_debug("SD init OK after %d retries", i);
             break;
         }
+    }
+
+    if(status != FuriStatusOk) {
+        FURI_LOG_E(TAG, "SD init FAILED after 128 retries");
     }
 
     furi_hal_sd_spi_handle = NULL;
