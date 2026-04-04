@@ -27,7 +27,6 @@
         "fatfs",
         "subghz",
         "toolbox",
-        "nfc",
         "digital_signal",
         "uzlib",
         "pulse_reader",

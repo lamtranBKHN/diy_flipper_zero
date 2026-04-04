@@ -107,6 +107,9 @@ static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handl
 }
 
 FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
+    FURI_LOG_W(TAG, "NFC disabled by board config");
+    return FuriHalNfcErrorCommunication;
+
     FURI_LOG_I(TAG, "Checking if HAL is ready [PN532-R2]");
     FURI_LOG_I(TAG, "PN532 backend init begin");
     if(furi_hal_nfc_pn532_backend_init()) {
