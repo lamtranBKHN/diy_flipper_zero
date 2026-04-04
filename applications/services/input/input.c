@@ -201,6 +201,10 @@ int32_t input_srv(void* p) {
         uint8_t new_state = g_pcf_state;
         if(furi_hal_pcf8574_read(&new_state)) {
             g_pcf_state = new_state;
+        } else {
+            // I2C read failed — assume all buttons released (0xFF = all high = none pressed)
+            // to prevent phantom stuck keys from stale cached state
+            g_pcf_state = 0xFF;
         }
 
         for(size_t i = 0; i < input_pins_count; i++) {
