@@ -158,6 +158,12 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_SSD1306_VARIANT 1
 // SSD1309 init variant: 0 = noname0 (offset 0), 1 = noname2 (offset 2)
 #define DISPLAY_SSD1309_VARIANT 1
+// SPI mode for OLED: 0 = mode0 (CPOL=0, CPHA=0), 3 = mode3 (CPOL=1, CPHA=1)
+#define DISPLAY_SPI_MODE 0
+// Optional signal inversions for troubleshooting
+#define DISPLAY_CS_INVERT 0
+#define DISPLAY_DC_INVERT 0
+#define DISPLAY_RST_INVERT 0
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0

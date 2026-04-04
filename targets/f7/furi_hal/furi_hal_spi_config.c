@@ -72,6 +72,19 @@ const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_2m = {
     .CRCPoly = 7,
 };
 
+const LL_SPI_InitTypeDef furi_hal_spi_preset_2edge_high_2m = {
+    .Mode = LL_SPI_MODE_MASTER,
+    .TransferDirection = LL_SPI_FULL_DUPLEX,
+    .DataWidth = LL_SPI_DATAWIDTH_8BIT,
+    .ClockPolarity = LL_SPI_POLARITY_HIGH,
+    .ClockPhase = LL_SPI_PHASE_2EDGE,
+    .NSS = LL_SPI_NSS_SOFT,
+    .BaudRate = LL_SPI_BAUDRATEPRESCALER_DIV32,
+    .BitOrder = LL_SPI_MSB_FIRST,
+    .CRCCalculation = LL_SPI_CRCCALCULATION_DISABLE,
+    .CRCPoly = 7,
+};
+
 /* ========================== SPI Bus Definition (Single Bus) =========================== */
 
 //Define ONE bus for SPI1, keeping the name furi_hal_spi_bus
@@ -355,8 +368,13 @@ static void furi_hal_spi_bus_handle_subghz_event_callback(
 static void furi_hal_spi_bus_handle_display_event_callback(
     const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event) {
+#if DISPLAY_SPI_MODE == 3
+    furi_hal_spi_bus_generic_handle_event_callback(
+        handle, event, &furi_hal_spi_preset_2edge_high_2m);
+#else
     furi_hal_spi_bus_generic_handle_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_2m);
+#endif
 }
 
 /* ======================== SPI Bus Handle Definitions ======================= */

@@ -15,11 +15,11 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
     switch(msg) {
     case U8X8_MSG_GPIO_AND_DELAY_INIT:
         furi_hal_gpio_init_simple(&gpio_display_rst_n, GpioModeOutputPushPull);
-        furi_hal_gpio_write(&gpio_display_rst_n, true);
+        furi_hal_gpio_write(&gpio_display_rst_n, DISPLAY_RST_INVERT ? false : true);
         furi_hal_gpio_init_simple(&gpio_display_di, GpioModeOutputPushPull);
-        furi_hal_gpio_write(&gpio_display_di, false);
+        furi_hal_gpio_write(&gpio_display_di, DISPLAY_DC_INVERT ? true : false);
         furi_hal_gpio_init_simple(&gpio_display_cs, GpioModeOutputPushPull);
-        furi_hal_gpio_write(&gpio_display_cs, true);
+        furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? false : true);
         break;
     case U8X8_MSG_DELAY_MILLI:
         furi_delay_ms(arg_int);
@@ -32,10 +32,10 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
         __NOP();
         break;
     case U8X8_MSG_GPIO_RESET:
-        furi_hal_gpio_write(&gpio_display_rst_n, arg_int);
+        furi_hal_gpio_write(&gpio_display_rst_n, DISPLAY_RST_INVERT ? !arg_int : arg_int);
         break;
     case U8X8_MSG_GPIO_CS:
-        furi_hal_gpio_write(&gpio_display_cs, arg_int);
+        furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? !arg_int : arg_int);
         break;
     case U8X8_MSG_GPIO_I2C_CLOCK:
         // Software I2C - control SCL pin (PA9)
@@ -69,16 +69,16 @@ uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_
         return furi_hal_spi_bus_tx(
             &furi_hal_spi_bus_handle_display, (uint8_t*)arg_ptr, arg_int, 10000);
     case U8X8_MSG_BYTE_SET_DC:
-        furi_hal_gpio_write(&gpio_display_di, arg_int);
+        furi_hal_gpio_write(&gpio_display_di, DISPLAY_DC_INVERT ? !arg_int : arg_int);
         break;
     case U8X8_MSG_BYTE_INIT:
         break;
     case U8X8_MSG_BYTE_START_TRANSFER:
         furi_hal_spi_acquire(&furi_hal_spi_bus_handle_display);
-        furi_hal_gpio_write(&gpio_display_cs, false);
+        furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? true : false);
         break;
     case U8X8_MSG_BYTE_END_TRANSFER:
-        furi_hal_gpio_write(&gpio_display_cs, true);
+        furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? false : true);
         furi_hal_spi_release(&furi_hal_spi_bus_handle_display);
         break;
     default:
