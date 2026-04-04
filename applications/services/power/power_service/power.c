@@ -354,7 +354,12 @@ static void power_check_low_battery(Power* power) {
 }
 
 static void power_check_battery_level_change(Power* power) {
-    if(power->battery_level != power->info.charge) {
+    // Use dead-band to prevent noisy ADC readings from spamming BLE updates.
+    // Battery percentage doesn't change faster than ~1%/min in practice.
+    uint8_t diff = (power->battery_level > power->info.charge)
+                       ? (power->battery_level - power->info.charge)
+                       : (power->info.charge - power->battery_level);
+    if(diff >= 2) {
         power->battery_level = power->info.charge;
         power->event.type = PowerEventTypeBatteryLevelChanged;
         power->event.data.battery_level = power->battery_level;
@@ -678,7 +683,7 @@ static Power* power_alloc(void) {
         FuriEventLoopEventIn,
         power_message_callback,
         power);
-    furi_event_loop_tick_set(power->event_loop, 1000, power_tick_callback, power);
+    furi_event_loop_tick_set(power->event_loop, POWER_POLL_PERIOD_MS, power_tick_callback, power);
 
     return power;
 }
