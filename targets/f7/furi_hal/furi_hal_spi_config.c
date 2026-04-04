@@ -356,7 +356,7 @@ static void furi_hal_spi_bus_handle_display_event_callback(
     const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event) {
     furi_hal_spi_bus_generic_handle_event_callback(
-        handle, event, &furi_hal_spi_preset_1edge_low_4m);
+        handle, event, &furi_hal_spi_preset_1edge_low_2m);
 }
 
 /* ======================== SPI Bus Handle Definitions ======================= */
