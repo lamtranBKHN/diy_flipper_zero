@@ -422,7 +422,7 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external = {
     .miso = &gpio_spi_miso, // Use shared pin
     .mosi = &gpio_spi_mosi, // Use shared pin
     .sck = &gpio_spi_sck, // Use shared pin
-    .cs = &gpio_ext_pa4, // Ensure this pin is defined and unique
+    .cs = &gpio_ext_pb2, // Keep external CS off restored CC1101 CS on PA4
 };
 
 

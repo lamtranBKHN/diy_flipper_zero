@@ -14,7 +14,7 @@ extern "C" {
 //const GpioPin gpio_button_sr_latch = {.port = GPIOH, .pin = LL_GPIO_PIN_3};
 
 
-// volne A3, A4, A5, 
+// Shared SPI/radio routing: PA4=CC1101_CS, PA5=SPI_SCK, PA6=SPI_MISO, PA7=SPI_MOSI
 
 /* Input Keys */
 typedef enum {
@@ -140,16 +140,16 @@ extern const GpioPin gpio_usb_dp;
 //extern const GpioPin gpio_button_sr_latch;
 
 #define CC1101_CS_GPIO_Port GPIOA
-#define CC1101_CS_Pin       LL_GPIO_PIN_15
+#define CC1101_CS_Pin       LL_GPIO_PIN_4
 #define CC1101_G0_GPIO_Port GPIOA
 #define CC1101_G0_Pin       LL_GPIO_PIN_1
 
-#define DISPLAY_CS_GPIO_Port  PB3_GPIO_Port
-#define DISPLAY_CS_Pin        PB3_Pin
-#define DISPLAY_DI_GPIO_Port  PB2_GPIO_Port
-#define DISPLAY_DI_Pin        PB2_Pin
-#define DISPLAY_RST_GPIO_Port PA4_GPIO_Port
-#define DISPLAY_RST_Pin       PA4_Pin
+#define DISPLAY_CS_GPIO_Port  GPIOA
+#define DISPLAY_CS_Pin        LL_GPIO_PIN_2
+#define DISPLAY_DI_GPIO_Port  GPIOB
+#define DISPLAY_DI_Pin        LL_GPIO_PIN_1
+#define DISPLAY_RST_GPIO_Port GPIOE
+#define DISPLAY_RST_Pin       LL_GPIO_PIN_4
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
@@ -239,8 +239,8 @@ GND - GND
 
 #define SPI_MISO_GPIO_Port GPIOA
 #define SPI_MISO_Pin       LL_GPIO_PIN_6
-#define SPI_MOSI_GPIO_Port GPIOB
-#define SPI_MOSI_Pin       LL_GPIO_PIN_5
+#define SPI_MOSI_GPIO_Port GPIOA
+#define SPI_MOSI_Pin       LL_GPIO_PIN_7
 #define SPI_SCK_GPIO_Port  GPIOA
 #define SPI_SCK_Pin        LL_GPIO_PIN_5
 
