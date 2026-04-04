@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,87.4,,
+Version,+,87.5,,
 Header,+,applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h,,
 Header,+,applications/main/archive/helpers/archive_helpers_ext.h,,
 Header,+,applications/main/subghz/subghz_fap.h,,
@@ -293,8 +293,10 @@ Header,+,targets/f7/furi_hal/furi_hal_ibutton.h,,
 Header,+,targets/f7/furi_hal/furi_hal_idle_timer.h,,
 Header,+,targets/f7/furi_hal/furi_hal_ina219.h,,
 Header,+,targets/f7/furi_hal/furi_hal_interrupt.h,,
-Header,+,targets/f7/furi_hal/furi_hal_pcf8574.h,,
+Header,+,targets/f7/furi_hal/furi_hal_nfc_pn532.h,,
 Header,+,targets/f7/furi_hal/furi_hal_os.h,,
+Header,+,targets/f7/furi_hal/furi_hal_pcf8574.h,,
+Header,+,targets/f7/furi_hal/furi_hal_pn532.h,,
 Header,+,targets/f7/furi_hal/furi_hal_pwm.h,,
 Header,+,targets/f7/furi_hal/furi_hal_resources.h,,
 Header,+,targets/f7/furi_hal/furi_hal_rfid.h,,
@@ -1554,12 +1556,6 @@ Function,+,furi_hal_light_blink_stop,void,
 Function,-,furi_hal_light_init,void,
 Function,+,furi_hal_light_sequence,void,const char*
 Function,+,furi_hal_light_set,void,"Light, uint8_t"
-Function,+,furi_hal_pcf8574_attach_int,void,"GpioExtiCallback, void*"
-Function,+,furi_hal_pcf8574_handle_int,void,
-Function,+,furi_hal_pcf8574_init,_Bool,
-Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
-Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
-Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_memory_alloc,void*,size_t
 Function,+,furi_hal_memory_get_free,size_t,
 Function,+,furi_hal_memory_init,void,
@@ -1572,13 +1568,22 @@ Function,+,furi_hal_mpu_protect_no_access,void,"FuriHalMpuRegion, uint32_t, Furi
 Function,+,furi_hal_mpu_protect_read_only,void,"FuriHalMpuRegion, uint32_t, FuriHalMPURegionSize"
 Function,+,furi_hal_nfc_abort,FuriHalNfcError,
 Function,+,furi_hal_nfc_acquire,FuriHalNfcError,
+Function,+,furi_hal_nfc_common_fifo_rx,FuriHalNfcError,"const FuriHalSpiBusHandle*, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_nfc_common_fifo_tx,FuriHalNfcError,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
+Function,+,furi_hal_nfc_common_listener_rx_start,FuriHalNfcError,const FuriHalSpiBusHandle*
+Function,+,furi_hal_nfc_deinit_gpio_isr,void,
+Function,+,furi_hal_nfc_event_init,void,
+Function,+,furi_hal_nfc_event_set,void,FuriHalNfcEventInternalType
 Function,+,furi_hal_nfc_event_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_event_stop,FuriHalNfcError,
+Function,+,furi_hal_nfc_event_wait_for_specific_irq,_Bool,"const FuriHalSpiBusHandle*, uint32_t, uint32_t"
 Function,+,furi_hal_nfc_felica_listener_set_sensf_res_data,FuriHalNfcError,"const uint8_t*, const uint8_t, const uint8_t*, const uint8_t, const uint16_t"
 Function,+,furi_hal_nfc_field_detect_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_field_detect_stop,FuriHalNfcError,
 Function,+,furi_hal_nfc_field_is_present,_Bool,
+Function,+,furi_hal_nfc_get_irq,uint32_t,const FuriHalSpiBusHandle*
 Function,+,furi_hal_nfc_init,FuriHalNfcError,
+Function,+,furi_hal_nfc_init_gpio_isr,void,
 Function,+,furi_hal_nfc_is_hal_ready,FuriHalNfcError,
 Function,+,furi_hal_nfc_iso14443a_listener_set_col_res_data,FuriHalNfcError,"uint8_t*, uint8_t, uint8_t*, uint8_t"
 Function,+,furi_hal_nfc_iso14443a_listener_tx_custom_parity,FuriHalNfcError,"const uint8_t*, const uint8_t*, size_t"
@@ -1595,9 +1600,26 @@ Function,+,furi_hal_nfc_listener_tx,FuriHalNfcError,"const uint8_t*, size_t"
 Function,+,furi_hal_nfc_listener_wait_event,FuriHalNfcEvent,uint32_t
 Function,+,furi_hal_nfc_low_power_mode_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_low_power_mode_stop,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_backend_init,_Bool,
+Function,+,furi_hal_nfc_pn532_field_detect_start,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_field_detect_stop,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_field_is_present,_Bool,
+Function,+,furi_hal_nfc_pn532_is_active,_Bool,
+Function,+,furi_hal_nfc_pn532_low_power_mode_start,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_low_power_mode_stop,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_poller_field_on,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_reset,void,
+Function,+,furi_hal_nfc_pn532_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
+Function,+,furi_hal_nfc_pn532_set_mode,FuriHalNfcError,"FuriHalNfcMode, FuriHalNfcTech"
+Function,+,furi_hal_nfc_pn532_trx_reset,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_trx_short_frame,FuriHalNfcError,FuriHalNfcaShortFrame
+Function,+,furi_hal_nfc_pn532_tx,FuriHalNfcError,"const uint8_t*, size_t"
+Function,+,furi_hal_nfc_pn532_tx_custom_parity,FuriHalNfcError,"const uint8_t*, size_t"
+Function,+,furi_hal_nfc_pn532_wait_event,FuriHalNfcEvent,uint32_t
 Function,+,furi_hal_nfc_poller_field_on,FuriHalNfcError,
 Function,+,furi_hal_nfc_poller_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
 Function,+,furi_hal_nfc_poller_tx,FuriHalNfcError,"const uint8_t*, size_t"
+Function,+,furi_hal_nfc_poller_tx_common,FuriHalNfcError,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
 Function,+,furi_hal_nfc_poller_wait_event,FuriHalNfcEvent,uint32_t
 Function,+,furi_hal_nfc_release,FuriHalNfcError,
 Function,+,furi_hal_nfc_reset_mode,FuriHalNfcError,
@@ -1608,9 +1630,22 @@ Function,+,furi_hal_nfc_timer_block_tx_start_us,void,uint32_t
 Function,+,furi_hal_nfc_timer_block_tx_stop,void,
 Function,+,furi_hal_nfc_timer_fwt_start,void,uint32_t
 Function,+,furi_hal_nfc_timer_fwt_stop,void,
+Function,+,furi_hal_nfc_timers_deinit,void,
+Function,+,furi_hal_nfc_timers_init,void,
 Function,+,furi_hal_nfc_trx_reset,FuriHalNfcError,
+Function,+,furi_hal_nfc_wait_event_common,FuriHalNfcEvent,uint32_t
 Function,-,furi_hal_os_init,void,
 Function,+,furi_hal_os_tick,void,
+Function,+,furi_hal_pcf8574_attach_int,void,"GpioExtiCallback, void*"
+Function,+,furi_hal_pcf8574_handle_int,void,
+Function,+,furi_hal_pcf8574_init,_Bool,
+Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
+Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
+Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
+Function,+,furi_hal_pn532_in_data_exchange,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_pn532_init,_Bool,
+Function,+,furi_hal_pn532_is_ready,_Bool,
+Function,+,furi_hal_pn532_poll_iso14443a,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_power_check_otg_fault,_Bool,
 Function,+,furi_hal_power_check_otg_status,void,
 Function,+,furi_hal_power_debug_get,void,"PropertyValueCallback, void*"
@@ -4347,7 +4382,9 @@ Variable,+,furi_hal_i2c_bus_external,FuriHalI2cBus,
 Variable,+,furi_hal_i2c_bus_power,FuriHalI2cBus,
 Variable,+,furi_hal_i2c_handle_external,const FuriHalI2cBusHandle,
 Variable,+,furi_hal_i2c_handle_power,const FuriHalI2cBusHandle,
+Variable,+,furi_hal_nfc,FuriHalNfc,
 Variable,+,furi_hal_spi_bus,FuriHalSpiBus,
+Variable,+,furi_hal_spi_bus_handle_display,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_bus_handle_external,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_bus_handle_external_extra,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_bus_handle_nfc,const FuriHalSpiBusHandle,
@@ -4356,6 +4393,7 @@ Variable,+,furi_hal_spi_bus_handle_sd_slow,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_bus_handle_subghz,const FuriHalSpiBusHandle,
 Variable,+,furi_hal_spi_preset_1edge_low_16m,const LL_SPI_InitTypeDef,
 Variable,+,furi_hal_spi_preset_1edge_low_2m,const LL_SPI_InitTypeDef,
+Variable,+,furi_hal_spi_preset_1edge_low_4m,const LL_SPI_InitTypeDef,
 Variable,+,furi_hal_spi_preset_1edge_low_8m,const LL_SPI_InitTypeDef,
 Variable,+,gpio_button_back,const GpioPin,
 Variable,+,gpio_button_down,const GpioPin,
@@ -4364,6 +4402,9 @@ Variable,+,gpio_button_ok,const GpioPin,
 Variable,+,gpio_button_right,const GpioPin,
 Variable,+,gpio_button_up,const GpioPin,
 Variable,+,gpio_cc1101_g0,const GpioPin,
+Variable,+,gpio_display_cs,const GpioPin,
+Variable,+,gpio_display_di,const GpioPin,
+Variable,+,gpio_display_rst_n,const GpioPin,
 Variable,+,gpio_ext_pa4,const GpioPin,
 Variable,+,gpio_ext_pa6,const GpioPin,
 Variable,+,gpio_ext_pa7,const GpioPin,
@@ -4379,10 +4420,14 @@ Variable,+,gpio_i2c_3_sda,const GpioPin,
 Variable,+,gpio_ibutton,const GpioPin,
 Variable,+,gpio_infrared_rx,const GpioPin,
 Variable,+,gpio_infrared_tx,const GpioPin,
-Variable,+,gpio_pcf8574_int,const GpioPin,
 Variable,+,gpio_nfc_cs,const GpioPin,
+Variable,+,gpio_nfc_irq_rfid_pull,const GpioPin,
+Variable,+,gpio_pcf8574_int,const GpioPin,
 Variable,+,gpio_pins,const GpioPinRecord[],
 Variable,+,gpio_pins_count,const size_t,
+Variable,+,gpio_rfid_carrier,const GpioPin,
+Variable,+,gpio_rfid_carrier_out,const GpioPin,
+Variable,+,gpio_rfid_data_in,const GpioPin,
 Variable,+,gpio_sdcard_cs,const GpioPin,
 Variable,+,gpio_speaker,const GpioPin,
 Variable,+,gpio_spi_miso,const GpioPin,
