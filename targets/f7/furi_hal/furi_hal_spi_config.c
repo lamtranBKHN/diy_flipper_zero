@@ -90,6 +90,7 @@ void furi_hal_spi_config_init(void) {
 
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
     // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);
+    furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_display);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_fast);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_sd_slow);
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_external);
@@ -351,6 +352,13 @@ static void furi_hal_spi_bus_handle_subghz_event_callback(
         handle, event, &furi_hal_spi_preset_1edge_low_8m);
 }
 
+static void furi_hal_spi_bus_handle_display_event_callback(
+    const FuriHalSpiBusHandle* handle,
+    FuriHalSpiBusHandleEvent event) {
+    furi_hal_spi_bus_generic_handle_event_callback(
+        handle, event, &furi_hal_spi_preset_1edge_low_4m);
+}
+
 /* ======================== SPI Bus Handle Definitions ======================= */
 
 const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_fast = {
@@ -378,6 +386,15 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_subghz = {
     .mosi = &gpio_spi_mosi,
     .sck = &gpio_spi_sck,
     .cs = &gpio_subghz_cs,
+};
+
+const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display = {
+    .bus = &furi_hal_spi_bus,
+    .callback = furi_hal_spi_bus_handle_display_event_callback,
+    .miso = &gpio_spi_miso,
+    .mosi = &gpio_spi_mosi,
+    .sck = &gpio_spi_sck,
+    .cs = &gpio_display_cs,
 };
 
 const FuriHalSpiBusHandle furi_hal_spi_bus_handle_nfc;

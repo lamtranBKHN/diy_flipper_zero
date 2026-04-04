@@ -69,9 +69,9 @@ extern const GpioPin gpio_pcf8574_int;
 //extern const GpioPin gpio_rf_sw_0;
 
 extern const GpioPin gpio_subghz_cs;
-// extern const GpioPin gpio_display_cs;
-// extern const GpioPin gpio_display_rst_n;
-// extern const GpioPin gpio_display_di;
+extern const GpioPin gpio_display_cs;
+extern const GpioPin gpio_display_rst_n;
+extern const GpioPin gpio_display_di;
 extern const GpioPin gpio_sdcard_cs;
 //extern const GpioPin gpio_sdcard_cd;
 extern const GpioPin gpio_nfc_cs;
@@ -144,12 +144,12 @@ extern const GpioPin gpio_usb_dp;
 #define CC1101_G0_GPIO_Port GPIOA
 #define CC1101_G0_Pin       LL_GPIO_PIN_1
 
-// #define DISPLAY_CS_GPIO_Port  GPIOA
-// #define DISPLAY_CS_Pin        LL_GPIO_PIN_3
-// #define DISPLAY_DI_GPIO_Port  GPIOB
-// #define DISPLAY_DI_Pin        LL_GPIO_PIN_1
-// #define DISPLAY_RST_GPIO_Port GPIOB
-// #define DISPLAY_RST_Pin       LL_GPIO_PIN_0
+#define DISPLAY_CS_GPIO_Port  PB3_GPIO_Port
+#define DISPLAY_CS_Pin        PB3_Pin
+#define DISPLAY_DI_GPIO_Port  PB2_GPIO_Port
+#define DISPLAY_DI_Pin        PB2_Pin
+#define DISPLAY_RST_GPIO_Port PA4_GPIO_Port
+#define DISPLAY_RST_Pin       PA4_Pin
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0

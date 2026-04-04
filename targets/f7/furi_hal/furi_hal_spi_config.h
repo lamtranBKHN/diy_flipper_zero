@@ -13,7 +13,7 @@ extern "C" {
 extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_8m;
 
 /** Preset for ST7567 (Display) */
-//extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_4m;
+extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_4m;
 
 /** Preset for SdCard in fast mode */
 extern const LL_SPI_InitTypeDef furi_hal_spi_preset_1edge_low_16m;
@@ -49,7 +49,7 @@ extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external;
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external_extra;
 
 /** ST7567(Display) on `furi_hal_spi_bus_d` */
-// extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display;
+extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_display;
 
 /** SdCard in fast mode on `furi_hal_spi_bus_d` */
 extern const FuriHalSpiBusHandle furi_hal_spi_bus_handle_sd_fast;
