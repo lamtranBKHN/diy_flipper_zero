@@ -37,11 +37,21 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
         // Faster timing for better responsiveness
         __NOP();
         break;
+    case U8X8_MSG_DELAY_NANO: {
+        uint32_t ticks = (arg_int / 50U) + 1U;
+        while(ticks--) {
+            __NOP();
+        }
+        break;
+    }
     case U8X8_MSG_GPIO_RESET:
         furi_hal_gpio_write(&gpio_display_rst_n, DISPLAY_RST_INVERT ? !arg_int : arg_int);
         break;
     case U8X8_MSG_GPIO_CS:
         furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? !arg_int : arg_int);
+        break;
+    case U8X8_MSG_GPIO_DC:
+        furi_hal_gpio_write(&gpio_display_di, DISPLAY_DC_INVERT ? !arg_int : arg_int);
         break;
     case U8X8_MSG_GPIO_CLOCK:
         furi_hal_gpio_write(&gpio_spi_sck, arg_int);
