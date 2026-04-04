@@ -164,8 +164,14 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_CS_INVERT 0
 #define DISPLAY_DC_INVERT 0
 #define DISPLAY_RST_INVERT 0
-// Use software (bit-banged) SPI for OLED instead of SPI1 peripheral
-#define DISPLAY_USE_SW_SPI 1
+/* HW SPI (0) uses the SPI1 peripheral with furi_hal_spi_acquire/release mutex,
+ * guaranteeing exclusive bus ownership during every display byte.  SW SPI (1)
+ * bit-bangs PA5/PA7 but those pins are also owned by the SPI1 peripheral; the
+ * SPI1 deactivate callback resets them to Analog, which silently corrupts bytes
+ * whenever a SubGHz or SD-card transfer preempts the display mid-byte.
+ * SW SPI is fundamentally unreliable on a shared bus — keep this 0.
+ */
+#define DISPLAY_USE_SW_SPI 0
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
@@ -250,8 +256,17 @@ GND - GND
 
 #define USART1_TX_Pin  LL_GPIO_PIN_9
 #define USART1_TX_Port GPIOA
-#define USART1_RX_Pin  LL_GPIO_PIN_10
-#define USART1_RX_Port GPIOA
+/* USART1_RX remapped to PB3 (USART1_RX_ALT / AF7, connector label "PB3") to
+ * free PA10 for SD_CS.  PA10 = SD_CS conflicts with USART1_RX: even with
+ * serial logging disabled the expansion-module IRQ detection configures the
+ * RX GPIO as an interrupt input at boot, which prevents SD_CS being driven low.
+ * PB3 is a valid USART1_RX alternate-function pin (AF7) and is an unused
+ * ext-connector GPIO on this UBYTE board, so routing USART RX there is safe.
+ * If a user application also uses gpio_ext_pb3, it must disable expansion-module
+ * serial detection first (furi_hal_serial_control_set_expansion_callback(NULL)).
+ */
+#define USART1_RX_Pin  LL_GPIO_PIN_3
+#define USART1_RX_Port GPIOB
 
 #define SPI_MISO_GPIO_Port GPIOA
 #define SPI_MISO_Pin       LL_GPIO_PIN_6

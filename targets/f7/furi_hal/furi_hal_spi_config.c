@@ -99,7 +99,11 @@ void furi_hal_spi_config_deinit_early(void) {
 }
 
 void furi_hal_spi_config_init(void) {
-    furi_hal_spi_bus_init(&furi_hal_spi_bus);
+    /* NOTE: furi_hal_spi_bus_init() is NOT called here.
+     * furi_hal_spi_config_init_early() already called it and created the bus mutex.
+     * A second call leaks that mutex (creates a new one) and resets current_handle to
+     * NULL, which corrupts any in-flight handle state from the early-init phase.
+     */
 
     furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_subghz);
     // furi_hal_spi_bus_handle_init(&furi_hal_spi_bus_handle_nfc);
