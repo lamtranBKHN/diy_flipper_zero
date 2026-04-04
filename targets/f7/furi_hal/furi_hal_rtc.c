@@ -212,8 +212,7 @@ void furi_hal_rtc_init(void) {
 
     furi_log_set_level(furi_hal_rtc_get_log_level());
     furi_hal_serial_control_set_logging_config(
-        furi_hal_rtc_log_devices[furi_hal_rtc_get_log_device()],
-        furi_hal_rtc_log_baud_rates[furi_hal_rtc_get_log_baud_rate()]);
+        FuriHalSerialIdMax, furi_hal_rtc_log_baud_rates[furi_hal_rtc_get_log_baud_rate()]);
 
     FURI_LOG_I(TAG, "Init OK");
     furi_hal_rtc_set_alarm_out(false);

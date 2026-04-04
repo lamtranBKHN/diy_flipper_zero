@@ -147,9 +147,9 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_CS_GPIO_Port  GPIOA
 #define DISPLAY_CS_Pin        LL_GPIO_PIN_2
 #define DISPLAY_DI_GPIO_Port  GPIOB
-#define DISPLAY_DI_Pin        LL_GPIO_PIN_1
-#define DISPLAY_RST_GPIO_Port GPIOE
-#define DISPLAY_RST_Pin       LL_GPIO_PIN_4
+#define DISPLAY_DI_Pin        LL_GPIO_PIN_6
+#define DISPLAY_RST_GPIO_Port GPIOB
+#define DISPLAY_RST_Pin       LL_GPIO_PIN_7
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
@@ -174,8 +174,8 @@ GND - GND
 SWC - SWC (PA14)
 GND - GND
 SWD - SWD (PA13)
-TX - USART1 TX (PB6)
-RX - USART1 RX (PB7)
+PB6 - Display DI (SPI D/C)
+PB7 - Display RST
 C1 - B4
 C0 - A7
 iButton - A3
@@ -232,10 +232,10 @@ GND - GND
 #define iBTN_GPIO_Port GPIOA
 #define iBTN_Pin       LL_GPIO_PIN_3
 
-#define USART1_TX_Pin  LL_GPIO_PIN_6
-#define USART1_TX_Port GPIOB
-#define USART1_RX_Pin  LL_GPIO_PIN_7
-#define USART1_RX_Port GPIOB
+#define USART1_TX_Pin  LL_GPIO_PIN_9
+#define USART1_TX_Port GPIOA
+#define USART1_RX_Pin  LL_GPIO_PIN_10
+#define USART1_RX_Port GPIOA
 
 #define SPI_MISO_GPIO_Port GPIOA
 #define SPI_MISO_Pin       LL_GPIO_PIN_6
