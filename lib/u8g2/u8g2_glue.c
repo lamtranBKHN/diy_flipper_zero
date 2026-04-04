@@ -53,12 +53,19 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
     case U8X8_MSG_GPIO_DC:
         furi_hal_gpio_write(&gpio_display_di, DISPLAY_DC_INVERT ? !arg_int : arg_int);
         break;
+#if DISPLAY_USE_SW_SPI
+    /* U8X8_MSG_GPIO_CLOCK / _DATA are SW SPI bit-bang messages.
+     * They are only defined in u8x8.h when the SW SPI byte callback is active.
+     * With HW SPI (DISPLAY_USE_SW_SPI 0) the peripheral handles clocking/data
+     * internally, so these cases must be excluded to avoid undefined-identifier
+     * compile errors. */
     case U8X8_MSG_GPIO_CLOCK:
         furi_hal_gpio_write(&gpio_spi_sck, arg_int);
         break;
     case U8X8_MSG_GPIO_DATA:
         furi_hal_gpio_write(&gpio_spi_mosi, arg_int);
         break;
+#endif
     case U8X8_MSG_GPIO_I2C_CLOCK:
         // Software I2C - control SCL pin (PA9)
         if(arg_int) {
