@@ -206,7 +206,7 @@ bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
     target->atqa[1] = response[4];
     target->sak = response[5];
     target->uid_len = response[6];
-    if((7 + target->uid_len) > response_len) return false;
+    if((7U + target->uid_len) > response_len) return false;
     if(target->uid_len > sizeof(target->uid)) return false;
     memcpy(target->uid, &response[7], target->uid_len);
 
