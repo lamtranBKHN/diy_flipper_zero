@@ -941,3 +941,13 @@ FuriHalNfcError furi_hal_nfc_listener_enable_rx(void) {
     furi_hal_nfc_release();
     return FuriHalNfcErrorNone;
 }
+
+FuriHalNfcError furi_hal_nfc_common_listener_rx_start(const FuriHalSpiBusHandle* handle) {
+    /* Stub: ST25R3916-specific listener RX start.
+     * On the UBYTE/PN532 board the ST25R3916 chip is absent; listener mode
+     * is not yet implemented for PN532.  Return success so the SDK API
+     * symbol resolves without pulling in missing ST25R3916 register calls.
+     */
+    UNUSED(handle);
+    return FuriHalNfcErrorNone;
+}
