@@ -62,19 +62,14 @@ static void notification_apply_lcd_contrast(NotificationApp* app, uint8_t contra
     Gui* gui = furi_record_open(RECORD_GUI);
     u8x8_t* u8x8 = &gui->canvas->fb.u8x8;
 
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    
-    uint32_t i2c_addr = (uint32_t)u8x8_GetI2CAddress(u8x8);
-    // FURI_LOG_I(TAG, "u8x8 I2C address (raw) = 0x%02X", (unsigned int)i2c_addr);
+    /* Send SETCONTRAST (0x81) through the u8x8 transport layer so it works
+     * regardless of whether the display is on I2C or SPI. */
+    u8x8_cad_StartTransfer(u8x8);
+    u8x8_cad_SendCmd(u8x8, 0x81);
+    u8x8_cad_SendArg(u8x8, contrast);
+    u8x8_cad_EndTransfer(u8x8);
 
-    uint8_t tx_buf0[3];
-    tx_buf0[0] = 0x00; // control byte: Co=0, D/C#=0 (command)
-    tx_buf0[1] = 0x81; // SETCONTRAST
-    tx_buf0[2] = (uint8_t)contrast;
-
-    bool ok1 = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, i2c_addr, tx_buf0, sizeof(tx_buf0), 50);
-    FURI_LOG_D(TAG, "Direct I2C (control=0x00) map=%d tx result: %d", (int)contrast, (int)ok1);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    FURI_LOG_D(TAG, "LCD contrast set to %d", (int)contrast);
 
     furi_record_close(RECORD_GUI);
 }
