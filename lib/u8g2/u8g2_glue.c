@@ -388,20 +388,44 @@ void u8g2_Setup_st756x_flipper(
     uint8_t* buf;
     if(byte_cb == u8x8_hw_spi_stm32) {
 #if DISPLAY_CONTROLLER_SSD1306
+#if DISPLAY_SSD1306_VARIANT == 1
+        u8g2_SetupDisplay(
+            u8g2, u8x8_d_ssd1306_128x64_vcomh0, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+#elif DISPLAY_SSD1306_VARIANT == 2
+        u8g2_SetupDisplay(
+            u8g2, u8x8_d_ssd1306_128x64_alt0, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+#else
         u8g2_SetupDisplay(
             u8g2, u8x8_d_ssd1306_128x64_noname, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
+#endif
 #else
         u8g2_SetupDisplay(
             u8g2, u8x8_d_sh1106_128x64_noname, u8x8_cad_001, byte_cb, gpio_and_delay_cb);
 #endif
     } else {
 #if DISPLAY_CONTROLLER_SSD1306
+#if DISPLAY_SSD1306_VARIANT == 1
+        u8g2_SetupDisplay(
+            u8g2,
+            u8x8_d_ssd1306_128x64_vcomh0,
+            u8x8_cad_ssd13xx_fast_i2c,
+            byte_cb,
+            gpio_and_delay_cb);
+#elif DISPLAY_SSD1306_VARIANT == 2
+        u8g2_SetupDisplay(
+            u8g2,
+            u8x8_d_ssd1306_128x64_alt0,
+            u8x8_cad_ssd13xx_fast_i2c,
+            byte_cb,
+            gpio_and_delay_cb);
+#else
         u8g2_SetupDisplay(
             u8g2,
             u8x8_d_ssd1306_128x64_noname,
             u8x8_cad_ssd13xx_fast_i2c,
             byte_cb,
             gpio_and_delay_cb);
+#endif
 #else
         u8g2_SetupDisplay(
             u8g2,

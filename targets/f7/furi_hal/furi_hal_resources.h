@@ -152,6 +152,8 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_RST_Pin       LL_GPIO_PIN_7
 // Set to 1 for SSD1306 (0.96") or 0 for SH1106 (1.3") OLED modules
 #define DISPLAY_CONTROLLER_SSD1306 1
+// SSD1306 init variant: 0 = noname, 1 = vcomh0, 2 = alt0
+#define DISPLAY_SSD1306_VARIANT 1
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
