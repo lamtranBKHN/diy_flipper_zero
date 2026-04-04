@@ -106,12 +106,33 @@ uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_
     default:
         return 0;
     }
-
     return 1;
 }
 
+/* SW SPI byte callback.
+ * PA5/PA7 are shared with HW SPI devices (SubGHz, SD card). Every HW SPI
+ * transaction reconfigures them to SPI1 AF and then back to Analog on release.
+ * We reinitialise them as output push-pull at the START of every transfer so
+ * the display always sees valid signals regardless of prior SPI bus activity.
+ */
+uint8_t u8x8_sw_spi_stm32_start(
+    u8x8_t* u8x8,
+    uint8_t msg,
+    uint8_t arg_int,
+    void* arg_ptr) {
+    switch(msg) {
+    case U8X8_MSG_BYTE_START_TRANSFER:
+        /* Reclaim shared pins stolen by HW SPI deactivation */
+        furi_hal_gpio_init_simple(&gpio_spi_sck, GpioModeOutputPushPull);
+        furi_hal_gpio_init_simple(&gpio_spi_mosi, GpioModeOutputPushPull);
+        return u8x8_byte_4wire_sw_spi(u8x8, msg, arg_int, arg_ptr);
+    default:
+        return u8x8_byte_4wire_sw_spi(u8x8, msg, arg_int, arg_ptr);
+    }
+}
+
 /**
- * Hardware I2C byte callback for u8g2 library with SSD1306 OLED
+ * Hardware I2C byte callbackfor u8g2 library with SSD1306 OLED
  * 
  * WHY THIS WORKS vs PREVIOUS ATTEMPTS:
  * 
@@ -410,7 +431,7 @@ void u8g2_Setup_st756x_flipper(
     uint8_t* buf;
     if(byte_cb == u8x8_hw_spi_stm32) {
 #if DISPLAY_USE_SW_SPI
-        byte_cb = u8x8_byte_4wire_sw_spi;
+        byte_cb = u8x8_sw_spi_stm32_start; /* wrapper that reclaims shared pins each transfer */
 #endif
 #if DISPLAY_CONTROLLER_SSD1309
 #if DISPLAY_SSD1309_VARIANT == 0

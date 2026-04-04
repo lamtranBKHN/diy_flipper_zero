@@ -272,6 +272,13 @@ GND - GND
 
 #define I2C_3_SCL_GPIO_Port GPIOA
 #define I2C_3_SCL_Pin       LL_GPIO_PIN_7
+/* NOTE: I2C_3_SCL (PA7) shares the same MCU pin as SPI_MOSI (PA7).
+ * I2C3 is only used by furi_hal_i2c_handle_external (PN532 backend).
+ * While PN532 is disabled, PA7 is exclusively owned by SPI MOSI (SW SPI wrapper).
+ * If PN532 is re-enabled, concurrent I2C3 and SPI transfers on PA7 will conflict.
+ * Resolution: move I2C3_SCL to PC0 (AF4, not on header) or re-enable PN532 only
+ * after verifying no SPI traffic is in-flight on PA7.
+ */
 #define I2C_3_SDA_GPIO_Port GPIOB
 #define I2C_3_SDA_Pin       LL_GPIO_PIN_4
 
