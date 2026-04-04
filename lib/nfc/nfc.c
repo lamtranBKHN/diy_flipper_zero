@@ -166,6 +166,9 @@ static int32_t nfc_worker_listener(void* context) {
     return 0;
 }
 
+/* Forward declaration: defined below nfc_worker_poller_start_handler but called from it */
+bool nfc_worker_poller_stop_handler(Nfc* instance);
+
 bool nfc_worker_poller_start_handler(Nfc* instance) {
     furi_hal_nfc_poller_field_on();
     if(instance->guard_time_us) {
