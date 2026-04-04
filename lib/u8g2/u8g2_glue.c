@@ -20,6 +20,12 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
         furi_hal_gpio_write(&gpio_display_di, DISPLAY_DC_INVERT ? true : false);
         furi_hal_gpio_init_simple(&gpio_display_cs, GpioModeOutputPushPull);
         furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? false : true);
+#if DISPLAY_USE_SW_SPI
+        furi_hal_gpio_init_simple(&gpio_spi_sck, GpioModeOutputPushPull);
+        furi_hal_gpio_write(&gpio_spi_sck, false);
+        furi_hal_gpio_init_simple(&gpio_spi_mosi, GpioModeOutputPushPull);
+        furi_hal_gpio_write(&gpio_spi_mosi, false);
+#endif
         break;
     case U8X8_MSG_DELAY_MILLI:
         furi_delay_ms(arg_int);
@@ -36,6 +42,12 @@ uint8_t u8g2_gpio_and_delay_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, vo
         break;
     case U8X8_MSG_GPIO_CS:
         furi_hal_gpio_write(&gpio_display_cs, DISPLAY_CS_INVERT ? !arg_int : arg_int);
+        break;
+    case U8X8_MSG_GPIO_CLOCK:
+        furi_hal_gpio_write(&gpio_spi_sck, arg_int);
+        break;
+    case U8X8_MSG_GPIO_DATA:
+        furi_hal_gpio_write(&gpio_spi_mosi, arg_int);
         break;
     case U8X8_MSG_GPIO_I2C_CLOCK:
         // Software I2C - control SCL pin (PA9)
@@ -387,6 +399,9 @@ void u8g2_Setup_st756x_flipper(
     uint8_t tile_buf_height;
     uint8_t* buf;
     if(byte_cb == u8x8_hw_spi_stm32) {
+#if DISPLAY_USE_SW_SPI
+        byte_cb = u8x8_byte_4wire_sw_spi;
+#endif
 #if DISPLAY_CONTROLLER_SSD1309
 #if DISPLAY_SSD1309_VARIANT == 0
         u8g2_SetupDisplay(

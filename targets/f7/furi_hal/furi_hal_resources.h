@@ -164,6 +164,8 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_CS_INVERT 0
 #define DISPLAY_DC_INVERT 0
 #define DISPLAY_RST_INVERT 0
+// Use software (bit-banged) SPI for OLED instead of SPI1 peripheral
+#define DISPLAY_USE_SW_SPI 1
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
