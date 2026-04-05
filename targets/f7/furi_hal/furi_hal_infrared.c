@@ -366,6 +366,9 @@ static void furi_hal_infrared_configure_tim_pwm_tx(uint32_t freq, float duty_cyc
         LL_TIM_OC_EnablePreload(INFRARED_DMA_TIMER, LL_TIM_CHANNEL_CH1);
         /* LL_TIM_OCMODE_PWM2 set by DMA */
         LL_TIM_OC_SetMode(INFRARED_DMA_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_FORCED_INACTIVE);
+        /* OCPOLARITY_HIGH = PA8 HIGH during mark carrier = LED ON (anode→PA8, cathode→GND).
+         * For NPN transistor circuit: same (PA8 HIGH → transistor ON → LED ON).
+         * For inverted circuit (cathode→PA8, anode→VCC): change to OCPOLARITY_LOW. */
         LL_TIM_OC_SetPolarity(INFRARED_DMA_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);
         LL_TIM_OC_DisableFast(INFRARED_DMA_TIMER, LL_TIM_CHANNEL_CH1);
         LL_TIM_CC_EnableChannel(INFRARED_DMA_TIMER, LL_TIM_CHANNEL_CH1);
