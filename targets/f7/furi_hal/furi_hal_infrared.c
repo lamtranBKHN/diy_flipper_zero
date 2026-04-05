@@ -182,10 +182,13 @@ void furi_hal_infrared_async_rx_start(void) {
     LL_TIM_EnableMasterSlaveMode(INFRARED_RX_TIMER);
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
-    LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV1);
+    // FDIV8_N8 = 8 samples at f/8 (~1us each at 64MHz) — filters sub-8us glitches/noise
+    // while passing real IR bursts (shortest NEC pulse ~562us). Safe for all IR protocols.
+    LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV8_N8);
     LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_FALLING);
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_INDIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
+    LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV8_N8);
 
     furi_hal_interrupt_set_isr(INFRARED_RX_IRQ, furi_hal_infrared_tim_rx_isr, NULL);
     furi_hal_infrared_state = InfraredStateAsyncRx;
