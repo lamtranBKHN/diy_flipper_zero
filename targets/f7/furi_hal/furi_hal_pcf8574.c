@@ -11,6 +11,8 @@ static uint8_t pcf8574_addr = PCF8574_I2C_ADDR;
 static uint32_t pcf8574_last_error_tick = 0;
 static GpioExtiCallback pcf8574_int_cb = NULL;
 static void* pcf8574_int_ctx = NULL;
+static const uint8_t pcf8574_output_mask = (1u << PCF8574_PIN_VIBRO) | (1u << PCF8574_PIN_BUZZER);
+static uint8_t pcf8574_output_state = 0x00;
 
 bool furi_hal_pcf8574_init(void) {
     uint8_t probe = 0xFF;
@@ -50,6 +52,14 @@ bool furi_hal_pcf8574_init(void) {
 
     pcf8574_addr = detected_addr;
     pcf8574_state = probe;
+    // Keep input lines released (high) and restore current output latch.
+    uint8_t frame = (uint8_t)((~pcf8574_output_mask) | (pcf8574_output_state & pcf8574_output_mask));
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    bool wr_ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, 50);
+    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+    if(wr_ok) {
+        pcf8574_state = frame;
+    }
     pcf8574_ready = true;
     FURI_LOG_I(TAG, "PCF8574 ready at 0x%02X, state=0x%02X", pcf8574_addr, pcf8574_state);
     return true;
@@ -72,17 +82,21 @@ bool furi_hal_pcf8574_read(uint8_t* data) {
 bool furi_hal_pcf8574_write(uint8_t data) {
     if(!pcf8574_ready && !furi_hal_pcf8574_init()) return false;
 
+    // Never drive input buttons (pins 0..5). Preserve only output pins in latch.
+    pcf8574_output_state = data & pcf8574_output_mask;
+    uint8_t frame = (uint8_t)((~pcf8574_output_mask) | pcf8574_output_state);
+
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &data, 1, 50);
+    bool ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, 50);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
-    if(ok) pcf8574_state = data;
+    if(ok) pcf8574_state = frame;
     return ok;
 }
 
 bool furi_hal_pcf8574_write_pin(uint8_t pin, bool value) {
     if(pin > 7) return false;
-    uint8_t next = pcf8574_state;
+    uint8_t next = pcf8574_output_state;
     if(value) {
         next |= (1u << pin);
     } else {
