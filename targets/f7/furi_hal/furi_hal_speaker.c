@@ -2,6 +2,7 @@
 #include <furi_hal_gpio.h>
 #include <furi_hal_resources.h>
 #include <furi_hal_power.h>
+#include <furi_hal_pcf8574.h>
 
 #include <furi_hal_cortex.h>
 
@@ -26,15 +27,30 @@ static FuriHalSpeakerWorker furi_hal_speaker_worker_state = {
     .half_period_us = FURI_HAL_SPEAKER_DEFAULT_HALF_PERIOD_US,
 };
 
+static bool furi_hal_speaker_pcf_ready = false;
+
+static bool furi_hal_speaker_pcf_ensure_ready(void) {
+    if(!furi_hal_speaker_pcf_ready) {
+        furi_hal_speaker_pcf_ready = furi_hal_pcf8574_init();
+        if(!furi_hal_speaker_pcf_ready) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static void furi_hal_speaker_pin_start(void) {
-    furi_hal_gpio_init(&gpio_speaker, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
-    furi_hal_gpio_write(&gpio_speaker, false);
+    if(furi_hal_speaker_pcf_ensure_ready()) {
+        furi_hal_pcf8574_write_pin(PCF8574_PIN_BUZZER, false);
+    }
 }
 
 static void furi_hal_speaker_pin_stop(void) {
-    furi_hal_gpio_init(&gpio_speaker, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
-    furi_hal_gpio_write(&gpio_speaker, false);
+    // PB8 is intentionally unused on this board; keep it high-Z.
     furi_hal_gpio_init(&gpio_speaker, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+    if(furi_hal_speaker_pcf_ensure_ready()) {
+        furi_hal_pcf8574_write_pin(PCF8574_PIN_BUZZER, false);
+    }
 }
 
 static uint32_t furi_hal_speaker_frequency_to_half_period(float frequency) {
@@ -79,7 +95,14 @@ static int32_t furi_hal_speaker_worker(void* context) {
         }
 
         pin_state = !pin_state;
-        furi_hal_gpio_write(&gpio_speaker, pin_state);
+        if(!furi_hal_speaker_pcf_ensure_ready() ||
+           !furi_hal_pcf8574_write_pin(PCF8574_PIN_BUZZER, pin_state)) {
+            furi_hal_speaker_pcf_ready = false;
+            pin_active = false;
+            pin_state = false;
+            furi_delay_tick(1);
+            continue;
+        }
 
         FuriHalCortexTimer timer = furi_hal_cortex_timer_get(half_period_us);
         while(!furi_hal_cortex_timer_is_expired(timer)) {
@@ -103,6 +126,7 @@ void furi_hal_speaker_init(void) {
     furi_hal_speaker_worker_state.terminate = false;
     furi_hal_speaker_worker_state.active = false;
     furi_hal_speaker_worker_state.half_period_us = FURI_HAL_SPEAKER_DEFAULT_HALF_PERIOD_US;
+    furi_hal_speaker_pcf_ready = false;
     furi_hal_speaker_pin_stop();
 
     furi_hal_speaker_worker_state.thread = furi_thread_alloc();
