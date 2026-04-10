@@ -214,6 +214,10 @@ void furi_hal_infrared_async_rx_stop(void) {
     furi_hal_interrupt_set_isr(INFRARED_RX_IRQ, NULL, NULL);
     furi_hal_infrared_state = InfraredStateIdle;
     FURI_CRITICAL_EXIT();
+    
+    // Reset PA0 to GPIO input mode to prevent floating pin noise when app exits.
+    // Without this, PA0 remains in TIM2 alt-function mode and produces #### UART spam.
+    furi_hal_gpio_init_simple(&gpio_infrared_rx, GpioModeInput);
 }
 
 void furi_hal_infrared_async_rx_set_timeout(uint32_t timeout_us) {
