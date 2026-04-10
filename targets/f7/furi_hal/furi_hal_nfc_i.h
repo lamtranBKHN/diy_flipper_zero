@@ -67,6 +67,11 @@ typedef struct {
 extern FuriHalNfc furi_hal_nfc;
 
 /**
+ * @brief NFC HAL event state pointer (non-NULL after furi_hal_nfc_event_init).
+ */
+extern FuriHalNfcEventInternal* furi_hal_nfc_event;
+
+/**
  * @brief Initialise NFC HAL event system.
  */
 void furi_hal_nfc_event_init(void);

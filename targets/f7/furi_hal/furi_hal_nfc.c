@@ -107,14 +107,21 @@ static FuriHalNfcError furi_hal_nfc_turn_on_osc(const FuriHalSpiBusHandle* handl
 }
 
 FuriHalNfcError furi_hal_nfc_is_hal_ready(void) {
-    FURI_LOG_W(TAG, "NFC disabled by board config");
-    return FuriHalNfcErrorCommunication;
-
     FURI_LOG_I(TAG, "Checking if HAL is ready [PN532-R2]");
+
+    // Try PN532 backend first
+    if(furi_hal_nfc_pn532_is_active()) {
+        FURI_LOG_I(TAG, "HAL ready via PN532 backend (already active)");
+        return FuriHalNfcErrorNone;
+    }
+
     FURI_LOG_I(TAG, "PN532 backend init begin");
     if(furi_hal_nfc_pn532_backend_init()) {
         if(furi_hal_nfc.mutex == NULL) {
             furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+        }
+        if(furi_hal_nfc_event == NULL) {
+            furi_hal_nfc_event_init();
         }
         FURI_LOG_I(TAG, "HAL ready via PN532 backend");
         return FuriHalNfcErrorNone;
@@ -153,6 +160,11 @@ FuriHalNfcError furi_hal_nfc_init(void) {
     if(furi_hal_nfc_pn532_backend_init()) {
         if(furi_hal_nfc.mutex == NULL) {
             furi_hal_nfc.mutex = furi_mutex_alloc(FuriMutexTypeNormal);
+        }
+        // Event system needed even in PN532 mode — nfc.c worker calls
+        // furi_hal_nfc_event_start() which asserts furi_hal_nfc_event != NULL
+        if(furi_hal_nfc_event == NULL) {
+            furi_hal_nfc_event_init();
         }
         FURI_LOG_I(TAG, "Initializing Furi HAL NFC with PN532 backend");
         return FuriHalNfcErrorNone;

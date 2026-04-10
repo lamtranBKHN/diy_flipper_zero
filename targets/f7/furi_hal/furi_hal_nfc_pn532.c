@@ -1,6 +1,7 @@
 #include "furi_hal_nfc_pn532.h"
 
 #include "furi_hal_pn532.h"
+#include "furi_hal_nfc_i.h"
 
 #include <furi.h>
 #include <string.h>
@@ -249,11 +250,17 @@ FuriHalNfcError furi_hal_nfc_pn532_set_mode(FuriHalNfcMode mode, FuriHalNfcTech 
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_low_power_mode_start(void) {
-    return furi_hal_nfc_pn532_is_active() ? FuriHalNfcErrorNone : FuriHalNfcErrorCommunication;
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    // Deinit timers to save power — they'll be re-initialized on mode_stop
+    furi_hal_nfc_timers_deinit();
+    return FuriHalNfcErrorNone;
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_low_power_mode_stop(void) {
-    return furi_hal_nfc_pn532_is_active() ? FuriHalNfcErrorNone : FuriHalNfcErrorCommunication;
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    // nfc.c poller uses TIM1/TIM17 for frame timing even in PN532 mode
+    furi_hal_nfc_timers_init();
+    return FuriHalNfcErrorNone;
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_field_detect_start(void) {
@@ -351,9 +358,17 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         effective_tx_len -= sizeof(uint16_t);
     }
 
+    // Handle HLTA (Halt Type A) — tag goes to HALT state, target is lost
+    if(effective_tx_len == 2U && tx_bytes[0] == 0x50U && tx_bytes[1] == 0x00U) {
+        furi_hal_nfc_pn532.target_valid = false;
+        furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
+        return FuriHalNfcErrorNone;
+    }
+
     if(tx_len >= 2U) {
         const uint8_t sel_cmd = tx_bytes[0];
         const uint8_t sel_par = tx_bytes[1];
+        // SDD (Anticollision) — synthesize NFCID+BCC from stored target
         if(((sel_cmd == 0x93U) || (sel_cmd == 0x95U) || (sel_cmd == 0x97U)) &&
            (sel_par == 0x20U)) {
             uint8_t nfcid[4] = {0};
@@ -369,6 +384,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
         }
 
+        // SELECT — synthesize SAK+CRC from stored target
         if(((sel_cmd == 0x93U) || (sel_cmd == 0x95U) || (sel_cmd == 0x97U)) &&
            (sel_par == 0x70U)) {
             uint8_t nfcid[4] = {0};
@@ -384,6 +400,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         }
     }
 
+    // RATS, APDU, and all other commands — forward to PN532 InDataExchange
     const FuriHalPn532Error err =
         furi_hal_pn532_in_data_exchange(
             furi_hal_nfc_pn532.target.target_number,
@@ -392,6 +409,12 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             rx_payload,
             sizeof(rx_payload),
             &rx_len);
+
+    // Target loss detection: mark invalid on communication failure
+    if(err == FuriHalPn532ErrorComm || err == FuriHalPn532ErrorTimeout) {
+        FURI_LOG_W("PN532Nfc", "Target communication failed (err=%d), marking invalid", err);
+        furi_hal_nfc_pn532.target_valid = false;
+    }
 
     const bool response_ready =
         (err == FuriHalPn532ErrorNone) &&

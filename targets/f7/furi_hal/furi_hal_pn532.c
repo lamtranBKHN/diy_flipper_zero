@@ -16,8 +16,13 @@
 
 #define PN532_CMD_GET_FIRMWARE_VERSION 0x02
 #define PN532_CMD_SAM_CONFIGURATION    0x14
+#define PN532_CMD_RF_CONFIGURATION     0x32
 #define PN532_CMD_IN_DATA_EXCHANGE     0x40
 #define PN532_CMD_IN_LIST_PASSIVE      0x4A
+
+#define PN532_I2C_RETRIES      3
+#define PN532_MAX_TX_PAYLOAD   255
+#define PN532_MAX_RX_FRAME     270
 
 static const uint8_t pn532_ack_frame[6] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 static bool pn532_ready = false;
@@ -38,9 +43,9 @@ static bool pn532_wait_ready(uint32_t timeout_ms) {
 }
 
 static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
-    if(cmd_len > 64) return false;
+    if(cmd_len > PN532_MAX_TX_PAYLOAD) return false;
 
-    uint8_t frame[80];
+    uint8_t frame[PN532_MAX_TX_PAYLOAD + 10];
     uint8_t pos = 0;
     uint8_t checksum = 0;
     const uint8_t len = (uint8_t)(cmd_len + 1);
@@ -61,10 +66,16 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
     frame[pos++] = (uint8_t)(~checksum + 1);
     frame[pos++] = PN532_POSTAMBLE;
 
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, frame, pos, 100);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-    return ok;
+    for(uint8_t attempt = 0; attempt < PN532_I2C_RETRIES; attempt++) {
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        bool ok = furi_hal_i2c_tx(
+            &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, frame, pos, 100);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+        if(ok) return true;
+        FURI_LOG_W(TAG, "I2C TX retry %u/%u", attempt + 1, PN532_I2C_RETRIES);
+        furi_delay_ms(5);
+    }
+    return false;
 }
 
 static bool pn532_read_ack(void) {
@@ -85,11 +96,12 @@ static bool pn532_read_response(
     size_t payload_size,
     size_t* out_len,
     uint32_t timeout_ms) {
-    uint8_t rx[192] = {0};
+    uint8_t rx[PN532_MAX_RX_FRAME] = {0};
     if(!pn532_wait_ready(timeout_ms)) return false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, rx, sizeof(rx), 150);
+    bool ok = furi_hal_i2c_rx(
+        &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, rx, sizeof(rx), 150);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     if(!ok) return false;
 
@@ -165,19 +177,32 @@ static FuriHalPn532Error pn532_exchange(
     size_t* rx_len,
     uint32_t timeout_ms) {
     if(!pn532_ready && !furi_hal_pn532_init()) return FuriHalPn532ErrorComm;
-    if(!pn532_write_frame(cmd, cmd_len)) return FuriHalPn532ErrorComm;
-    if(!pn532_read_ack()) return FuriHalPn532ErrorInvalidAck;
 
-    size_t payload_len = 0;
-    if(!pn532_read_response(rx_data, rx_size, &payload_len, timeout_ms)) {
-        return FuriHalPn532ErrorTimeout;
-    }
-    if((payload_len == 0) || (rx_data[0] != expected_response)) {
-        return FuriHalPn532ErrorInvalidFrame;
+    for(uint8_t attempt = 0; attempt < PN532_I2C_RETRIES; attempt++) {
+        if(!pn532_write_frame(cmd, cmd_len)) {
+            FURI_LOG_W(TAG, "Exchange write failed, attempt %u", attempt + 1);
+            furi_delay_ms(10);
+            continue;
+        }
+        if(!pn532_read_ack()) {
+            FURI_LOG_W(TAG, "Exchange ACK failed, attempt %u", attempt + 1);
+            furi_delay_ms(10);
+            continue;
+        }
+
+        size_t payload_len = 0;
+        if(!pn532_read_response(rx_data, rx_size, &payload_len, timeout_ms)) {
+            return FuriHalPn532ErrorTimeout;
+        }
+        if((payload_len == 0) || (rx_data[0] != expected_response)) {
+            return FuriHalPn532ErrorInvalidFrame;
+        }
+
+        if(rx_len) *rx_len = payload_len;
+        return FuriHalPn532ErrorNone;
     }
 
-    if(rx_len) *rx_len = payload_len;
-    return FuriHalPn532ErrorNone;
+    return FuriHalPn532ErrorComm;
 }
 
 bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
@@ -220,14 +245,14 @@ FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     uint8_t* rx_data,
     size_t rx_size,
     size_t* rx_len) {
-    if(tx_len > 60) return FuriHalPn532ErrorComm;
+    if(tx_len > PN532_MAX_TX_PAYLOAD - 2) return FuriHalPn532ErrorComm;
 
-    uint8_t cmd[64] = {0};
+    uint8_t cmd[PN532_MAX_TX_PAYLOAD + 2] = {0};
     cmd[0] = PN532_CMD_IN_DATA_EXCHANGE;
     cmd[1] = target_number;
     if(tx_len) memcpy(&cmd[2], tx_data, tx_len);
 
-    uint8_t response[128] = {0};
+    uint8_t response[PN532_MAX_RX_FRAME] = {0};
     size_t response_len = 0;
     FuriHalPn532Error error =
         pn532_exchange(
