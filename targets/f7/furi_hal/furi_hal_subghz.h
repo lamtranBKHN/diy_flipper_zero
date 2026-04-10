@@ -222,6 +222,15 @@ void furi_hal_subghz_start_async_rx(FuriHalSubGhzCaptureCallback callback, void*
  */
 void furi_hal_subghz_stop_async_rx(void);
 
+/** Change frequency while async RX is active.
+ *  Does idle→set_freq→calibrate→flush→rx in a single SPI session with
+ *  TIM2 interrupts masked.  Much faster than a full stop/start cycle
+ *  because TIM2 stays configured.
+ *
+ *  @param      frequency  new centre frequency in Hz
+ */
+void furi_hal_subghz_async_rx_hop(uint32_t frequency);
+
 /** Async TX callback type
  * @param      context  callback context
  * @return     LevelDuration

@@ -649,6 +649,64 @@ void furi_hal_subghz_stop_async_rx(void) {
     furi_hal_gpio_init(&gpio_cc1101_g0, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
 }
 
+void furi_hal_subghz_async_rx_hop(uint32_t frequency) {
+    furi_check(furi_hal_subghz.state == SubGhzStateAsyncRx);
+
+    // Mask TIM2 capture interrupts so GDO0 glitches during the
+    // idle→calibrate→rx transition don't fire callbacks.
+    LL_TIM_DisableIT_CC1(TIM2);
+    LL_TIM_DisableIT_CC2(TIM2);
+
+    // All CC1101 operations in a single SPI session to minimise
+    // mutex overhead.  The old hopper path used 6 separate SPI
+    // acquire/release pairs plus a full TIM2 teardown/rebuild;
+    // this collapses everything into one acquire/release and keeps
+    // TIM2 running.
+    furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
+
+    cc1101_switch_to_idle(&furi_hal_spi_bus_handle_subghz);
+    cc1101_set_frequency(&furi_hal_spi_bus_handle_subghz, frequency);
+    cc1101_calibrate(&furi_hal_spi_bus_handle_subghz);
+    cc1101_wait_status_state(&furi_hal_spi_bus_handle_subghz, CC1101StateIDLE, 10000);
+    cc1101_flush_rx(&furi_hal_spi_bus_handle_subghz);
+
+    // RF path switch (GDO2 / IOCFG2).  On the DIY board GDO2 is
+    // disconnected so this is a no-op, but keep it for correctness
+    // if the board is ever populated with RF switches.
+    if(frequency >= 280999633 && frequency <= 360999938) {
+        cc1101_write_reg(&furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW);
+    } else if(frequency >= 377999755 && frequency <= 481000000) {
+        cc1101_write_reg(
+            &furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW | CC1101_IOCFG_INV);
+    } else if(frequency >= 748999633 && frequency <= 962000000) {
+        cc1101_write_reg(
+            &furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW | CC1101_IOCFG_INV);
+    }
+
+    cc1101_switch_to_rx(&furi_hal_spi_bus_handle_subghz);
+    cc1101_wait_status_state(&furi_hal_spi_bus_handle_subghz, CC1101StateRX, 10000);
+
+    furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
+
+    // Tx/Rx regulation bookkeeping (mirrors furi_hal_subghz_set_frequency)
+    if(furi_hal_subghz_is_tx_allowed(frequency)) {
+        furi_hal_subghz.regulation = SubGhzRegulationTxRx;
+    } else {
+        furi_hal_subghz.regulation = SubGhzRegulationOnlyRx;
+    }
+
+    // Reset timer so the first captured edge gets a clean duration
+    LL_TIM_SetCounter(TIM2, 0);
+    furi_hal_subghz_capture_delta_duration = 0;
+
+    // Clear stale capture flags before unmasking
+    LL_TIM_ClearFlag_CC1(TIM2);
+    LL_TIM_ClearFlag_CC2(TIM2);
+
+    LL_TIM_EnableIT_CC1(TIM2);
+    LL_TIM_EnableIT_CC2(TIM2);
+}
+
 typedef enum {
     FuriHalSubGhzAsyncTxMiddlewareStateIdle,
     FuriHalSubGhzAsyncTxMiddlewareStateReset,
