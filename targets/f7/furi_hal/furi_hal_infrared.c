@@ -156,8 +156,8 @@ void furi_hal_infrared_async_rx_start(void) {
     furi_hal_gpio_init_ex(
         &gpio_infrared_rx,
         GpioModeAltFunctionPushPull,
-        GpioPullUp,
-        GpioSpeedHigh,
+        GpioPullNo,
+        GpioSpeedLow,
         INFRARED_RX_GPIO_ALT);
 
     furi_hal_bus_enable(INFRARED_RX_TIMER_BUS);
@@ -174,18 +174,22 @@ void furi_hal_infrared_async_rx_start(void) {
     LL_TIM_SetTriggerInput(INFRARED_RX_TIMER, LL_TIM_TS_TI1FP1);
     LL_TIM_SetSlaveMode(INFRARED_RX_TIMER, LL_TIM_SLAVEMODE_RESET);
     LL_TIM_CC_DisableChannel(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2);
+    // FDIV8_N8: noise filter — 8 samples at f/8 before edge registered. Filters sub-8us
+    // glitches while passing real IR pulses (shortest NEC = 562us). Applied to both channels.
+    // CH1 polarity RISING (DIRECTTI): timer resets on rising edge = start of space period.
+    // CH2 polarity FALLING (INDIRECTTI): captures on falling edge = measures mark duration.
+    // CRITICAL: these polarities must match original Momentum — swapping them causes
+    // intermittent capture and OVERRUN errors as timer resets on wrong edges.
     LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV8_N8);
-    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);
+    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_FALLING);
     LL_TIM_DisableIT_TRIG(INFRARED_RX_TIMER);
     LL_TIM_DisableDMAReq_TRIG(INFRARED_RX_TIMER);
     LL_TIM_SetTriggerOutput(INFRARED_RX_TIMER, LL_TIM_TRGO_RESET);
     LL_TIM_EnableMasterSlaveMode(INFRARED_RX_TIMER);
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
-    // FDIV8_N8 = 8 samples at f/8 (~1us each at 64MHz) — filters sub-8us glitches/noise
-    // while passing real IR bursts (shortest NEC pulse ~562us). Safe for all IR protocols.
     LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV8_N8);
-    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_FALLING);
+    LL_TIM_IC_SetPolarity(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_RISING);
     LL_TIM_IC_SetActiveInput(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_INDIRECTTI);
     LL_TIM_IC_SetPrescaler(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
     LL_TIM_IC_SetFilter(INFRARED_RX_TIMER, LL_TIM_CHANNEL_CH2, LL_TIM_IC_FILTER_FDIV8_N8);
