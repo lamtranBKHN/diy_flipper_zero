@@ -541,8 +541,16 @@ void furi_hal_subghz_start_async_rx(FuriHalSubGhzCaptureCallback callback, void*
     furi_hal_subghz_capture_callback = callback;
     furi_hal_subghz_capture_callback_context = context;
 
+    // Keep GDO0 biased low when CC1101 is absent to avoid floating-edge storms that
+    // overflow SubGhzWorker stream buffer ("Overrun buffer" spam).
+    // With real CC1101 hardware, GDO0 actively drives the line, so this pull does not
+    // interfere with valid RX edges.
     furi_hal_gpio_init_ex(
-        &gpio_cc1101_g0, GpioModeAltFunctionPushPull, GpioPullNo, GpioSpeedLow, GpioAltFn1TIM2);
+        &gpio_cc1101_g0,
+        GpioModeAltFunctionPushPull,
+        GpioPullDown,
+        GpioSpeedLow,
+        GpioAltFn1TIM2);
 
     furi_hal_bus_enable(FuriHalBusTIM2);
 
