@@ -418,13 +418,31 @@ void subghz_txrx_hopper_update(SubGhzTxRx* instance, float stay_threshold) {
     }
 
     if(instance->txrx_state == SubGhzTxRxStateRx) {
-        subghz_txrx_rx_end(instance);
-    }
-    if(instance->txrx_state == SubGhzTxRxStateIDLE) {
+        // Lightweight frequency hop: stop/restart only the hardware capture
+        // while keeping the SubGhzWorker thread alive.  The full rx_end/rx
+        // cycle joins and re-creates the worker thread on every hop, which
+        // blocks the calling (GUI) thread for 10-20 ms and triggers
+        // "ViewPort lockup" warnings.
+
+        // 1. Stop hardware capture (disables TIM2, idles CC1101)
+        if(subghz_worker_is_running(instance->worker)) {
+            subghz_devices_stop_async_rx(instance->radio_device);
+        }
+
+        // 2. Reset decoder state and worker filter accumulator
         subghz_receiver_reset(instance->receiver);
+        subghz_worker_hop_reset(instance->worker);
+
+        // 3. Tune to new frequency
         instance->preset->frequency =
             subghz_setting_get_hopper_frequency(instance->setting, instance->hopper_idx_frequency);
-        subghz_txrx_rx(instance, instance->preset->frequency);
+        subghz_devices_set_frequency(instance->radio_device, instance->preset->frequency);
+        subghz_devices_flush_rx(instance->radio_device);
+
+        // 4. Restart hardware capture (re-enables TIM2, enters RX).
+        //    Worker thread is still running and will pick up new samples.
+        subghz_devices_start_async_rx(
+            instance->radio_device, subghz_worker_rx_callback, instance->worker);
     }
 }
 

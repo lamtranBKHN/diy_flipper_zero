@@ -75,6 +75,18 @@ bool subghz_worker_is_running(SubGhzWorker* instance);
  */
 void subghz_worker_set_filter(SubGhzWorker* instance, uint16_t timeout);
 
+/**
+ * Reset the worker state for a frequency hop without stopping the thread.
+ * Clears the overrun flag and filter accumulator so the worker is ready
+ * to process data from a new frequency.  The stream buffer is NOT flushed
+ * here (FreeRTOS forbids reset while a task is blocked on the buffer);
+ * any stale samples will be harmlessly consumed by the already-reset
+ * protocol decoders.
+ *
+ * @param instance Pointer to a SubGhzWorker instance
+ */
+void subghz_worker_hop_reset(SubGhzWorker* instance);
+
 #ifdef __cplusplus
 }
 #endif

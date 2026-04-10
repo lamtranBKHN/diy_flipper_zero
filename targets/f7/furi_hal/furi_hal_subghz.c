@@ -503,31 +503,44 @@ volatile void* furi_hal_subghz_capture_callback_context = NULL;
 
 static void furi_hal_subghz_capture_ISR(void* context) {
     UNUSED(context);
-    // Channel 1
+    // Channel 1 — falling edge (high-pulse duration)
     if(LL_TIM_IsActiveFlag_CC1(TIM2)) {
         LL_TIM_ClearFlag_CC1(TIM2);
         furi_hal_subghz_capture_delta_duration = LL_TIM_IC_GetCaptureCH1(TIM2);
-        if(furi_hal_subghz_capture_callback) {
-            if(furi_hal_subghz.async_mirror_pin != NULL)
-                furi_hal_gpio_write(furi_hal_subghz.async_mirror_pin, false);
 
-            furi_hal_subghz_capture_callback(
-                true,
-                furi_hal_subghz_capture_delta_duration,
-                (void*)furi_hal_subghz_capture_callback_context);
+        // Skip the callback for sub-30 µs high pulses (noise).  The timer
+        // runs at 1 MHz (1 tick = 1 µs) and the SubGhzWorker's software
+        // filter would discard these anyway, but each callback involves a
+        // FreeRTOS stream-buffer write that costs ~3 µs — filtering here
+        // keeps those writes (and the associated CPU load) out of the ISR.
+        if(furi_hal_subghz_capture_delta_duration >= 30) {
+            if(furi_hal_subghz_capture_callback) {
+                if(furi_hal_subghz.async_mirror_pin != NULL)
+                    furi_hal_gpio_write(furi_hal_subghz.async_mirror_pin, false);
+
+                furi_hal_subghz_capture_callback(
+                    true,
+                    furi_hal_subghz_capture_delta_duration,
+                    (void*)furi_hal_subghz_capture_callback_context);
+            }
         }
     }
-    // Channel 2
+    // Channel 2 — rising edge (low-pulse duration)
     if(LL_TIM_IsActiveFlag_CC2(TIM2)) {
         LL_TIM_ClearFlag_CC2(TIM2);
-        if(furi_hal_subghz_capture_callback) {
-            if(furi_hal_subghz.async_mirror_pin != NULL)
-                furi_hal_gpio_write(furi_hal_subghz.async_mirror_pin, true);
+        uint32_t duration =
+            LL_TIM_IC_GetCaptureCH2(TIM2) - furi_hal_subghz_capture_delta_duration;
 
-            furi_hal_subghz_capture_callback(
-                false,
-                LL_TIM_IC_GetCaptureCH2(TIM2) - furi_hal_subghz_capture_delta_duration,
-                (void*)furi_hal_subghz_capture_callback_context);
+        if(duration >= 30) {
+            if(furi_hal_subghz_capture_callback) {
+                if(furi_hal_subghz.async_mirror_pin != NULL)
+                    furi_hal_gpio_write(furi_hal_subghz.async_mirror_pin, true);
+
+                furi_hal_subghz_capture_callback(
+                    false,
+                    duration,
+                    (void*)furi_hal_subghz_capture_callback_context);
+            }
         }
     }
 }
