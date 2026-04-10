@@ -573,12 +573,19 @@ void furi_hal_subghz_start_async_rx(FuriHalSubGhzCaptureCallback callback, void*
     LL_TIM_DisableDMAReq_TRIG(TIM2);
     LL_TIM_DisableIT_TRIG(TIM2);
 
-    // Timer: channel 1 indirect
+    // Timer: channel 1 indirect (falling edge)
     LL_TIM_IC_SetActiveInput(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_ACTIVEINPUT_INDIRECTTI);
     LL_TIM_IC_SetPrescaler(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_ICPSC_DIV1);
     LL_TIM_IC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_IC_POLARITY_FALLING);
+    // Match CH2's glitch filter so both edges reject the same noise.
+    // Without this, CH1 fires on every sub-microsecond glitch while CH2
+    // is filtered to 16µs, creating an asymmetric interrupt storm.
+    LL_TIM_IC_SetFilter(
+        TIM2,
+        LL_TIM_CHANNEL_CH1,
+        LL_TIM_IC_FILTER_FDIV32_N8);
 
-    // Timer: channel 2 direct
+    // Timer: channel 2 direct (rising edge)
     LL_TIM_IC_SetActiveInput(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);
     LL_TIM_IC_SetPrescaler(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_ICPSC_DIV1);
     LL_TIM_IC_SetPolarity(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_IC_POLARITY_RISING);

@@ -59,12 +59,14 @@ static int32_t subghz_worker_thread_callback(void* context) {
             instance->stream, &level_duration, sizeof(LevelDuration), 10);
         if(ret == sizeof(LevelDuration)) {
             if(level_duration_is_reset(level_duration)) {
+                // Flush all stale data that accumulated while the buffer was
+                // overflowing.  Without this the consumer spends most of its
+                // time calling overrun_callback on hundreds of interleaved
+                // reset markers instead of draining real data.
+                furi_stream_buffer_reset(instance->stream);
+
                 instance->overrun_count++;
 
-                // Rate-limit the log to at most once per second to avoid a
-                // feedback cascade: FURI_LOG_E is slow (serial I/O) and
-                // printing on every reset marker starves the consumer,
-                // generating even more overruns.
                 uint32_t now = furi_get_tick();
                 if(now - instance->overrun_last_log_tick >= furi_ms_to_ticks(1000)) {
                     FURI_LOG_E(
