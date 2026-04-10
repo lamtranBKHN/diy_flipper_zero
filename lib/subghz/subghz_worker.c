@@ -85,8 +85,11 @@ SubGhzWorker* subghz_worker_alloc(void) {
     instance->thread =
         furi_thread_alloc_ex("SubGhzWorker", 2048, subghz_worker_thread_callback, instance);
 
+    // Increased from 4096 to 8192 LevelDuration items to handle higher DMA throughput
+    // when CC1101 RX operates without antenna (noise creates many short pulses).
+    // UBYTE board: CC1101 not soldered, causing RX ISR to fire continuously with noise.
     instance->stream =
-        furi_stream_buffer_alloc(sizeof(LevelDuration) * 4096, sizeof(LevelDuration));
+        furi_stream_buffer_alloc(sizeof(LevelDuration) * 8192, sizeof(LevelDuration));
 
     //setting default filter in us
     instance->filter_duration = 30;
