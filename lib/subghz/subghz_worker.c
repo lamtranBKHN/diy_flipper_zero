@@ -17,6 +17,13 @@ struct SubGhzWorker {
     SubGhzWorkerOverrunCallback overrun_callback;
     SubGhzWorkerPairCallback pair_callback;
     void* context;
+
+    // Rate-limit overrun logging to break the feedback loop where slow
+    // FURI_LOG_E calls starve the consumer, causing more overruns, causing
+    // more logging.  Without this the overrun spam can also trigger
+    // ViewPort lockup warnings by monopolising the CPU.
+    uint32_t overrun_count;
+    uint32_t overrun_last_log_tick;
 };
 
 /** Rx callback timer
@@ -52,7 +59,22 @@ static int32_t subghz_worker_thread_callback(void* context) {
             instance->stream, &level_duration, sizeof(LevelDuration), 10);
         if(ret == sizeof(LevelDuration)) {
             if(level_duration_is_reset(level_duration)) {
-                FURI_LOG_E(TAG, "Overrun buffer");
+                instance->overrun_count++;
+
+                // Rate-limit the log to at most once per second to avoid a
+                // feedback cascade: FURI_LOG_E is slow (serial I/O) and
+                // printing on every reset marker starves the consumer,
+                // generating even more overruns.
+                uint32_t now = furi_get_tick();
+                if(now - instance->overrun_last_log_tick >= furi_ms_to_ticks(1000)) {
+                    FURI_LOG_E(
+                        TAG,
+                        "Overrun buffer (x%lu in last interval)",
+                        (unsigned long)instance->overrun_count);
+                    instance->overrun_count = 0;
+                    instance->overrun_last_log_tick = now;
+                }
+
                 if(instance->overrun_callback) instance->overrun_callback(instance->context);
             } else {
                 bool level = level_duration_get_level(level_duration);
@@ -90,6 +112,9 @@ SubGhzWorker* subghz_worker_alloc(void) {
 
     //setting default filter in us
     instance->filter_duration = 30;
+
+    instance->overrun_count = 0;
+    instance->overrun_last_log_tick = 0;
 
     return instance;
 }
