@@ -26,6 +26,29 @@
 
 static const uint8_t pn532_ack_frame[6] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 static bool pn532_ready = false;
+static uint8_t pn532_i2c_addr = PN532_I2C_ADDR_7BIT;
+
+static bool pn532_probe_address(void) {
+    static const uint8_t candidates[] = {
+        PN532_I2C_ADDR_7BIT, /* preferred (STM32-LL shifted convention) */
+        0x24,                /* raw 7-bit form fallback */
+        (uint8_t)(0x24 << 1),
+    };
+
+    for(size_t i = 0; i < COUNT_OF(candidates); i++) {
+        uint8_t status = 0;
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, candidates[i], &status, 1, 10);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+        if(ok) {
+            pn532_i2c_addr = candidates[i];
+            FURI_LOG_I(TAG, "PN532 I2C addr detected: 0x%02X", pn532_i2c_addr);
+            return true;
+        }
+    }
+
+    return false;
+}
 
 static bool pn532_wait_ready(uint32_t timeout_ms) {
     FuriHalCortexTimer timer = furi_hal_cortex_timer_get(timeout_ms * 1000);
@@ -33,7 +56,7 @@ static bool pn532_wait_ready(uint32_t timeout_ms) {
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
         uint8_t status = 0;
         bool ok =
-            furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, &status, 1, 10) &&
+            furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, &status, 1, 10) &&
             (status == PN532_I2C_READY);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         if(ok) return true;
@@ -69,7 +92,7 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
     for(uint8_t attempt = 0; attempt < PN532_I2C_RETRIES; attempt++) {
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
         bool ok = furi_hal_i2c_tx(
-            &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, frame, pos, 100);
+            &furi_hal_i2c_handle_power, pn532_i2c_addr, frame, pos, 100);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         if(ok) return true;
         FURI_LOG_W(TAG, "I2C TX retry %u/%u", attempt + 1, PN532_I2C_RETRIES);
@@ -83,7 +106,7 @@ static bool pn532_read_ack(void) {
     if(!pn532_wait_ready(150)) return false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, buf, sizeof(buf), 100);
+    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, buf, sizeof(buf), 100);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
     if(!ok) return false;
@@ -101,7 +124,7 @@ static bool pn532_read_response(
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool ok = furi_hal_i2c_rx(
-        &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, rx, sizeof(rx), 150);
+        &furi_hal_i2c_handle_power, pn532_i2c_addr, rx, sizeof(rx), 150);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     if(!ok) return false;
 
@@ -124,8 +147,12 @@ static bool pn532_read_response(
 bool furi_hal_pn532_init(void) {
     pn532_ready = false;
     FURI_LOG_I(TAG, "PN532 init start");
+    if(!pn532_probe_address()) {
+        FURI_LOG_W(TAG, "PN532 not detected on I2C");
+        return false;
+    }
     if(!pn532_wait_ready(120)) {
-        FURI_LOG_W(TAG, "PN532 not ready on I2C");
+        FURI_LOG_W(TAG, "PN532 not ready on I2C (addr=0x%02X)", pn532_i2c_addr);
         return false;
     }
     FURI_LOG_I(TAG, "PN532 ready status received");
