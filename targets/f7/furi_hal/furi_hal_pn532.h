@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define PN532_I2C_ADDR_7BIT 0x24
+#define PN532_I2C_ADDR_7BIT (0x24 << 1) // 7-bit addr 0x24, shifted for STM32 LL
 
 typedef enum {
     FuriHalPn532ErrorNone = 0,
