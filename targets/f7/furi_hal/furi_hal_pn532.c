@@ -10,6 +10,7 @@
 #define PN532_STARTCODE1 0x00
 #define PN532_STARTCODE2 0xFF
 #define PN532_POSTAMBLE  0x00
+#define PN532_I2C_SFI    0x00
 #define PN532_HOSTTOPN532 0xD4
 #define PN532_PN532TOHOST 0xD5
 #define PN532_I2C_READY   0x01
@@ -68,11 +69,12 @@ static bool pn532_wait_ready(uint32_t timeout_ms) {
 static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
     if(cmd_len > PN532_MAX_TX_PAYLOAD) return false;
 
-    uint8_t frame[PN532_MAX_TX_PAYLOAD + 10];
+    uint8_t frame[PN532_MAX_TX_PAYLOAD + 11];
     uint8_t pos = 0;
     uint8_t checksum = 0;
     const uint8_t len = (uint8_t)(cmd_len + 1);
 
+    frame[pos++] = PN532_I2C_SFI;
     frame[pos++] = PN532_PREAMBLE;
     frame[pos++] = PN532_STARTCODE1;
     frame[pos++] = PN532_STARTCODE2;
@@ -151,11 +153,6 @@ bool furi_hal_pn532_init(void) {
         FURI_LOG_W(TAG, "PN532 not detected on I2C");
         return false;
     }
-    if(!pn532_wait_ready(120)) {
-        FURI_LOG_W(TAG, "PN532 not ready on I2C (addr=0x%02X)", pn532_i2c_addr);
-        return false;
-    }
-    FURI_LOG_I(TAG, "PN532 ready status received");
 
     uint8_t cmd_fw[] = {PN532_CMD_GET_FIRMWARE_VERSION};
     if(!pn532_write_frame(cmd_fw, sizeof(cmd_fw)) || !pn532_read_ack()) {
