@@ -8,6 +8,12 @@
 
 #define TAG "ViewPort"
 
+// Rate-limit ViewPort lockup warnings to avoid log spam during SPI
+// contention (display + CC1101 share SPI1).  Original 2ms timeouts are
+// kept — they let the GUI thread fail-fast and retry on the next frame.
+static volatile uint32_t vp_lockup_last_warn_tick = 0;
+#define VP_LOCKUP_WARN_INTERVAL_MS 5000
+
 _Static_assert(ViewPortOrientationMAX == 4, "Incorrect ViewPortOrientation count");
 _Static_assert(
     (ViewPortOrientationHorizontal == 0 && ViewPortOrientationHorizontalFlip == 1 &&
@@ -143,7 +149,11 @@ void view_port_enabled_set(ViewPort* view_port, bool enabled) {
     // We are not going to lockup system, but will notify you instead
     // Make sure that you don't call viewport methods inside of another mutex, especially one that is used in draw call
     if(furi_mutex_acquire(view_port->mutex, 2) != FuriStatusOk) {
-        FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+        uint32_t now = furi_get_tick();
+        if((now - vp_lockup_last_warn_tick) >= VP_LOCKUP_WARN_INTERVAL_MS) {
+            FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+            vp_lockup_last_warn_tick = now;
+        }
     }
     if(view_port->is_enabled != enabled) {
         view_port->is_enabled = enabled;
@@ -196,7 +206,11 @@ void view_port_update(ViewPort* view_port) {
     // We are not going to lockup system, but will notify you instead
     // Make sure that you don't call viewport methods inside of another mutex, especially one that is used in draw call
     if(furi_mutex_acquire(view_port->mutex, 2) != FuriStatusOk) {
-        FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+        uint32_t now = furi_get_tick();
+        if((now - vp_lockup_last_warn_tick) >= VP_LOCKUP_WARN_INTERVAL_MS) {
+            FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+            vp_lockup_last_warn_tick = now;
+        }
     }
 
     if(view_port->gui && view_port->is_enabled) gui_update(view_port->gui);
@@ -217,7 +231,11 @@ void view_port_draw(ViewPort* view_port, Canvas* canvas) {
     // We are not going to lockup system, but will notify you instead
     // Make sure that you don't call viewport methods inside of another mutex, especially one that is used in draw call
     if(furi_mutex_acquire(view_port->mutex, 2) != FuriStatusOk) {
-        FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+        uint32_t now = furi_get_tick();
+        if((now - vp_lockup_last_warn_tick) >= VP_LOCKUP_WARN_INTERVAL_MS) {
+            FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+            vp_lockup_last_warn_tick = now;
+        }
     }
 
     furi_check(view_port->gui);
@@ -303,7 +321,11 @@ ViewPortOrientation view_port_get_orientation(const ViewPort* view_port) {
     // We are not going to lockup system, but will notify you instead
     // Make sure that you don't call viewport methods inside of another mutex, especially one that is used in draw call
     if(furi_mutex_acquire(view_port->mutex, 2) != FuriStatusOk) {
-        FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+        uint32_t now = furi_get_tick();
+        if((now - vp_lockup_last_warn_tick) >= VP_LOCKUP_WARN_INTERVAL_MS) {
+            FURI_LOG_W(TAG, "ViewPort lockup: see %s:%d", __FILE__, __LINE__ - 3);
+            vp_lockup_last_warn_tick = now;
+        }
     }
     ViewPortOrientation orientation = view_port->orientation;
     furi_mutex_release(view_port->mutex);
