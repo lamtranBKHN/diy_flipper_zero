@@ -509,7 +509,7 @@ FuriHalPn532Error furi_hal_pn532_read_response(uint8_t* data, size_t data_size, 
     uint8_t rx[PN532_MAX_RX_FRAME] = {0};
     if(!pn532_wait_ready_with_timeout(timeout_ms > 0 ? timeout_ms : 500)) {
         FURI_LOG_E(TAG, "PN532 wait ready timeout after %lu ms", (unsigned long)(timeout_ms > 0 ? timeout_ms : 500));
-        return FuriHalNfcErrorCommunicationTimeout;
+        return (FuriHalPn532Error)FuriHalNfcErrorCommunicationTimeout;
     }
     
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
