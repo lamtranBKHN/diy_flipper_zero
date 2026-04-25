@@ -49,7 +49,7 @@ static bool pn532_wait_ready_with_timeout(uint32_t timeout_us) {
 }
 static bool pn532_probe_address(void) {
     static const uint8_t candidates[] = {
-        PN532_I2C_ADDR, /* 0x48 — 8-bit shifted address */
+        PN532_I2C_ADDR, /* 0x48  8-bit shifted address */
     };
 
     for(size_t i = 0; i < COUNT_OF(candidates); i++) {

@@ -18,6 +18,7 @@ const Iso14443_4aData* iso14443_4a_poller_get_data(Iso14443_4aPoller* instance) 
 
 static Iso14443_4aPoller* iso14443_4a_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) {
     Iso14443_4aPoller* instance = malloc(sizeof(Iso14443_4aPoller));
+    if(!instance) return NULL;
     instance->iso14443_3a_poller = iso14443_3a_poller;
     instance->data = iso14443_4a_alloc();
     instance->iso14443_4_layer = iso14443_4_layer_alloc();
