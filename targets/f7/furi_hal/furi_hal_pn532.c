@@ -39,7 +39,7 @@ static uint8_t pn532_i2c_addr = PN532_I2C_ADDR;
  * Candidates are tried in order; first responsive one wins. */
 static bool pn532_wait_ready_with_timeout(uint32_t timeout_us) {
     FuriHalCortexTimer timer = furi_hal_cortex_timer_get(timeout_us);
-    while(!pn532_wait_ready_with_timeout(timeout_us)) {
+    while(!pn532_wait_ready(timeout_us)) {
         if(furi_hal_cortex_timer_is_expired(timer)) {
             FURI_LOG_E(TAG, "PN532 wait ready timeout");
             return false;
