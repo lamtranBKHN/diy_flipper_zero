@@ -32,11 +32,17 @@ MfClassicPoller* mf_classic_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) 
     MfClassicPoller* instance = malloc(sizeof(MfClassicPoller));
     instance->iso14443_3a_poller = iso14443_3a_poller;
     instance->data = mf_classic_alloc();
+    if(!instance->data) { free(instance); return NULL; }
     instance->crypto = crypto1_alloc();
+    if(!instance->crypto) { mf_classic_free(instance->data); free(instance); return NULL; }
     instance->tx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
+    if(!instance->tx_plain_buffer) { crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
     instance->tx_encrypted_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
+    if(!instance->tx_encrypted_buffer) { bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
     instance->rx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
+    if(!instance->rx_plain_buffer) { bit_buffer_free(instance->tx_encrypted_buffer); bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
     instance->rx_encrypted_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
+    if(!instance->rx_encrypted_buffer) { bit_buffer_free(instance->rx_plain_buffer); bit_buffer_free(instance->tx_encrypted_buffer); bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
     instance->current_type_check = MfClassicType4k;
     instance->card_state = MfClassicCardStateLost;
 
@@ -2199,7 +2205,9 @@ NfcCommand mf_classic_poller_run(NfcGenericEvent event, void* context) {
         command = mf_classic_poller_dict_attack_handler[instance->state](instance);
     } else if(iso14443_3a_event->type == Iso14443_3aPollerEventTypeError) {
         if(instance->card_state == MfClassicCardStateDetected) {
-            instance->card_state = MfClassicCardStateLost;
+    instance->card_state = MfClassicCardStateLost;
+    instance->state = MfClassicPollerStateDetectType;
+    instance->auth_state = MfClassicAuthStateIdle;
             instance->mfc_event.type = MfClassicPollerEventTypeCardLost;
             command = instance->callback(instance->general_event, instance->context);
         }

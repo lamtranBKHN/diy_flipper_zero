@@ -30,6 +30,8 @@ static Iso14443_4aPoller* iso14443_4a_poller_alloc(Iso14443_3aPoller* iso14443_3
     instance->general_event.event_data = &instance->iso14443_4a_event;
     instance->general_event.instance = instance;
 
+    instance->poller_state = Iso14443_4aPollerStateIdle;
+    instance->error = Iso14443_4aErrorNone;
     return instance;
 }
 

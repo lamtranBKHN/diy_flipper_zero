@@ -9,6 +9,36 @@
 
 #define TAG "FuriHalI2c"
 
+static uint32_t i2c_consecutive_failures = 0;
+
+void furi_hal_i2c_bus_reset(I2C_TypeDef* i2c) {
+    CLEAR_BIT(i2c->CR1, I2C_CR1_PE);
+    furi_delay_us(10);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+    LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_OUTPUT);
+    LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+    for(int i = 0; i < 9; ++i) {
+        LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_9);
+        furi_delay_us(5);
+        LL_GPIO_ResetOutputPin(GPIOA, LL_GPIO_PIN_9);
+        furi_delay_us(5);
+    }
+    LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_9);
+    furi_delay_us(5);
+    LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_9);
+    furi_delay_us(5);
+    LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_9);
+    furi_delay_us(5);
+    LL_GPIO_SetPinMode(GPIOA, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinOutputType(GPIOA, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+    LL_GPIO_SetPinMode(GPIOB, LL_GPIO_PIN_9, LL_GPIO_MODE_ALTERNATE);
+    LL_GPIO_SetPinOutputType(GPIOB, LL_GPIO_PIN_9, LL_GPIO_OUTPUT_OPENDRAIN);
+    SET_BIT(i2c->CR1, I2C_CR1_PE);
+    furi_delay_us(10);
+}
+
+
 void furi_hal_i2c_init_early(void) {
     furi_hal_i2c_bus_power.callback(&furi_hal_i2c_bus_power, FuriHalI2cBusEventInit);
 }
@@ -305,14 +335,17 @@ bool furi_hal_i2c_is_device_ready(
         LL_I2C_GENERATE_START_WRITE);
 
     if(!furi_hal_i2c_wait_for_end(handle->bus->i2c, FuriHalI2cEndStop, timer)) {
+        i2c_consecutive_failures++;
+        if(i2c_consecutive_failures >= 3) {
+            furi_hal_i2c_bus_reset(handle->bus->i2c);
+            i2c_consecutive_failures = 0;
+        }
         return false;
     }
-
+    i2c_consecutive_failures = 0;
     ret = !LL_I2C_IsActiveFlag_NACK(handle->bus->i2c);
-
     LL_I2C_ClearFlag_NACK(handle->bus->i2c);
     LL_I2C_ClearFlag_STOP(handle->bus->i2c);
-
     return ret;
 }
 
