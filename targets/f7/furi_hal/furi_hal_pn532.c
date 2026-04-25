@@ -39,7 +39,7 @@ static uint8_t pn532_i2c_addr = PN532_I2C_ADDR;
  * Candidates are tried in order; first responsive one wins. */
 static bool pn532_wait_ready_with_timeout(uint32_t timeout_us) {
     FuriHalCortexTimer timer = furi_hal_cortex_timer_get(timeout_us);
-    while(!pn532_wait_ready(timeout_us)) {
+    while(!pn532_wait_ready_with_timeout(timeout_us)) {
         if(furi_hal_cortex_timer_is_expired(timer)) {
             FURI_LOG_E(TAG, "PN532 wait ready timeout");
             return false;
@@ -67,7 +67,7 @@ static bool pn532_probe_address(void) {
     return false;
 }
 
-bool pn532_wait_ready(uint32_t timeout_ms) {
+bool pn532_wait_ready_with_timeout(uint32_t timeout_ms) {
     // PN532 I2C state machine requires careful handling.
     // PN532 returns 0x01 when it has data ready to read.
     // We check every 10ms with a maximum timeout.
@@ -148,7 +148,7 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
 
 static bool pn532_read_ack(void) {
     uint8_t buf[7] = {0};
-    if(!pn532_wait_ready(150)) return false;
+    if(!pn532_wait_ready_with_timeout(150)) return false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, buf, sizeof(buf), 100);
@@ -165,7 +165,7 @@ static bool pn532_read_response(
     size_t* out_len,
     uint32_t timeout_ms) {
     uint8_t rx[PN532_MAX_RX_FRAME] = {0};
-    if(!pn532_wait_ready(timeout_ms)) return false;
+    if(!pn532_wait_ready_with_timeout(timeout_ms)) return false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool ok = furi_hal_i2c_rx(
