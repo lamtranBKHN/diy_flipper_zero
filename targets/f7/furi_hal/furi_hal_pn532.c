@@ -67,7 +67,7 @@ static bool pn532_probe_address(void) {
     return false;
 }
 
-bool pn532_wait_ready_with_timeout(uint32_t timeout_ms) {
+bool pn532_wait_ready(uint32_t timeout_ms) {
     // PN532 I2C state machine requires careful handling.
     // PN532 returns 0x01 when it has data ready to read.
     // We check every 10ms with a maximum timeout.
@@ -507,10 +507,9 @@ FuriHalPn532Error furi_hal_pn532_read_response(uint8_t* data, size_t data_size, 
     if(!pn532_ready) return FuriHalPn532ErrorComm;
     
     uint8_t rx[PN532_MAX_RX_FRAME] = {0};
-    if(!pn532_wait_ready_with_timeout(
-           timeout_ms > 0 ? timeout_ms : PN532_LISTENER_TIMEOUT_MS)) {
-        furi_hal_i2c_bus_reset(&furi_hal_i2c_handle_external);
-        return FuriHalPn532ErrorCommunicationTimeout;
+    if(!pn532_wait_ready_with_timeout(timeout_ms > 0 ? timeout_ms : 500)) {
+        FURI_LOG_E(TAG, "PN532 wait ready timeout after %lu ms", (unsigned long)(timeout_ms > 0 ? timeout_ms : 500));
+        return FuriHalNfcErrorCommunicationTimeout;
     }
     
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
