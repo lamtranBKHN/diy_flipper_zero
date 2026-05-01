@@ -38,6 +38,11 @@ struct LoaderMenu {
     uint32_t selected_setting;
     LoaderMenuView current_view;
     bool settings_only;
+    
+    /* Cache for .mainmenu_apps.txt - TODO: implement proper caching */
+    FuriString* cached_menu_content;
+    uint32_t cache_timestamp;
+    bool cache_valid;
 };
 
 static int32_t loader_menu_thread(void* p);
@@ -75,6 +80,9 @@ LoaderMenu* loader_menu_alloc(void (*closed_cb)(void*), void* context, bool sett
     loader_menu->selected_setting = 0;
     loader_menu->settings_only = settings_only;
     loader_menu->current_view = settings_only ? LoaderMenuViewSettings : LoaderMenuViewPrimary;
+    loader_menu->cached_menu_content = NULL;
+    loader_menu->cache_timestamp = 0;
+    loader_menu->cache_valid = false;
     loader_menu->loader = furi_record_open(RECORD_LOADER);
 
     view_holder_set_back_callback(loader_menu->loader->view_holder, NULL, NULL);
@@ -94,6 +102,10 @@ void loader_menu_free(LoaderMenu* loader_menu) {
 
     furi_pubsub_unsubscribe(loader_get_pubsub(loader_menu->loader), loader_menu->subscription);
     furi_record_close(RECORD_LOADER);
+
+    if(loader_menu->cached_menu_content) {
+        furi_string_free(loader_menu->cached_menu_content);
+    }
 
     if(loader_menu->thread) {
         furi_thread_join(loader_menu->thread);
@@ -129,6 +141,13 @@ static void loader_menu_start(const char* name) {
 
 static void loader_menu_apps_callback(void* context, uint32_t index) {
     LoaderMenuApp* app = context;
+
+    // "Apps" menu item has special index not in apps_list
+    if(index == LoaderMenuIndexApplications) {
+        loader_menu_start(LOADER_APPLICATIONS_NAME);
+        return;
+    }
+
     const MenuApp* menu_app = MenuAppList_get(app->apps_list, index);
     const char* name = menu_app->path ? menu_app->path : menu_app->name;
 
@@ -144,13 +163,6 @@ static void loader_menu_last_callback(void* context, uint32_t index) {
     UNUSED(context);
     const char* path = FLIPPER_EXTERNAL_APPS[FLIPPER_EXTERNAL_APPS_COUNT - 1].name;
     loader_menu_start(path);
-}
-
-static void loader_menu_applications_callback(void* context, uint32_t index) {
-    UNUSED(index);
-    UNUSED(context);
-    const char* name = LOADER_APPLICATIONS_NAME;
-    loader_menu_start(name);
 }
 
 // Can't do this in GUI callbacks because now ViewHolder waits for ongoing
@@ -297,7 +309,7 @@ static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
         LOADER_APPLICATIONS_NAME,
         &A_Plugins_14,
         LoaderMenuIndexApplications,
-        loader_menu_applications_callback,
+        loader_menu_apps_callback,
         NULL);
 
     MenuAppList_init(app->apps_list);
