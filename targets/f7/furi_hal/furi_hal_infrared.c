@@ -663,7 +663,7 @@ void furi_hal_infrared_async_tx_start(uint32_t freq, float duty_cycle) {
     const GpioPin* tx_gpio = infrared_tx_pins[infrared_tx_output];
         LL_GPIO_SetOutputPin(tx_gpio->port, tx_gpio->pin); /* keep high (LED off) before enabling AF */
     furi_hal_gpio_init_ex(
-        tx_gpio, GpioModeAltFunctionOpenDrain, GpioPullDown, GpioSpeedHigh, GpioAltFn1TIM1);
+        tx_gpio, GpioModeAltFunctionPushPull, GpioPullNo, GpioSpeedHigh, GpioAltFn1TIM1); /* this is where the problem was! fw required pull up resistors, but you dont need them */
 
     FURI_CRITICAL_ENTER();
     LL_TIM_GenerateEvent_UPDATE(INFRARED_DMA_TIMER); /* TIMx_RCR -> Repetition counter */
