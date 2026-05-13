@@ -22,7 +22,6 @@
 #include <gui/modules/widget.h>
 #include "views/dict_attack.h"
 #include "views/detect_reader.h"
-#include "views/dict_attack.h"
 
 #include <nfc/scenes/nfc_scene.h>
 #include "helpers/nfc_detected_protocols.h"
@@ -174,6 +173,7 @@ struct NfcApp {
     FuriString* file_path;
     FuriString* file_name;
     FuriTimer* timer;
+    FuriTimer* timer_auto_exit;
 
     bool fav_timeout;
 };

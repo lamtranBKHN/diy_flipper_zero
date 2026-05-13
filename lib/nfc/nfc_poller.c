@@ -310,6 +310,10 @@ bool nfc_poller_detect(NfcPoller* instance) {
     }
 
     nfc_start(instance->nfc, nfc_poller_detect_head_callback, instance);
+    FuriStatus sem_status = nfc_wait_for_poller_ready(instance->nfc, 3000);
+    if(sem_status != FuriStatusOk) {
+        FURI_LOG_W(TAG, "Detect: semaphore acquire timeout, forcing stop");
+    }
     nfc_stop(instance->nfc);
 
     if(tail_poller != instance->list.head) {

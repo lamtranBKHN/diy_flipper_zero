@@ -18,6 +18,7 @@
 #pragma once
 
 #include <toolbox/bit_buffer.h>
+#include <furi.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -215,6 +216,18 @@ void nfc_start(Nfc* instance, NfcEventCallback callback, void* context);
  * @param[in,out] instance pointer to the instance to be stopped.
  */
 void nfc_stop(Nfc* instance);
+
+/**
+ * @brief Wait for the poller to be ready (internal use).
+ *
+ * This function blocks until the poller worker signals it has reached
+ * the ready state or the timeout expires.
+ *
+ * @param[in,out] instance pointer to the Nfc instance.
+ * @param[in] timeout_ms maximum time to wait in milliseconds.
+ * @returns FuriStatusOk if signaled, FuriStatusError on timeout.
+ */
+FuriStatus nfc_wait_for_poller_ready(Nfc* instance, uint32_t timeout_ms);
 
 /**
  * @brief Transmit and receive a data frame in poller mode.

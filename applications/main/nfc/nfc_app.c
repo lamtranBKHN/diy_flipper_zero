@@ -6,6 +6,8 @@
 #include <loader/firmware_api/firmware_api.h>
 #include <applications/main/archive/helpers/archive_helpers_ext.h>
 
+#define TAG "NfcApp"
+
 bool nfc_custom_event_callback(void* context, uint32_t event) {
     furi_assert(context);
     NfcApp* nfc = context;
@@ -147,7 +149,26 @@ void nfc_app_free(NfcApp* instance) {
         rpc_system_app_set_callback(instance->rpc_ctx, NULL, NULL);
     }
 
-    nfc_free(instance->nfc);
+    if(instance->mfkey32_logger) {
+        mfkey32_logger_free(instance->mfkey32_logger);
+        instance->mfkey32_logger = NULL;
+    }
+    if(instance->timer) {
+        furi_timer_free(instance->timer);
+        instance->timer = NULL;
+    }
+    if(instance->timer_auto_exit) {
+        furi_timer_free(instance->timer_auto_exit);
+        instance->timer_auto_exit = NULL;
+    }
+    if(instance->mf_user_dict) {
+        mf_user_dict_free(instance->mf_user_dict);
+        instance->mf_user_dict = NULL;
+    }
+    if(instance->nfc_dict_context.dict) {
+        keys_dict_free(instance->nfc_dict_context.dict);
+        instance->nfc_dict_context.dict = NULL;
+    }
 
     nfc_detected_protocols_free(instance->detected_protocols);
     felica_auth_free(instance->felica_auth);
@@ -202,12 +223,16 @@ void nfc_app_free(NfcApp* instance) {
     // Detect reader
     view_dispatcher_remove_view(instance->view_dispatcher, NfcViewDetectReader);
     detect_reader_free(instance->detect_reader);
+    instance->detect_reader = NULL;
 
     // View Dispatcher
     view_dispatcher_free(instance->view_dispatcher);
 
     // Scene Manager
     scene_manager_free(instance->scene_manager);
+
+    // NFC engine must be freed last — views and scenes may reference it during cleanup
+    nfc_free(instance->nfc);
 
     furi_record_close(RECORD_DIALOGS);
     furi_record_close(RECORD_STORAGE);
@@ -322,12 +347,18 @@ static bool nfc_save_internal(NfcApp* instance, const char* extension) {
     furi_assert(extension);
 
     bool result = false;
+    FuriString* original_path = NULL;
 
     nfc_make_app_folders(instance);
 
     if(furi_string_end_with(instance->file_path, NFC_APP_EXTENSION) ||
        (furi_string_end_with(instance->file_path, NFC_APP_SHADOW_EXTENSION))) {
         size_t filename_start = furi_string_search_rchar(instance->file_path, '/');
+        if(filename_start == FURI_STRING_FAILURE) {
+            FURI_LOG_E(TAG, "Invalid file path: %s", furi_string_get_cstr(instance->file_path));
+            return false;
+        }
+        original_path = furi_string_alloc_set(instance->file_path);
         furi_string_left(instance->file_path, filename_start);
     }
 
@@ -335,6 +366,13 @@ static bool nfc_save_internal(NfcApp* instance, const char* extension) {
         instance->file_path, "/%s%s", furi_string_get_cstr(instance->file_name), extension);
 
     result = nfc_save_file(instance, instance->file_path);
+
+    if(!result && original_path) {
+        furi_string_set(instance->file_path, original_path);
+    }
+    if(original_path) {
+        furi_string_free(original_path);
+    }
 
     return result;
 }
@@ -393,7 +431,11 @@ bool nfc_delete(NfcApp* instance) {
 
     if(furi_string_end_with_str(instance->file_path, NFC_APP_SHADOW_EXTENSION)) {
         size_t path_len = furi_string_size(instance->file_path);
-        furi_string_replace_at(instance->file_path, path_len - 4, 4, NFC_APP_EXTENSION);
+        furi_string_replace_at(
+            instance->file_path,
+            path_len - strlen(NFC_APP_SHADOW_EXTENSION),
+            strlen(NFC_APP_SHADOW_EXTENSION),
+            NFC_APP_EXTENSION);
     }
 
     return storage_simply_remove(instance->storage, furi_string_get_cstr(instance->file_path));

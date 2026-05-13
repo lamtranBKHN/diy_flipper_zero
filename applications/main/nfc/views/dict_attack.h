@@ -33,6 +33,8 @@ void dict_attack_set_callback(DictAttack* instance, DictAttackCallback callback,
 
 void dict_attack_set_header(DictAttack* instance, const char* header);
 
+void dict_attack_update_header(DictAttack* instance);
+
 void dict_attack_set_card_state(DictAttack* instance, bool detected);
 
 void dict_attack_set_sectors_total(DictAttack* instance, uint8_t sectors_total);

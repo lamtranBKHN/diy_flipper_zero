@@ -400,6 +400,12 @@ void nfc_stop(Nfc* instance) {
     }
 }
 
+FuriStatus nfc_wait_for_poller_ready(Nfc* instance, uint32_t timeout_ms) {
+    UNUSED(instance);
+    UNUSED(timeout_ms);
+    return FuriStatusOk;
+}
+
 // Called from worker thread
 
 NfcError nfc_listener_tx(Nfc* instance, const BitBuffer* tx_buffer) {

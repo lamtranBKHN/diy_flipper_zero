@@ -64,6 +64,7 @@ static NfcCommand iso14443_4a_poller_handler_read_ats(Iso14443_4aPoller* instanc
         instance->poller_state = Iso14443_4aPollerStateReady;
     } else {
         FURI_LOG_D(TAG, "Failed to read ATS");
+        instance->error = error;
         instance->poller_state = Iso14443_4aPollerStateError;
     }
 

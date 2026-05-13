@@ -42,37 +42,7 @@ static void dict_attack_draw_mf_classic(Canvas* canvas, DictAttackViewModel* m) 
     char draw_str[32] = {};
     canvas_set_font(canvas, FontSecondary);
 
-    switch(m->nested_phase) {
-    case MfClassicNestedPhaseAnalyzePRNG:
-        furi_string_set(m->header, "PRNG Analysis");
-        break;
-    case MfClassicNestedPhaseDictAttack:
-    case MfClassicNestedPhaseDictAttackVerify:
-    case MfClassicNestedPhaseDictAttackResume:
-        furi_string_set(m->header, "Nested Dictionary");
-        break;
-    case MfClassicNestedPhaseCalibrate:
-    case MfClassicNestedPhaseRecalibrate:
-        furi_string_set(m->header, "Calibration");
-        break;
-    case MfClassicNestedPhaseCollectNtEnc:
-        furi_string_set(m->header, "Nonce Collection");
-        break;
-    default:
-        break;
-    }
-
-    if(m->prng_type == MfClassicPrngTypeHard) {
-        furi_string_cat(m->header, " (Hard)");
-    }
-
-    if(m->backdoor != MfClassicBackdoorNone && m->backdoor != MfClassicBackdoorUnknown) {
-        if(m->nested_phase != MfClassicNestedPhaseNone) {
-            furi_string_cat(m->header, " (Backdoor)");
-        } else {
-            furi_string_set(m->header, "Backdoor Read");
-        }
-    }
+    // header is set in update_view() / prepare_view() via dict_attack_set_header()
 
     canvas_draw_str_aligned(canvas, 0, 0, AlignLeft, AlignTop, furi_string_get_cstr(m->header));
     if(m->nested_phase == MfClassicNestedPhaseCollectNtEnc) {
@@ -90,6 +60,7 @@ static void dict_attack_draw_mf_classic(Canvas* canvas, DictAttackViewModel* m) 
         snprintf(draw_str, sizeof(draw_str), "Unlocking sector: %d", m->current_sector);
     }
     canvas_draw_str_aligned(canvas, 0, 10, AlignLeft, AlignTop, draw_str);
+    if(m->sectors_total == 0) return;
     float dict_progress = 0;
     if(m->nested_phase == MfClassicNestedPhaseAnalyzePRNG ||
        m->nested_phase == MfClassicNestedPhaseDictAttack ||
@@ -285,6 +256,49 @@ void dict_attack_set_header(DictAttack* instance, const char* header) {
         instance->view,
         DictAttackViewModel * model,
         { furi_string_set(model->header, header); },
+        true);
+}
+
+void dict_attack_update_header(DictAttack* instance) {
+    furi_assert(instance);
+
+    with_view_model(
+        instance->view,
+        DictAttackViewModel * model,
+        {
+            switch(model->nested_phase) {
+            case MfClassicNestedPhaseAnalyzePRNG:
+                furi_string_set(model->header, "PRNG Analysis");
+                break;
+            case MfClassicNestedPhaseDictAttack:
+            case MfClassicNestedPhaseDictAttackVerify:
+            case MfClassicNestedPhaseDictAttackResume:
+                furi_string_set(model->header, "Nested Dictionary");
+                break;
+            case MfClassicNestedPhaseCalibrate:
+            case MfClassicNestedPhaseRecalibrate:
+                furi_string_set(model->header, "Calibration");
+                break;
+            case MfClassicNestedPhaseCollectNtEnc:
+                furi_string_set(model->header, "Nonce Collection");
+                break;
+            default:
+                break;
+            }
+
+            if(model->prng_type == MfClassicPrngTypeHard) {
+                furi_string_cat(model->header, " (Hard)");
+            }
+
+            if(model->backdoor != MfClassicBackdoorNone &&
+               model->backdoor != MfClassicBackdoorUnknown) {
+                if(model->nested_phase != MfClassicNestedPhaseNone) {
+                    furi_string_cat(model->header, " (Backdoor)");
+                } else {
+                    furi_string_set(model->header, "Backdoor Read");
+                }
+            }
+        },
         true);
 }
 

@@ -427,11 +427,13 @@ FuriHalNfcError
  * @param[in] sak SAK byte value.
  * @returns FuriHalNfcErrorNone on success, any other error code on failure.
  */
+#ifndef FURI_HAL_NFC_PN532_ONLY
 FuriHalNfcError furi_hal_nfc_iso14443a_listener_set_col_res_data(
     uint8_t* uid,
     uint8_t uid_len,
     uint8_t* atqa,
     uint8_t sak);
+#endif
 
 /**
  * @brief Transmit ISO14443 (Type A) frame with custom parity bits in listener mode.

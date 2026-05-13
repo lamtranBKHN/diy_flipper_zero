@@ -356,8 +356,11 @@ static bool nfc_protocol_support_scene_read_on_event(NfcApp* instance, SceneMana
                 nfc_protocol_support_get(protocol, instance)->scene_read.on_event(instance, event);
         }
     } else if(event.type == SceneManagerEventTypeBack) {
-        nfc_poller_stop(instance->poller);
-        nfc_poller_free(instance->poller);
+        if(instance->poller) {
+            nfc_poller_stop(instance->poller);
+            nfc_poller_free(instance->poller);
+            instance->poller = NULL;
+        }
         static const uint32_t possible_scenes[] = {NfcSceneSelectProtocol, NfcSceneStart};
         scene_manager_search_and_switch_to_previous_scene_one_of(
             instance->scene_manager, possible_scenes, COUNT_OF(possible_scenes));
@@ -503,7 +506,7 @@ static void nfc_protocol_support_scene_read_success_on_enter(NfcApp* instance) {
     widget_add_button_element(
         widget, GuiButtonTypeRight, "More", nfc_protocol_support_common_widget_callback, instance);
 
-    notification_message_block(instance->notifications, &sequence_set_green_255);
+    notification_message(instance->notifications, &sequence_blink_start_blue);
     view_dispatcher_switch_to_view(instance->view_dispatcher, NfcViewWidget);
 }
 

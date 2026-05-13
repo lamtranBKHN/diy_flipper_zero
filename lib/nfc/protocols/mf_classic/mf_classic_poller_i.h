@@ -178,8 +178,6 @@ struct MfClassicPoller {
     MfClassicPollerState state;
     MfClassicAuthState auth_state;
     MfClassicCardState card_state;
-
-    MfClassicType current_type_check;
     uint8_t sectors_total;
     MfClassicPollerModeContext mode_ctx;
 

@@ -1,4 +1,4 @@
-#include "nfc_cli_action_rdbl.h"
+#include "nfc_cli_action_wrbl.h"
 
 #include "../helpers/nfc_cli_format.h"
 

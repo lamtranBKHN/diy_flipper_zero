@@ -39,7 +39,7 @@ Mfkey32Logger* mfkey32_logger_alloc(uint32_t cuid) {
 }
 
 void mfkey32_logger_free(Mfkey32Logger* instance) {
-    furi_assert(instance);
+    if(!instance) return;
     furi_assert(instance->params_arr);
 
     Mfkey32LoggerParams_clear(instance->params_arr);

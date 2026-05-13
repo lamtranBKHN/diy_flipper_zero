@@ -58,6 +58,7 @@ const NfcDeviceBase nfc_device_mf_classic = {
 
 MfClassicData* mf_classic_alloc(void) {
     MfClassicData* data = malloc(sizeof(MfClassicData));
+    memset(data, 0, sizeof(MfClassicData));
     data->iso14443_3a_data = iso14443_3a_alloc();
     return data;
 }
@@ -465,16 +466,21 @@ bool mf_classic_block_to_value(const MfClassicBlock* block, int32_t* value, uint
     furi_check(block);
     furi_check(value);
 
-    uint32_t v = *(uint32_t*)&block->data[0];
-    uint32_t v_inv = *(uint32_t*)&block->data[sizeof(uint32_t)];
-    uint32_t v1 = *(uint32_t*)&block->data[sizeof(uint32_t) * 2];
+    uint32_t v;
+    uint32_t v_inv;
+    uint32_t v1;
+    memcpy(&v, block->data, sizeof(v));
+    memcpy(&v_inv, block->data + sizeof(uint32_t), sizeof(v_inv));
+    memcpy(&v1, block->data + sizeof(uint32_t) * 2, sizeof(v1));
 
     bool val_checks =
         ((v == v1) && (v == ~v_inv) && (block->data[12] == (~block->data[13] & 0xFF)) &&
          (block->data[14] == (~block->data[15] & 0xFF)) && (block->data[12] == block->data[14]));
-    *value = (int32_t)v;
-    if(addr) {
-        *addr = block->data[12];
+    if(val_checks) {
+        *value = (int32_t)v;
+        if(addr) {
+            *addr = block->data[12];
+        }
     }
     return val_checks;
 }
@@ -695,7 +701,6 @@ static bool mf_classic_is_allowed_access_sector_trailer(
     default:
         return false;
     }
-    return true;
 }
 
 bool mf_classic_is_allowed_access_data_block(
@@ -760,8 +765,6 @@ bool mf_classic_is_allowed_access_data_block(
     default:
         return false;
     }
-
-    return false;
 }
 
 bool mf_classic_is_allowed_access(

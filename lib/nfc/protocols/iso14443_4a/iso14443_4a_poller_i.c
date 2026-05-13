@@ -82,7 +82,13 @@ Iso14443_4aError iso14443_4a_poller_send_block(
         }
 
         if(bit_buffer_starts_with_byte(instance->rx_buffer, ISO14443_4A_SWTX)) {
+            uint8_t wtx_attempts = 0;
             do {
+                wtx_attempts++;
+                if(wtx_attempts > ISO14443_4A_SEND_BLOCK_MAX_ATTEMPTS) {
+                    error = Iso14443_4aErrorProtocol;
+                    break;
+                }
                 uint8_t wtxm = bit_buffer_get_byte(instance->rx_buffer, 1) & ISO14443_4A_WTXM_MASK;
                 if(wtxm > ISO14443_4A_WTXM_MAX) {
                     return Iso14443_4aErrorProtocol;

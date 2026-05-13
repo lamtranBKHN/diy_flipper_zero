@@ -238,6 +238,8 @@ static bool nfc_cli_raw_parse_data(FuriString* value, void* output) {
         if(len % 2 != 0) break;
 
         size_t data_length = len / 2;
+        if(data_length > NFC_CLI_PROTOCOL_SUPPORT_MAX_BUFFER_SIZE) break;
+
         uint8_t* data = malloc(data_length);
 
         if(args_read_hex_bytes(value, data, data_length)) {

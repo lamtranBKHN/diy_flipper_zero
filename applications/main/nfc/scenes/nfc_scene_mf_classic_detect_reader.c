@@ -134,6 +134,7 @@ bool nfc_scene_mf_classic_detect_reader_on_event(void* context, SceneManagerEven
             instance->listener = NULL;
         }
         mfkey32_logger_free(instance->mfkey32_logger);
+        instance->mfkey32_logger = NULL;
         if(scene_manager_has_previous_scene(instance->scene_manager, NfcSceneSaveSuccess)) {
             consumed = scene_manager_search_and_switch_to_previous_scene(
                 instance->scene_manager, NfcSceneStart);
@@ -158,4 +159,10 @@ void nfc_scene_mf_classic_detect_reader_on_exit(void* context) {
     // Stop notifications
     nfc_blink_stop(instance);
     notification_message(instance->notifications, &sequence_reset_green);
+
+    // Free mfkey32_logger to prevent memory leak
+    if(instance->mfkey32_logger) {
+        mfkey32_logger_free(instance->mfkey32_logger);
+        instance->mfkey32_logger = NULL;
+    }
 }

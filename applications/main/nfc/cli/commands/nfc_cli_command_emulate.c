@@ -80,7 +80,12 @@ static void nfc_cli_emulate_execute(PipeSide* pipe, NfcCliActionContext* context
 
         nfc_listener_start(listener, NULL, NULL);
         printf("\r\nEmulating. Press Ctrl+C to abort\r\n");
+        uint32_t start_tick = furi_get_tick();
         while(!cli_is_pipe_broken_or_is_etx_next_char(pipe)) {
+            if(furi_get_tick() - start_tick > 120000) {
+                printf("Emulate timeout\r\n");
+                break;
+            }
             furi_delay_ms(100);
         }
         nfc_listener_stop(listener);

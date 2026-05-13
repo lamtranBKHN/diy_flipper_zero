@@ -134,6 +134,8 @@ static void nfc_scene_mf_classic_dict_attack_update_view(NfcApp* instance) {
         dict_attack_set_nested_target_key(instance->dict_attack, mfc_dict->nested_target_key);
         dict_attack_set_msb_count(instance->dict_attack, mfc_dict->msb_count);
     }
+
+    dict_attack_update_header(instance->dict_attack);
 }
 
 static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
@@ -178,10 +180,17 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
                     instance->storage, NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
             }
             if(keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH)) {
-                storage_common_copy(
+                FS_Error copy_result = storage_common_copy(
                     instance->storage,
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH,
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
+                if(copy_result != FSE_OK) {
+                    FURI_LOG_E(
+                        TAG,
+                        "Failed to copy system dict to nested: %d",
+                        copy_result);
+                    notification_message(instance->notifications, &sequence_error);
+                }
             }
 
             if(!keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_USER_PATH)) {
@@ -192,10 +201,17 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
             if(keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH)) {
                 storage_common_remove(instance->storage, NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
             }
-            storage_common_copy(
+            FS_Error copy_result = storage_common_copy(
                 instance->storage,
                 NFC_APP_MF_CLASSIC_DICT_USER_PATH,
                 NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
+            if(copy_result != FSE_OK) {
+                FURI_LOG_E(
+                    TAG,
+                    "Failed to copy user dict to nested: %d",
+                    copy_result);
+                notification_message(instance->notifications, &sequence_error);
+            }
 
             instance->nfc_dict_context.dict = keys_dict_alloc(
                 NFC_APP_MF_CLASSIC_DICT_USER_PATH, KeysDictModeOpenAlways, sizeof(MfClassicKey));
@@ -214,6 +230,9 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
         dict_attack_set_header(instance->dict_attack, "MF Classic System Dictionary");
     }
 
+    if(!instance->nfc_dict_context.dict) {
+        return;
+    }
     instance->nfc_dict_context.dict_keys_total =
         keys_dict_get_total_keys(instance->nfc_dict_context.dict);
     dict_attack_set_total_dict_keys(

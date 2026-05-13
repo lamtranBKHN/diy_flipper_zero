@@ -2,6 +2,7 @@
 #include "nfc_poller.h"
 
 #include <nfc/protocols/nfc_poller_defs.h>
+#include <furi_hal_nfc_pn532.h>
 
 #include <furi/furi.h>
 
@@ -55,6 +56,7 @@ struct NfcScanner {
 };
 
 static void nfc_scanner_reset(NfcScanner* instance) {
+    instance->state = NfcScannerStateIdle;
     instance->base_protocols_idx = 0;
     instance->base_protocols_num = 0;
 
@@ -77,6 +79,21 @@ void nfc_scanner_state_handler_idle(NfcScanner* instance) {
             instance->base_protocols_num++;
         }
     }
+
+    if(furi_hal_nfc_pn532_is_active()) {
+        size_t write_idx = 0;
+        for(size_t i = 0; i < instance->base_protocols_num; i++) {
+            NfcProtocol p = instance->base_protocols[i];
+            if(p == NfcProtocolIso14443_3a ||
+               p == NfcProtocolIso14443_3b ||
+               p == NfcProtocolFelica) {
+                instance->base_protocols[write_idx++] = p;
+            }
+        }
+        instance->base_protocols_num = write_idx;
+        FURI_LOG_W(TAG, "PN532 active - filtered to %zu base protocols (A/B/Felica)", instance->base_protocols_num);
+    }
+
     FURI_LOG_D(TAG, "Found %zu base protocols", instance->base_protocols_num);
 
     instance->first_detected_protocol = NfcProtocolInvalid;
@@ -84,6 +101,10 @@ void nfc_scanner_state_handler_idle(NfcScanner* instance) {
 }
 
 void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
+    if(instance->base_protocols_num == 0) {
+        instance->state = NfcScannerStateComplete;
+        return;
+    }
     do {
         instance->current_protocol = instance->base_protocols[instance->base_protocols_idx];
 
@@ -173,7 +194,7 @@ static void nfc_scanner_filter_detected_protocols(NfcScanner* instance) {
     }
 
     instance->detected_protocols_num = filtered_protocols_num;
-    memcpy(instance->detected_protocols, filtered_protocols, filtered_protocols_num);
+    memcpy(instance->detected_protocols, filtered_protocols, filtered_protocols_num * sizeof(NfcProtocol));
 }
 
 void nfc_scanner_state_handler_complete(NfcScanner* instance) {
@@ -192,7 +213,10 @@ void nfc_scanner_state_handler_complete(NfcScanner* instance) {
     };
 
     instance->callback(event, instance->context);
-    furi_delay_ms(100);
+    // Exit the scanner worker after firing the callback once.
+    // Without this, Idle→TryBasePollers→detect would restart scanning
+    // and fire the callback repeatedly until nfc_scanner_stop() is called.
+    instance->session_state = NfcScannerSessionStateStopRequest;
 }
 
 static NfcScannerStateHandler nfc_scanner_state_handlers[NfcScannerStateNum] = {
@@ -254,6 +278,7 @@ void nfc_scanner_stop(NfcScanner* instance) {
     furi_check(instance->scan_worker);
 
     instance->session_state = NfcScannerSessionStateStopRequest;
+    furi_hal_nfc_abort();
     furi_thread_join(instance->scan_worker);
     instance->session_state = NfcScannerSessionStateIdle;
 

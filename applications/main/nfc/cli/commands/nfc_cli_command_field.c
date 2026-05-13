@@ -6,8 +6,10 @@ static void nfc_cli_field(PipeSide* pipe, FuriString* args, void* context) {
     UNUSED(args);
     UNUSED(context);
 
+    furi_hal_nfc_acquire();
     furi_hal_nfc_low_power_mode_stop();
     furi_hal_nfc_poller_field_on();
+    furi_hal_nfc_release();
 
     printf("Field is on. Don't leave device in this mode for too long.\r\n");
     printf("Press Ctrl+C to abort\r\n");

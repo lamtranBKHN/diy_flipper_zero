@@ -11,9 +11,6 @@
 #include <furi_hal_nfc.h>
 #include <furi_hal_spi.h>
 
-#include <drivers/st25r3916.h>
-#include <drivers/st25r3916_reg.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif

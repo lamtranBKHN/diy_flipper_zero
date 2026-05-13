@@ -165,17 +165,16 @@ bool furi_hal_power_is_charging_done(void) {
 }
 
 void furi_hal_power_shutdown(void) {
-    // Must not return
-    // TODO: Clear and deinit the screen first
+    __disable_irq();
 
-    // TODO: Then deinit peripherals
+    LL_PWR_ClearFlag_WU();
 
-    // Then Prepare Wakeup pin (boot0 pin)
+    LL_PWR_EnableWakeUpPin(LL_PWR_WAKEUP_PIN2);
 
-    // Then Release RCC semaphore
+    LL_PWR_SetPowerMode(LL_PWR_MODE_STANDBY);
 
-    // Finally, vibrate briefly to indicate shutdown
-    
+    __WFI();
+
     while(1) {
     }
 }
