@@ -2,9 +2,13 @@
 
 #include "furi_hal_pn532.h"
 #include "furi_hal_nfc_i.h"
-
+#include <stm32wbxx_ll_i2c.h>
 #include <furi.h>
 #include <string.h>
+
+extern void furi_hal_i2c_bus_reset(I2C_TypeDef* i2c);
+
+#define TAG "FuriHalNfcPn532"
 
 #define PN532_NFCA_CT                 0x88
 #define PN532_EVENT_QUEUE_CAPACITY    8
@@ -25,28 +29,42 @@ typedef struct {
 
 static FuriHalNfcPn532State furi_hal_nfc_pn532 = {0};
 
+static bool furi_hal_nfc_pn532_queue_pop(FuriHalNfcEvent* event);
+
 static void furi_hal_nfc_pn532_queue_reset(void) {
+    FURI_CRITICAL_ENTER();
     furi_hal_nfc_pn532.event_head = 0;
     furi_hal_nfc_pn532.event_count = 0;
+    FURI_CRITICAL_EXIT();
 }
 
 static bool furi_hal_nfc_pn532_queue_push(FuriHalNfcEvent event) {
-    if(furi_hal_nfc_pn532.event_count >= PN532_EVENT_QUEUE_CAPACITY) return false;
-    const size_t index =
-        (furi_hal_nfc_pn532.event_head + furi_hal_nfc_pn532.event_count) %
-        PN532_EVENT_QUEUE_CAPACITY;
-    furi_hal_nfc_pn532.event_queue[index] = event;
-    furi_hal_nfc_pn532.event_count++;
-    return true;
+    bool ok = false;
+    FURI_CRITICAL_ENTER();
+    if(furi_hal_nfc_pn532.event_count < PN532_EVENT_QUEUE_CAPACITY) {
+        const size_t index =
+            (furi_hal_nfc_pn532.event_head + furi_hal_nfc_pn532.event_count) %
+            PN532_EVENT_QUEUE_CAPACITY;
+        furi_hal_nfc_pn532.event_queue[index] = event;
+        furi_hal_nfc_pn532.event_count++;
+        ok = true;
+    }
+    FURI_CRITICAL_EXIT();
+    return ok;
 }
 
 static bool furi_hal_nfc_pn532_queue_pop(FuriHalNfcEvent* event) {
-    if(furi_hal_nfc_pn532.event_count == 0) return false;
-    *event = furi_hal_nfc_pn532.event_queue[furi_hal_nfc_pn532.event_head];
-    furi_hal_nfc_pn532.event_head =
-        (furi_hal_nfc_pn532.event_head + 1) % PN532_EVENT_QUEUE_CAPACITY;
-    furi_hal_nfc_pn532.event_count--;
-    return true;
+    bool ok = false;
+    FURI_CRITICAL_ENTER();
+    if(furi_hal_nfc_pn532.event_count > 0) {
+        *event = furi_hal_nfc_pn532.event_queue[furi_hal_nfc_pn532.event_head];
+        furi_hal_nfc_pn532.event_head =
+            (furi_hal_nfc_pn532.event_head + 1) % PN532_EVENT_QUEUE_CAPACITY;
+        furi_hal_nfc_pn532.event_count--;
+        ok = true;
+    }
+    FURI_CRITICAL_EXIT();
+    return ok;
 }
 
 static uint16_t furi_hal_nfc_pn532_crc_a(const uint8_t* data, size_t size) {
@@ -120,6 +138,7 @@ static bool furi_hal_nfc_pn532_prepare_rx(
     memset(furi_hal_nfc_pn532.rx_buffer, 0, sizeof(furi_hal_nfc_pn532.rx_buffer));
 
     if(add_parity) {
+        if(frame_len > (sizeof(furi_hal_nfc_pn532.rx_buffer) * 8U / 9U)) return false;
         size_t bit_pos = 0;
         for(size_t i = 0; i < frame_len; i++) {
             const uint8_t byte = frame[i];
@@ -227,7 +246,22 @@ bool furi_hal_nfc_pn532_is_active(void) {
     return furi_hal_nfc_pn532.active && furi_hal_pn532_is_ready();
 }
 
+/* Send InRelease and consume the response so it does not linger in the
+ * PN532 I2C output buffer and confuse the next operation.
+ * The response is consumed unconditionally to guarantee no stale data
+ * remains even if send_command encountered a transient I2C fault. */
+static void pn532_send_inrelease(void) {
+    const uint8_t in_release[] = {0x52, 0x00};
+    uint8_t dummy[8];
+    size_t dummy_len = 0;
+    if(furi_hal_pn532_send_command(in_release, sizeof(in_release)) == FuriHalPn532ErrorNone) {
+        furi_hal_pn532_read_response(dummy, sizeof(dummy), &dummy_len, 50);
+    }
+}
+
 void furi_hal_nfc_pn532_reset(void) {
+    // Release PN532 target handle to avoid stale state between protocol detects
+    pn532_send_inrelease();
     furi_hal_nfc_pn532.target_valid = false;
     furi_hal_nfc_pn532.mode = FuriHalNfcModeNum;
     furi_hal_nfc_pn532.tech = FuriHalNfcTechInvalid;
@@ -239,7 +273,15 @@ void furi_hal_nfc_pn532_reset(void) {
 
 FuriHalNfcError furi_hal_nfc_pn532_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech) {
     if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
-    if((mode != FuriHalNfcModePoller) || (tech != FuriHalNfcTechIso14443a)) {
+    /* PN532 only supports Poller mode. Listener mode is not implemented.
+     * All Poller technologies are accepted so the NFC scanner state machine
+     * can cycle through protocols. The actual polling always uses InListPassiveTarget
+     * which covers ISO14443A; other tech pollers return "no target" cleanly. */
+    if(mode != FuriHalNfcModePoller) {
+        FURI_LOG_W(TAG, "set_mode: listener mode not supported by PN532 backend");
+        return FuriHalNfcErrorCommunication;
+    }
+    if(tech >= FuriHalNfcTechNum) {
         return FuriHalNfcErrorCommunication;
     }
 
@@ -272,8 +314,7 @@ FuriHalNfcError furi_hal_nfc_pn532_field_detect_stop(void) {
 }
 
 bool furi_hal_nfc_pn532_field_is_present(void) {
-    FuriHalPn532Target target = {0};
-    return furi_hal_nfc_pn532_is_active() && furi_hal_pn532_poll_iso14443a(&target);
+    return furi_hal_nfc_pn532_is_active();
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_poller_field_on(void) {
@@ -281,13 +322,21 @@ FuriHalNfcError furi_hal_nfc_pn532_poller_field_on(void) {
 }
 
 FuriHalNfcEvent furi_hal_nfc_pn532_wait_event(uint32_t timeout_ms) {
+    /* Check for abort before clearing flags */
+    if(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort) {
+        furi_thread_flags_clear(FuriHalNfcEventInternalTypeAbort);
+        furi_hal_nfc_pn532_queue_reset();
+        return FuriHalNfcEventAbortRequest;
+    }
+
     FuriHalNfcEvent event = 0;
+
     if(furi_hal_nfc_pn532_queue_pop(&event)) {
         return event;
     }
 
     const uint32_t wait_timeout =
-        timeout_ms == FURI_HAL_NFC_EVENT_WAIT_FOREVER ? FuriWaitForever : timeout_ms;
+        timeout_ms == FURI_HAL_NFC_EVENT_WAIT_FOREVER ? 100 : timeout_ms;
     const uint32_t event_flag =
         furi_thread_flags_wait(
             FuriHalNfcEventInternalTypeAbort | FuriHalNfcEventInternalTypeTimerFwtExpired |
@@ -309,6 +358,7 @@ FuriHalNfcEvent furi_hal_nfc_pn532_wait_event(uint32_t timeout_ms) {
     }
     if(event_flag & FuriHalNfcEventInternalTypeAbort) {
         event |= FuriHalNfcEventAbortRequest;
+        furi_hal_nfc_pn532_queue_reset();
         furi_thread_flags_clear(FuriHalNfcEventInternalTypeAbort);
     }
 
@@ -401,11 +451,12 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
     }
 
     // RATS, APDU, and all other commands — forward to PN532 InDataExchange
+    const size_t send_len = strip_crc_from_tx ? effective_tx_len : tx_len;
     const FuriHalPn532Error err =
         furi_hal_pn532_in_data_exchange(
             furi_hal_nfc_pn532.target.target_number,
             tx_bytes,
-            effective_tx_len,
+            send_len,
             rx_payload,
             sizeof(rx_payload),
             &rx_len);
@@ -424,13 +475,29 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
     return furi_hal_nfc_pn532_finalize_exchange(err, response_ready);
 }
 
+FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
+    uint8_t block_num,
+    const uint8_t* key,
+    uint8_t key_type,
+    const uint8_t* uid,
+    uint8_t uid_len) {
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    if(!furi_hal_nfc_pn532.target_valid) return FuriHalNfcErrorCommunication;
+
+    const FuriHalPn532Error err = furi_hal_pn532_mf_auth(
+        furi_hal_nfc_pn532.target.target_number,
+        block_num, key, key_type, uid, uid_len);
+
+    return (err == FuriHalPn532ErrorNone) ? FuriHalNfcErrorNone : FuriHalNfcErrorCommunication;
+}
+
 FuriHalNfcError furi_hal_nfc_pn532_tx(const uint8_t* tx_data, size_t tx_bits) {
     if((tx_bits % 8U) != 0U) return FuriHalNfcErrorDataFormat;
     return furi_hal_nfc_pn532_exchange_internal(tx_data, tx_bits / 8U, false, true);
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_tx_custom_parity(const uint8_t* tx_data, size_t tx_bits) {
-    uint8_t tx_bytes[PN532_MAX_FRAME_SIZE] = {0};
+    uint8_t tx_bytes[PN532_MAX_FRAME_SIZE] = {0}; // 192 bytes stack — verify call chain for ISR safety
     const size_t tx_len =
         furi_hal_nfc_pn532_unpack_parity_frame(tx_data, tx_bits, tx_bytes, sizeof(tx_bytes));
     if(tx_len == 0U) return FuriHalNfcErrorDataFormat;

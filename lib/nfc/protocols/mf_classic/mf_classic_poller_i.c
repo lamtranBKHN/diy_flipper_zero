@@ -74,7 +74,7 @@ static MfClassicError mf_classic_poller_get_nt_common(
                 instance->tx_plain_buffer,
                 instance->rx_plain_buffer,
                 MF_CLASSIC_FWT_FC);
-            if(error != Iso14443_3aErrorWrongCrc) {
+            if((error != Iso14443_3aErrorWrongCrc) && (error != Iso14443_3aErrorNone)) {
                 ret = mf_classic_process_error(error);
                 break;
             }
@@ -170,6 +170,7 @@ MfClassicError mf_classic_poller_auth_common(
         }
         if(bit_buffer_get_size_bytes(instance->rx_encrypted_buffer) != 4) {
             ret = MfClassicErrorAuth;
+            break;
         }
 
         crypto1_word(instance->crypto, 0, 0);

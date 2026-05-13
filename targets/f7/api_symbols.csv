@@ -1607,6 +1607,7 @@ Function,+,furi_hal_nfc_pn532_field_is_present,_Bool,
 Function,+,furi_hal_nfc_pn532_is_active,_Bool,
 Function,+,furi_hal_nfc_pn532_low_power_mode_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_low_power_mode_stop,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_mf_auth,FuriHalNfcError,"uint8_t, const uint8_t*, uint8_t, const uint8_t*, uint8_t"
 Function,+,furi_hal_nfc_pn532_poller_field_on,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_reset,void,
 Function,+,furi_hal_nfc_pn532_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
@@ -1642,10 +1643,17 @@ Function,+,furi_hal_pcf8574_init,_Bool,
 Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
 Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
 Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
+Function,+,furi_hal_pn532_in_communicate_thru,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*"
 Function,+,furi_hal_pn532_in_data_exchange,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*"
 Function,+,furi_hal_pn532_init,_Bool,
 Function,+,furi_hal_pn532_is_ready,_Bool,
+Function,+,furi_hal_pn532_mf_auth,FuriHalPn532Error,"uint8_t, uint8_t, const uint8_t*, uint8_t, const uint8_t*, uint8_t"
+Function,+,furi_hal_pn532_poll_felica,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_iso14443a,_Bool,FuriHalPn532Target*
+Function,+,furi_hal_pn532_poll_iso14443b,_Bool,FuriHalPn532Target*
+Function,+,furi_hal_pn532_read_response,FuriHalPn532Error,"uint8_t*, size_t, size_t*, uint32_t"
+Function,+,furi_hal_pn532_read_status,_Bool,
+Function,+,furi_hal_pn532_send_command,FuriHalPn532Error,"const uint8_t*, size_t"
 Function,+,furi_hal_power_check_otg_fault,_Bool,
 Function,+,furi_hal_power_check_otg_status,void,
 Function,+,furi_hal_power_debug_get,void,"PropertyValueCallback, void*"
@@ -3068,6 +3076,7 @@ Function,+,nfc_util_even_parity32,uint8_t,uint32_t
 Function,+,nfc_util_even_parity8,uint8_t,uint8_t
 Function,+,nfc_util_odd_parity,void,"const uint8_t*, uint8_t*, uint8_t"
 Function,+,nfc_util_odd_parity8,uint8_t,uint8_t
+Function,+,nfc_wait_for_poller_ready,FuriStatus,"Nfc*, uint32_t"
 Function,+,notification_internal_message,void,"NotificationApp*, const NotificationSequence*"
 Function,+,notification_internal_message_block,void,"NotificationApp*, const NotificationSequence*"
 Function,+,notification_message,void,"NotificationApp*, const NotificationSequence*"
