@@ -76,13 +76,13 @@ void furi_hal_i2c_bus_handle_power_event(
             &gpio_i2c_1_sda,
             GpioModeAltFunctionOpenDrain,
             GpioPullUp,
-            GpioSpeedHigh,  // High speed for 400kHz I2C
+            GpioSpeedHigh, // High speed for 400kHz I2C
             GpioAltFn4I2C1);
         furi_hal_gpio_init_ex(
             &gpio_i2c_1_scl,
             GpioModeAltFunctionOpenDrain,
             GpioPullUp,
-            GpioSpeedHigh,  // High speed for 400kHz I2C
+            GpioSpeedHigh, // High speed for 400kHz I2C
             GpioAltFn4I2C1);
 
         LL_I2C_InitTypeDef I2C_InitStruct;
@@ -92,7 +92,8 @@ void furi_hal_i2c_bus_handle_power_event(
         I2C_InitStruct.OwnAddress1 = 0;
         I2C_InitStruct.TypeAcknowledge = LL_I2C_ACK;
         I2C_InitStruct.OwnAddrSize = LL_I2C_OWNADDRESS1_7BIT;
-        I2C_InitStruct.Timing = FURI_HAL_I2C_CONFIG_POWER_I2C_TIMINGS_400;  // 400kHz for faster NFC/OLED/PCF8574 throughput
+        I2C_InitStruct.Timing =
+            FURI_HAL_I2C_CONFIG_POWER_I2C_TIMINGS_400; // 400kHz for faster NFC/OLED/PCF8574 throughput
         LL_I2C_Init(handle->bus->i2c, &I2C_InitStruct);
         // Explicitly enable I2C peripheral
         LL_I2C_Enable(handle->bus->i2c);
@@ -122,9 +123,17 @@ void furi_hal_i2c_bus_handle_external_event(
     FuriHalI2cBusHandleEvent event) {
     if(event == FuriHalI2cBusHandleEventActivate) {
         furi_hal_gpio_init_ex(
-            &gpio_i2c_3_scl, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedHigh, GpioAltFn4I2C3);
+            &gpio_i2c_3_scl,
+            GpioModeAltFunctionOpenDrain,
+            GpioPullNo,
+            GpioSpeedHigh,
+            GpioAltFn4I2C3);
         furi_hal_gpio_init_ex(
-            &gpio_i2c_3_sda, GpioModeAltFunctionOpenDrain, GpioPullNo, GpioSpeedHigh, GpioAltFn4I2C3);
+            &gpio_i2c_3_sda,
+            GpioModeAltFunctionOpenDrain,
+            GpioPullNo,
+            GpioSpeedHigh,
+            GpioAltFn4I2C3);
 
         LL_I2C_InitTypeDef I2C_InitStruct;
         I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;

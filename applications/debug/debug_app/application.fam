@@ -1,0 +1,9 @@
+App(
+    appid="debug_app",
+    name="Debug",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="debug_app",
+    icon="A_Debug_10x10",
+    requires="",
+    stack_size=1024,
+)

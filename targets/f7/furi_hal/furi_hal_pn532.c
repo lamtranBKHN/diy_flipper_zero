@@ -5,16 +5,15 @@
 #include <stm32wbxx_ll_i2c.h>
 #include <furi.h>
 #include <string.h>
-
-extern void furi_hal_i2c_bus_reset(I2C_TypeDef* i2c);
+#include <inttypes.h>
 
 #define TAG "FuriHalPN532"
 
-#define PN532_PREAMBLE   0x00
-#define PN532_STARTCODE1 0x00
-#define PN532_STARTCODE2 0xFF
-#define PN532_POSTAMBLE  0x00
-#define PN532_I2C_SFI    0x00
+#define PN532_PREAMBLE    0x00
+#define PN532_STARTCODE1  0x00
+#define PN532_STARTCODE2  0xFF
+#define PN532_POSTAMBLE   0x00
+#define PN532_I2C_SFI     0x00
 #define PN532_HOSTTOPN532 0xD4
 #define PN532_PN532TOHOST 0xD5
 #define PN532_I2C_READY   0x01
@@ -24,15 +23,31 @@ extern void furi_hal_i2c_bus_reset(I2C_TypeDef* i2c);
 #define PN532_CMD_RF_CONFIGURATION     0x32
 #define PN532_CMD_IN_DATA_EXCHANGE     0x40
 #define PN532_CMD_IN_LIST_PASSIVE      0x4A
-#define PN532_CMD_WRITE_REGISTER        0x08
+#define PN532_CMD_WRITE_REGISTER       0x08
+#define PN532_CMD_TG_INIT_AS_TARGET    0x8C
+#define PN532_CMD_TG_GET_DATA          0x86
+#define PN532_CMD_TG_SET_DATA          0x8E
 
 /* CIU_TxControl - enables RF output drivers (required for clone modules) */
-#define PN532_REG_CIU_TxControl  0x6330
-#define PN532_TXCONTROL_ENABLE    0x82  /* TX1RFEn | InitialRFOn (RFOff=0: keep RF on between commands) */
+#define PN532_REG_CIU_TxControl 0x6330
+#define PN532_TXCONTROL_ENABLE \
+    0x82 /* TX1RFEn | InitialRFOn (RFOff=0: keep RF on between commands) */
 
-#define PN532_I2C_RETRIES      3
-#define PN532_MAX_TX_PAYLOAD   255
-#define PN532_MAX_RX_FRAME     270
+#define PN532_I2C_RETRIES    3
+#define PN532_MAX_TX_PAYLOAD 255
+#define PN532_MAX_RX_FRAME   270
+
+/* Timeout constants for PN532 operations */
+#define PN532_TIMEOUT_ACK_MS         150 /* ACK frame response timeout     */
+#define PN532_TIMEOUT_CMD_MS         250 /* FW version / SAM config       */
+#define PN532_TIMEOUT_POLL_MS        300 /* InListPassiveTarget poll      */
+#define PN532_TIMEOUT_EXCHANGE_MS    1000 /* InDataExchange (1s default)   */
+#define PN532_TIMEOUT_EXCHANGE_4K_MS 1500 /* InDataExchange (MIFARE 4K)  */
+#define PN532_TIMEOUT_PRESENCE_MS    100 /* Fast presence re-poll         */
+
+/* Retry backoff tables */
+static const uint16_t pn532_write_backoff_ms[PN532_I2C_RETRIES] = {50, 100, 200};
+static const uint16_t pn532_read_backoff_ms[PN532_I2C_RETRIES] = {5, 10, 20};
 
 static const uint8_t pn532_ack_frame[6] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 static bool pn532_ready = false;
@@ -96,7 +111,8 @@ static bool pn532_wait_ready_ms(uint32_t timeout_ms) {
             FURI_LOG_D(TAG, "PN532 wait ready: abort early exit after %d attempts", attempt);
             return false;
         }
-        furi_delay_ms(10); // 10ms poll interval — enough for PN532 RF response, 90% less I2C bus saturation vs 1ms
+        furi_delay_ms(
+            20); // 20ms poll interval — reduced from 50ms for faster response; 1-byte I2C read at 100kHz is ~100µs so bus load is negligible
     }
 }
 
@@ -152,20 +168,19 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
         if(attempt > 0) {
             static const uint8_t ack_cancel[] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
             furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-            furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pn532_i2c_addr,
-                            ack_cancel, sizeof(ack_cancel), 10);
+            furi_hal_i2c_tx(
+                &furi_hal_i2c_handle_power, pn532_i2c_addr, ack_cancel, sizeof(ack_cancel), 10);
             furi_hal_i2c_release(&furi_hal_i2c_handle_power);
             furi_delay_ms(10);
         }
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        bool ok = furi_hal_i2c_tx(
-            &furi_hal_i2c_handle_power, pn532_i2c_addr, frame, pos, 100);
+        bool ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pn532_i2c_addr, frame, pos, 100);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         if(ok) {
             return true;
         }
         FURI_LOG_W(TAG, "I2C TX retry %u/%u", attempt + 1, PN532_I2C_RETRIES);
-        furi_delay_ms(50);
+        furi_delay_ms(pn532_write_backoff_ms[attempt]);
     }
     FURI_LOG_E(TAG, "TX frame failed after %u retries", PN532_I2C_RETRIES);
     return false;
@@ -173,7 +188,7 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
 
 static bool pn532_read_ack(void) {
     uint8_t buf[7] = {0};
-    if(!pn532_wait_ready_ms(150)) {
+    if(!pn532_wait_ready_ms(PN532_TIMEOUT_ACK_MS)) {
         FURI_LOG_E(TAG, "pn532_read_ack: wait_ready failed");
         return false;
     }
@@ -182,18 +197,18 @@ static bool pn532_read_ack(void) {
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool ok = false;
-    for(uint8_t retry = 0; retry < 3; retry++) {
+    for(uint8_t retry = 0; retry < PN532_I2C_RETRIES; retry++) {
         ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, buf, sizeof(buf), 100);
         if(!ok) {
             FURI_LOG_W(TAG, "pn532_read_ack: RX failed, retry %u/3", retry + 1);
-            furi_delay_ms(5);
+            furi_delay_ms(pn532_read_backoff_ms[retry]);
             continue;
         }
         if(buf[0] == PN532_I2C_READY) {
             break;
         }
         FURI_LOG_W(TAG, "pn532_read_ack: status 0x%02X != 0x01, retry %u/3", buf[0], retry + 1);
-        furi_delay_ms(5);
+        furi_delay_ms(pn532_read_backoff_ms[retry]);
     }
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
@@ -204,69 +219,113 @@ static bool pn532_read_ack(void) {
     bool match = memcmp(&buf[1], pn532_ack_frame, sizeof(pn532_ack_frame)) == 0;
     if(!match) {
         FURI_LOG_E(TAG, "pn532_read_ack: ACK mismatch");
-        FURI_LOG_E(TAG, "  got:      %02X %02X %02X %02X %02X %02X", buf[1], buf[2], buf[3], buf[4], buf[5], buf[6]);
-        FURI_LOG_E(TAG, "  expected: %02X %02X %02X %02X %02X %02X", pn532_ack_frame[0], pn532_ack_frame[1], pn532_ack_frame[2], pn532_ack_frame[3], pn532_ack_frame[4], pn532_ack_frame[5]);
+        FURI_LOG_E(
+            TAG,
+            "  got:      %02X %02X %02X %02X %02X %02X",
+            buf[1],
+            buf[2],
+            buf[3],
+            buf[4],
+            buf[5],
+            buf[6]);
+        FURI_LOG_E(
+            TAG,
+            "  expected: %02X %02X %02X %02X %02X %02X",
+            pn532_ack_frame[0],
+            pn532_ack_frame[1],
+            pn532_ack_frame[2],
+            pn532_ack_frame[3],
+            pn532_ack_frame[4],
+            pn532_ack_frame[5]);
     }
     return match;
 }
 
-static bool pn532_read_response(
-    uint8_t* payload,
-    size_t payload_size,
-    size_t* out_len,
-    uint32_t timeout_ms) {
-    if(!pn532_wait_ready_ms(timeout_ms)) return false;
+static FuriHalPn532Error pn532_read_raw_response(uint8_t* rx, size_t rx_size, uint32_t timeout_ms) {
+    if(!rx || rx_size == 0) return FuriHalPn532ErrorInvalidFrame;
+    if(!pn532_wait_ready_ms(timeout_ms)) return FuriHalPn532ErrorTimeout;
 
     furi_delay_ms(1);
 
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool ok = false;
-    uint8_t rx[PN532_MAX_RX_FRAME] = {0};
 
-    /* Read the full response in a single transaction to prevent PN532 output restart */
-    for(uint8_t retry = 0; retry < 3; retry++) {
-        ok = furi_hal_i2c_rx(
-            &furi_hal_i2c_handle_power, pn532_i2c_addr, rx, sizeof(rx), 150);
-        if(ok && rx[0] == PN532_I2C_READY) break;
-        FURI_LOG_W(TAG, "pn532_read_response: retry %u/3 ok=%d status=0x%02X",
-                   retry + 1, ok, rx[0]);
-        furi_delay_ms(5);
+    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+    ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 150);
+
+    uint8_t retry_count = 0;
+    while(!ok || rx[0] != PN532_I2C_READY) {
+        if(retry_count >= PN532_I2C_RETRIES) break;
+        retry_count++;
+        furi_delay_ms(pn532_read_backoff_ms[retry_count - 1]);
+        ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 150);
     }
-    
+
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
     if(!ok || rx[0] != PN532_I2C_READY) {
-        return false;
-    }
-    
-    const uint8_t* frame = &rx[1];
-    
-    if(frame[0] != PN532_PREAMBLE || frame[1] != PN532_STARTCODE1 || frame[2] != PN532_STARTCODE2) {
-        FURI_LOG_E(TAG, "pn532_read_response: bad header %02X %02X %02X", frame[0], frame[1], frame[2]);
-        return false;
-    }
-    
-    uint8_t len = frame[3];
-    uint8_t lcs = frame[4];
-    if((uint8_t)(len + lcs) != 0) {
-        FURI_LOG_E(TAG, "pn532_read_response: bad LCS %02X + %02X", len, lcs);
-        return false;
-    }
-    
-    if(len < 2) {
-        return false;
+        return FuriHalPn532ErrorTimeout;
     }
 
+    return FuriHalPn532ErrorNone;
+}
+
+static FuriHalPn532Error pn532_parse_response_frame(
+    const uint8_t* rx,
+    size_t rx_size,
+    uint8_t* payload,
+    size_t payload_size,
+    size_t* out_len) {
+    if(!rx || rx_size < 8 || !payload) return FuriHalPn532ErrorInvalidFrame;
+    if(rx[0] != PN532_I2C_READY) return FuriHalPn532ErrorTimeout;
+
+    const uint8_t* frame = &rx[1];
+    const size_t frame_size = rx_size - 1;
+
+    if(frame[0] != PN532_PREAMBLE || frame[1] != PN532_STARTCODE1 ||
+       frame[2] != PN532_STARTCODE2) {
+        FURI_LOG_E(
+            TAG, "pn532_read_response: bad header %02X %02X %02X", frame[0], frame[1], frame[2]);
+        return FuriHalPn532ErrorInvalidFrame;
+    }
+
+    uint8_t len = frame[3];
+    uint8_t lcs = frame[4];
+    if(len == 0xFFU) {
+        FURI_LOG_E(TAG, "pn532_read_response: extended frames are not supported");
+        return FuriHalPn532ErrorUnsupported;
+    }
+    if((uint8_t)(len + lcs) != 0) {
+        FURI_LOG_E(TAG, "pn532_read_response: bad LCS %02X + %02X", len, lcs);
+        return FuriHalPn532ErrorInvalidFrame;
+    }
+
+    if(len < 2) {
+        return FuriHalPn532ErrorInvalidFrame;
+    }
+
+    const size_t required_frame_size = 7U + len;
+    if(required_frame_size > frame_size) {
+        FURI_LOG_E(
+            TAG,
+            "pn532_read_response: short frame (%zu < %zu)",
+            frame_size,
+            required_frame_size);
+        return FuriHalPn532ErrorInvalidFrame;
+    }
 
     if(frame[5] != PN532_PN532TOHOST) {
         FURI_LOG_E(TAG, "pn532_read_response: bad body[0]=0x%02X (expected 0xD5)", frame[5]);
-        return false;
+        return FuriHalPn532ErrorInvalidFrame;
     }
 
     size_t content_len = len - 1;
     if(content_len > payload_size) {
-        FURI_LOG_E(TAG, "pn532_read_response: content_len (%zu) > payload_size (%zu)", content_len, payload_size);
-        return false;
+        FURI_LOG_E(
+            TAG,
+            "pn532_read_response: content_len (%zu) > payload_size (%zu)",
+            content_len,
+            payload_size);
+        return FuriHalPn532ErrorBufferOverflow;
     }
 
     uint8_t dcs = frame[5 + len];
@@ -276,24 +335,46 @@ static bool pn532_read_response(
     }
     if((uint8_t)(checksum + dcs) != 0) {
         FURI_LOG_E(TAG, "DCS checksum failure");
-        return false;
+        return FuriHalPn532ErrorInvalidFrame;
     }
 
-    if(frame[6 + len] != PN532_POSTAMBLE) return false;
+    if(frame[6 + len] != PN532_POSTAMBLE) {
+        FURI_LOG_E(TAG, "pn532_read_response: bad postamble 0x%02X", frame[6 + len]);
+        return FuriHalPn532ErrorInvalidFrame;
+    }
 
     memcpy(payload, &frame[6], content_len);
     if(out_len) *out_len = content_len;
-    return true;
+    return FuriHalPn532ErrorNone;
+}
+
+static FuriHalPn532Error pn532_read_response_ex(
+    uint8_t* payload,
+    size_t payload_size,
+    size_t* out_len,
+    uint32_t timeout_ms) {
+    uint8_t rx[PN532_MAX_RX_FRAME] = {0};
+    FuriHalPn532Error error = pn532_read_raw_response(rx, sizeof(rx), timeout_ms);
+    if(error != FuriHalPn532ErrorNone) return error;
+    return pn532_parse_response_frame(rx, sizeof(rx), payload, payload_size, out_len);
+}
+
+static bool pn532_read_response(
+    uint8_t* payload,
+    size_t payload_size,
+    size_t* out_len,
+    uint32_t timeout_ms) {
+    return pn532_read_response_ex(payload, payload_size, out_len, timeout_ms) ==
+           FuriHalPn532ErrorNone;
 }
 
 /* Write a register in the PN532 CIU register bank */
 static bool pn532_write_register(uint16_t reg, uint8_t value) {
     uint8_t cmd[] = {
         PN532_CMD_WRITE_REGISTER,
-        (uint8_t)(reg >> 8),   /* High byte */
+        (uint8_t)(reg >> 8), /* High byte */
         (uint8_t)(reg & 0xFF), /* Low byte */
-        value
-    };
+        value};
     if(!pn532_write_frame(cmd, sizeof(cmd))) {
         FURI_LOG_W(TAG, "WriteRegister 0x%04X write failed", reg);
         return false;
@@ -301,14 +382,14 @@ static bool pn532_write_register(uint16_t reg, uint8_t value) {
     if(!pn532_read_ack()) {
         uint8_t dummy_buf[PN532_MAX_RX_FRAME];
         size_t dummy_len;
-        pn532_read_response(dummy_buf, sizeof(dummy_buf), &dummy_len, 50);
+        pn532_read_response(dummy_buf, sizeof(dummy_buf), &dummy_len, PN532_TIMEOUT_ACK_MS);
         FURI_LOG_W(TAG, "WriteRegister 0x%04X ACK failed", reg);
         return false;
     }
     /* Read and discard response */
     uint8_t dummy[8];
     size_t dummy_len = 0;
-    if(!pn532_read_response(dummy, sizeof(dummy), &dummy_len, 50)) {
+    if(!pn532_read_response(dummy, sizeof(dummy), &dummy_len, PN532_TIMEOUT_ACK_MS)) {
         return false;
     }
     return true;
@@ -333,7 +414,7 @@ bool furi_hal_pn532_init(void) {
     FURI_LOG_I(TAG, "PN532 firmware ACK received");
     uint8_t fw_rsp[24];
     size_t fw_len = 0;
-    if(!pn532_read_response(fw_rsp, sizeof(fw_rsp), &fw_len, 250) || fw_len < 5 ||
+    if(!pn532_read_response(fw_rsp, sizeof(fw_rsp), &fw_len, PN532_TIMEOUT_CMD_MS) || fw_len < 5 ||
        fw_rsp[0] != (PN532_CMD_GET_FIRMWARE_VERSION + 1)) {
         FURI_LOG_E(TAG, "PN532 invalid firmware response");
         return false;
@@ -348,8 +429,8 @@ bool furi_hal_pn532_init(void) {
     FURI_LOG_I(TAG, "PN532 SAM ACK received");
     uint8_t sam_rsp[16];
     size_t sam_len = 0;
-    if(!pn532_read_response(sam_rsp, sizeof(sam_rsp), &sam_len, 250) || sam_len < 1 ||
-       sam_rsp[0] != (PN532_CMD_SAM_CONFIGURATION + 1)) {
+    if(!pn532_read_response(sam_rsp, sizeof(sam_rsp), &sam_len, PN532_TIMEOUT_CMD_MS) ||
+       sam_len < 1 || sam_rsp[0] != (PN532_CMD_SAM_CONFIGURATION + 1)) {
         FURI_LOG_E(TAG, "PN532 invalid SAM response");
         return false;
     }
@@ -363,10 +444,10 @@ bool furi_hal_pn532_init(void) {
     if(!pn532_write_frame(cmd_rf_on, sizeof(cmd_rf_on))) {
         FURI_LOG_W(TAG, "RFConfiguration FIELD_ON write failed");
     } else if(!pn532_read_ack()) {
-        pn532_read_response(dummy, sizeof(dummy), &dummy_len, 50);
+        pn532_read_response(dummy, sizeof(dummy), &dummy_len, PN532_TIMEOUT_ACK_MS);
         FURI_LOG_W(TAG, "RFConfiguration FIELD_ON ACK failed");
     } else {
-        pn532_read_response(dummy, sizeof(dummy), &dummy_len, 100);
+        pn532_read_response(dummy, sizeof(dummy), &dummy_len, PN532_TIMEOUT_CMD_MS);
         FURI_LOG_I(TAG, "RFConfiguration FIELD_ON applied");
     }
 
@@ -378,10 +459,10 @@ bool furi_hal_pn532_init(void) {
     if(!pn532_write_frame(cmd_retry, sizeof(cmd_retry))) {
         FURI_LOG_W(TAG, "RFConfiguration retries config write failed");
     } else if(!pn532_read_ack()) {
-        pn532_read_response(dummy, sizeof(dummy), &dummy_len, 50);
+        pn532_read_response(dummy, sizeof(dummy), &dummy_len, PN532_TIMEOUT_ACK_MS);
         FURI_LOG_W(TAG, "RFConfiguration retries config ACK failed");
     } else {
-        pn532_read_response(dummy, sizeof(dummy), &dummy_len, 100);
+        pn532_read_response(dummy, sizeof(dummy), &dummy_len, PN532_TIMEOUT_CMD_MS);
         FURI_LOG_I(TAG, "RFConfiguration max retries applied");
     }
     furi_delay_ms(50); // Allow RF field to stabilize after RFConfiguration
@@ -397,7 +478,8 @@ bool furi_hal_pn532_init(void) {
 
     uint8_t post_init_status = 0;
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool status_ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, &post_init_status, 1, 10);
+    bool status_ok =
+        furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, &post_init_status, 1, 10);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     FURI_LOG_I(TAG, "Post-init PN532 status: 0x%02X (ok=%d)", post_init_status, status_ok);
 
@@ -421,6 +503,45 @@ bool furi_hal_pn532_read_status(void) {
     return ok && (status == PN532_I2C_READY);
 }
 
+const char* furi_hal_pn532_strerror(uint8_t status_code) {
+    switch(status_code) {
+    case 0x00:
+        return "No error";
+    case 0x01:
+        return "Timeout";
+    case 0x02:
+        return "CRC error";
+    case 0x03:
+        return "Parity error";
+    case 0x04:
+        return "Collision";
+    case 0x05:
+        return "Framing error";
+    case 0x06:
+        return "Overrun";
+    case 0x07:
+        return "RF field error (no card)";
+    case 0x08:
+        return "Protocol error";
+    case 0x09:
+        return "Buffer overflow";
+    case 0x0A:
+        return "Temperature warning";
+    case 0x0B:
+        return "Invalid parameter/buffer";
+    case 0x0C:
+        return "Communication buffer full";
+    case 0x0D:
+        return "Frame too large";
+    case 0x0E:
+        return "Invalid command format";
+    case 0x0F:
+        return "MIFARE Classic auth failed";
+    default:
+        return "Unknown error";
+    }
+}
+
 static FuriHalPn532Error pn532_exchange(
     const uint8_t* cmd,
     size_t cmd_len,
@@ -439,10 +560,10 @@ static FuriHalPn532Error pn532_exchange(
         return FuriHalPn532ErrorComm;
     }
 
-     if(!pn532_write_frame(cmd, cmd_len)) {
-         FURI_LOG_W(TAG, "pn532_exchange: write failed");
-         return FuriHalPn532ErrorComm;
-     }
+    if(!pn532_write_frame(cmd, cmd_len)) {
+        FURI_LOG_W(TAG, "pn532_exchange: write failed");
+        return FuriHalPn532ErrorComm;
+    }
 
     if(!pn532_read_ack()) {
         FURI_LOG_W(TAG, "pn532_exchange: ACK failed");
@@ -450,25 +571,38 @@ static FuriHalPn532Error pn532_exchange(
         return FuriHalPn532ErrorComm;
     }
 
-     size_t payload_len = 0;
-     if(!pn532_read_response(rx_data, rx_size, &payload_len, timeout_ms)) {
-         if(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort) {
-             /* Clean abort — the PN532 hardware is still alive.
+    size_t payload_len = 0;
+    if(!pn532_read_response(rx_data, rx_size, &payload_len, timeout_ms)) {
+        if(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort) {
+            /* Clean abort — the PN532 hardware is still alive.
               * Do NOT set pn532_ready = false here: that would make
               * furi_hal_nfc_pn532_is_active() return false and corrupt the
               * NFC worker state machine while it is still running.
               * Return Comm (not Timeout) so the caller treats this as an
               * interrupted exchange rather than a hardware error. */
-             FURI_LOG_D(TAG, "pn532_exchange: aborted mid-exchange (clean stop)");
-             return FuriHalPn532ErrorComm;
-         }
-         FURI_LOG_W(TAG, "pn532_exchange: response timeout (hardware)");
-         return FuriHalPn532ErrorTimeout;
-     }
+            FURI_LOG_D(TAG, "pn532_exchange: aborted mid-exchange (clean stop)");
+            /* Drain any pending response data so the PN532 output buffer
+             * is ready for the next command.  Without this drain, the PN532
+             * NACKs the next I2C write, forcing 3 retries and risking a
+             * TX-failure cascade.  Best-effort: if the drain fails (e.g.
+             * PN532 still busy), the next write_frame -> drain_output
+             * will catch it later. */
+            furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+            uint8_t drain[PN532_MAX_RX_FRAME];
+            furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, drain, sizeof(drain), 20);
+            furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+            return FuriHalPn532ErrorComm;
+        }
+        FURI_LOG_W(TAG, "pn532_exchange: response timeout (hardware)");
+        return FuriHalPn532ErrorTimeout;
+    }
 
     if((payload_len == 0) || (rx_data[0] != expected_response)) {
-        FURI_LOG_W(TAG, "pn532_exchange: bad response[0]=0x%02X expected=0x%02X",
-            rx_data[0], expected_response);
+        FURI_LOG_W(
+            TAG,
+            "pn532_exchange: bad response[0]=0x%02X expected=0x%02X",
+            rx_data[0],
+            expected_response);
         return FuriHalPn532ErrorInvalidFrame;
     }
 
@@ -476,22 +610,21 @@ static FuriHalPn532Error pn532_exchange(
     return FuriHalPn532ErrorNone;
 }
 
-bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
+bool furi_hal_pn532_poll_iso14443a_timeout(FuriHalPn532Target* target, uint32_t timeout_ms) {
     if(target) memset(target, 0, sizeof(*target));
 
     uint8_t cmd[] = {PN532_CMD_IN_LIST_PASSIVE, 0x01, 0x00};
     uint8_t response[64] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        pn532_exchange(
-            cmd,
-            sizeof(cmd),
-            PN532_CMD_IN_LIST_PASSIVE + 1,
-            response,
-            sizeof(response),
-            &response_len,
-            250);
+    FuriHalPn532Error error = pn532_exchange(
+        cmd,
+        sizeof(cmd),
+        PN532_CMD_IN_LIST_PASSIVE + 1,
+        response,
+        sizeof(response),
+        &response_len,
+        timeout_ms);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 2) {
         FURI_LOG_W(TAG, "poll_iso14443a: response too short=%zu", response_len);
@@ -501,11 +634,20 @@ bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
         FURI_LOG_W(TAG, "poll_iso14443a: no targets found");
         return false;
     }
+    if(response[1] > 1) {
+        FURI_LOG_W(TAG, "poll_iso14443a: %u tags present, processing first only", response[1]);
+    }
     if(response_len < 7) return false;
-    if(!target) return false;
+    if(!target) return true;
 
-    FURI_LOG_D(TAG, "poll_iso14443a: Tg=%d ATQA=%02X%02X SAK=%02X UIDlen=%d",
-        response[2], response[3], response[4], response[5], response[6]);
+    FURI_LOG_D(
+        TAG,
+        "poll_iso14443a: Tg=%d ATQA=%02X%02X SAK=%02X UIDlen=%d",
+        response[2],
+        response[3],
+        response[4],
+        response[5],
+        response[6]);
     target->target_number = response[2];
     /* NOTE: byte order swap.
      * PN532 delivers ATQA big-endian (high byte first = response[3],
@@ -519,38 +661,142 @@ bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
     if((7U + target->uid_len) > response_len) return false;
     if(target->uid_len > sizeof(target->uid)) return false;
     memcpy(target->uid, &response[7], target->uid_len);
-    
+
+    // Extract ATS if present (ISO14443-4A capable card)
+    target->iso_dep_active = (response[5] & 0x20) != 0;
+    if(target->iso_dep_active) {
+        const size_t ats_offset = 7 + target->uid_len;
+        if(ats_offset < response_len) {
+            target->ats_len = response_len - ats_offset;
+            if(target->ats_len > sizeof(target->ats)) {
+                target->ats_len = sizeof(target->ats);
+            }
+            memcpy(target->ats, &response[ats_offset], target->ats_len);
+            FURI_LOG_D(TAG, "poll_iso14443a: ISO-DEP active, ATS %zu bytes", target->ats_len);
+        }
+    }
+
     return true;
+}
+
+bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target) {
+    return furi_hal_pn532_poll_iso14443a_timeout(target, PN532_TIMEOUT_POLL_MS);
+}
+
+bool furi_hal_pn532_srix_detect(uint8_t* chip_id) {
+    uint8_t cmd[] = {0x06, 0x00};
+    uint8_t response[16] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error =
+        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    if(error != FuriHalPn532ErrorNone || response_len < 2) return false;
+
+    if(response[0] != 0x00) return false;
+
+    if(chip_id && response_len >= 2) {
+        *chip_id = response[1];
+    }
+
+    return true;
+}
+
+bool furi_hal_pn532_srix_select(uint8_t chip_id) {
+    uint8_t cmd[] = {0x0E, chip_id};
+    uint8_t response[8] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error =
+        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 1) return false;
+
+    return (response[0] == 0x00);
+}
+
+bool furi_hal_pn532_srix_get_uid(uint8_t* uid, size_t* uid_len) {
+    if(!uid || !uid_len) return false;
+
+    uint8_t cmd[] = {0x0B};
+    uint8_t response[16] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error =
+        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 2 || response[0] != 0x00) return false;
+
+    size_t copy_len = response_len - 1;
+    if(copy_len > 8) copy_len = 8;
+    memcpy(uid, &response[1], copy_len);
+    *uid_len = copy_len;
+
+    return true;
+}
+
+bool furi_hal_pn532_srix_read_block(uint8_t block_num, uint8_t* data) {
+    if(!data) return false;
+
+    uint8_t cmd[] = {0x08, block_num};
+    uint8_t response[16] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error =
+        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 5 || response[0] != 0x00) return false;
+
+    memcpy(data, &response[1], 4);
+    return true;
+}
+
+bool furi_hal_pn532_srix_write_block(uint8_t block_num, const uint8_t* data) {
+    if(!data) return false;
+
+    uint8_t cmd[] = {0x09, block_num, data[0], data[1], data[2], data[3]};
+    uint8_t response[8] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error =
+        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 1) return false;
+
+    return (response[0] == 0x00);
 }
 
 bool furi_hal_pn532_poll_felica(FuriHalPn532Target* target) {
     if(target) memset(target, 0, sizeof(*target));
-    
+
     uint8_t cmd[] = {PN532_CMD_IN_LIST_PASSIVE, 0x02, 0x00};
     uint8_t response[64] = {0};
     size_t response_len = 0;
-    
-    FuriHalPn532Error error =
-        pn532_exchange(
-            cmd,
-            sizeof(cmd),
-            PN532_CMD_IN_LIST_PASSIVE + 1,
-            response,
-            sizeof(response),
-            &response_len,
-            150);
+
+    FuriHalPn532Error error = pn532_exchange(
+        cmd,
+        sizeof(cmd),
+        PN532_CMD_IN_LIST_PASSIVE + 1,
+        response,
+        sizeof(response),
+        &response_len,
+        PN532_TIMEOUT_POLL_MS);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 2) return false;
     if(response[1] == 0) return false;
-    if(response_len < 11) return false;
-    if(!target) return false;
-    
-    // FeliCa target format: [TargetNum][IDm(8)][PMm(8)][SysCode(2)]...
+    if(response[1] > 1) {
+        FURI_LOG_W(TAG, "poll_felica: %u tags present, processing first only", response[1]);
+    }
+    if(response_len < 19) return false;
+    if(!target) return true;
+
+    // FeliCa target format: [cmd+1][NbTg][Tg][IDm(8)][PMm(8)][SysCode(2)]...
+    // At response: [0]=0x4B [1]=NbTg [2]=Tg [3..10]=IDm [11..18]=PMm
     target->target_number = response[2];
     target->uid_len = 8;
     memcpy(target->uid, &response[3], 8);
-    target->sak = 0; // Not applicable for FeliCa, but set to 0
-    
+    memcpy(target->pmm, &response[11], 8);
+    target->sak = 0; // Not applicable for FeliCa
+
     return true;
 }
 
@@ -565,32 +811,39 @@ bool furi_hal_pn532_poll_iso14443b(FuriHalPn532Target* target) {
     uint8_t response[64] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        pn532_exchange(
-            cmd,
-            sizeof(cmd),
-            PN532_CMD_IN_LIST_PASSIVE + 1,
-            response,
-            sizeof(response),
-            &response_len,
-            150);
+    FuriHalPn532Error error = pn532_exchange(
+        cmd,
+        sizeof(cmd),
+        PN532_CMD_IN_LIST_PASSIVE + 1,
+        response,
+        sizeof(response),
+        &response_len,
+        PN532_TIMEOUT_POLL_MS);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 2) return false;
     if(response[1] == 0) return false;
-    if((response_len < 15) || !target) return true;
+    if(response[1] > 1) {
+        FURI_LOG_W(TAG, "poll_iso14443b: %u tags present, processing first only", response[1]);
+    }
+    if(response_len < 15) return false;
+    if(!target) return true;
+    if(response[3] != 0x50) return false;
 
     // Type B response: [cmd+1][NbTg][Tg][ATQB(12 bytes minimum)]
+    // ATQB: [0x50][PUPI(4)][AppData(4)][ProtoInfo(3)]
+    // So at response: [3]=0x50, [4..7]=PUPI, [8..11]=AppData, [12..14]=ProtoInfo
     target->target_number = response[2];
-    // Store PUPI (4 bytes) as UID — bytes 4..7 of ATQB, i.e. response[6..9]
+    // Store PUPI (4 bytes) as UID
     target->uid_len = 4;
-    memcpy(target->uid, &response[6], 4);
+    memcpy(target->uid, &response[4], 4);
+    memcpy(target->app_data, &response[8], 4);
+    memcpy(target->proto_info, &response[12], 3);
     target->sak = 0; // not applicable for Type B
     target->atqa[0] = 0x50; // marker for Type B
     target->atqa[1] = 0x00;
 
     return true;
 }
-
 
 FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     uint8_t target_number,
@@ -606,28 +859,37 @@ FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     cmd[1] = target_number;
     if(tx_len) memcpy(&cmd[2], tx_data, tx_len);
 
+    const size_t cmd_len = tx_len + 2;
     uint8_t response[PN532_MAX_RX_FRAME] = {0};
     size_t response_len = 0;
-    FuriHalPn532Error error =
-        pn532_exchange(
-            cmd,
-            tx_len + 2,
-            PN532_CMD_IN_DATA_EXCHANGE + 1,
-            response,
-            sizeof(response),
-            &response_len,
-            1000);
+    /* Use longer timeout for large command payloads (>250 bytes).
+     * MIFARE Classic 4K reads are typically short; this heuristic catches
+     * long ISO14443-4 chained APDUs or large FeliCa transactions. */
+    uint32_t exchange_timeout = (tx_len > 250) ? PN532_TIMEOUT_EXCHANGE_4K_MS :
+                                                 PN532_TIMEOUT_EXCHANGE_MS;
+    FuriHalPn532Error error = pn532_exchange(
+        cmd,
+        cmd_len,
+        PN532_CMD_IN_DATA_EXCHANGE + 1,
+        response,
+        sizeof(response),
+        &response_len,
+        exchange_timeout);
     if(error != FuriHalPn532ErrorNone) return error;
     if(response_len < 2) return FuriHalPn532ErrorInvalidFrame;
     if(response[1] != 0x00) {
-        FURI_LOG_W(TAG, "in_data_exchange status error: 0x%02X", response[1]);
+        FURI_LOG_W(
+            TAG,
+            "in_data_exchange status error: 0x%02X (%s)",
+            response[1],
+            furi_hal_pn532_strerror(response[1]));
         if(response[1] == 0x01) return FuriHalPn532ErrorTimeout; // Timeout / Target removed
         if(response[1] == 0x14) return FuriHalPn532ErrorInvalidFrame; // MIFARE auth error
         return FuriHalPn532ErrorComm;
     }
 
     const size_t payload_len = response_len - 2;
-    if(payload_len > rx_size) return FuriHalPn532ErrorComm;
+    if(payload_len > rx_size) return FuriHalPn532ErrorBufferOverflow;
     if(payload_len) memcpy(rx_data, &response[2], payload_len);
     if(rx_len) *rx_len = payload_len;
     return FuriHalPn532ErrorNone;
@@ -647,25 +909,22 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
 
     uint8_t response[PN532_MAX_RX_FRAME] = {0};
     size_t response_len = 0;
-    FuriHalPn532Error error =
-        pn532_exchange(
-            cmd,
-            tx_len + 1,
-            0x43,
-            response,
-            sizeof(response),
-            &response_len,
-            250);
+    FuriHalPn532Error error = pn532_exchange(
+        cmd, tx_len + 1, 0x43, response, sizeof(response), &response_len, PN532_TIMEOUT_CMD_MS);
     if(error != FuriHalPn532ErrorNone) return error;
     if(response_len < 2) return FuriHalPn532ErrorInvalidFrame;
     if(response[1] != 0x00) {
-        FURI_LOG_W(TAG, "in_communicate_thru status error: 0x%02X", response[1]);
+        FURI_LOG_W(
+            TAG,
+            "in_communicate_thru status error: 0x%02X (%s)",
+            response[1],
+            furi_hal_pn532_strerror(response[1]));
         if(response[1] == 0x01) return FuriHalPn532ErrorTimeout;
         return FuriHalPn532ErrorComm;
     }
 
     const size_t payload_len = response_len - 2;
-    if(payload_len > rx_size) return FuriHalPn532ErrorComm;
+    if(payload_len > rx_size) return FuriHalPn532ErrorBufferOverflow;
     if(payload_len) memcpy(rx_data, &response[2], payload_len);
     if(rx_len) *rx_len = payload_len;
     return FuriHalPn532ErrorNone;
@@ -694,7 +953,13 @@ FuriHalPn532Error furi_hal_pn532_mf_auth(
     uint8_t resp[4];
     size_t resp_len = sizeof(resp);
     FuriHalPn532Error err = pn532_exchange(
-        cmd, sizeof(cmd), PN532_CMD_IN_DATA_EXCHANGE + 1, resp, sizeof(resp), &resp_len, 1000);
+        cmd,
+        sizeof(cmd),
+        PN532_CMD_IN_DATA_EXCHANGE + 1,
+        resp,
+        sizeof(resp),
+        &resp_len,
+        PN532_TIMEOUT_POLL_MS);
 
     if(err == FuriHalPn532ErrorNone && resp_len >= 2) {
         if(resp[1] == 0x00) {
@@ -708,10 +973,54 @@ FuriHalPn532Error furi_hal_pn532_mf_auth(
     return FuriHalPn532ErrorComm;
 }
 
+bool furi_hal_pn532_mf_backdoor_auth(
+    uint8_t block_num,
+    uint8_t key_type,
+    const uint8_t* key,
+    uint8_t backdoor_type) {
+    furi_check(key);
+
+    uint8_t auth_cmd = (backdoor_type == 0) ? 0x64 : 0x65;
+
+    uint8_t cmd[10] = {0x42, auth_cmd, block_num, key_type};
+    memcpy(&cmd[4], key, 6);
+
+    uint8_t response[8] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error = furi_hal_pn532_send_command(cmd, sizeof(cmd));
+    if(error != FuriHalPn532ErrorNone) return false;
+
+    error = furi_hal_pn532_read_response(response, sizeof(response), &response_len, 100);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 1) return false;
+
+    return (response[0] == 0x00);
+}
+
+bool furi_hal_pn532_mf_backdoor_write_block0(uint8_t block_num, const uint8_t* block_data) {
+    furi_check(block_data);
+
+    uint8_t cmd_wr[19] = {0x42, 0xA0, block_num};
+    memcpy(&cmd_wr[3], block_data, 16);
+
+    uint8_t response[8] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error = furi_hal_pn532_send_command(cmd_wr, sizeof(cmd_wr));
+    if(error != FuriHalPn532ErrorNone) return false;
+
+    error = furi_hal_pn532_read_response(response, sizeof(response), &response_len, 200);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 1) return false;
+
+    return (response[0] == 0x00);
+}
+
 FuriHalPn532Error furi_hal_pn532_send_command(const uint8_t* cmd, size_t cmd_len) {
     if(!pn532_ready && !furi_hal_pn532_init()) return FuriHalPn532ErrorComm;
     if(cmd_len == 0) return FuriHalPn532ErrorNone;
-    
+
     if(!pn532_write_frame(cmd, cmd_len)) return FuriHalPn532ErrorComm;
     if(!pn532_read_ack()) {
         pn532_ready = false;
@@ -720,13 +1029,99 @@ FuriHalPn532Error furi_hal_pn532_send_command(const uint8_t* cmd, size_t cmd_len
     return FuriHalPn532ErrorNone;
 }
 
-FuriHalPn532Error furi_hal_pn532_read_response(uint8_t* data, size_t data_size, size_t* data_len, uint32_t timeout_ms) {
+FuriHalPn532Error furi_hal_pn532_read_response(
+    uint8_t* data,
+    size_t data_size,
+    size_t* data_len,
+    uint32_t timeout_ms) {
     if(!pn532_ready) return FuriHalPn532ErrorComm;
 
-    bool success = pn532_read_response(data, data_size, data_len, timeout_ms > 0 ? timeout_ms : 500);
-    if(!success) {
-        return FuriHalPn532ErrorComm;
+    FuriHalPn532Error error = pn532_read_response_ex(
+        data, data_size, data_len, timeout_ms > 0 ? timeout_ms : PN532_TIMEOUT_EXCHANGE_MS);
+    return error;
+}
+
+// Target/Listener mode: initialize PN532 as an NFC target (tag)
+// params: [MODE][SENS_RES(2)][NFCID1(3)][SEL_RES(1)][FeliCaParams(16)][NFCID3t(10)][GB_len][historical...]
+// See Seeed PN532/emulatetag.cpp for reference.
+FuriHalPn532Error furi_hal_pn532_tg_init_as_target(
+    const uint8_t* params,
+    size_t params_len,
+    uint32_t timeout_ms) {
+    if(!pn532_ready && !furi_hal_pn532_init()) return FuriHalPn532ErrorComm;
+    if(!params || params_len == 0) return FuriHalPn532ErrorComm;
+
+    uint8_t cmd[PN532_MAX_TX_PAYLOAD] = {0};
+    cmd[0] = PN532_CMD_TG_INIT_AS_TARGET;
+    memcpy(
+        &cmd[1],
+        params,
+        params_len > (PN532_MAX_TX_PAYLOAD - 1) ? (PN532_MAX_TX_PAYLOAD - 1) : params_len);
+    const size_t cmd_len = params_len + 1;
+
+    uint8_t resp[4] = {0};
+    size_t resp_len = sizeof(resp);
+    FuriHalPn532Error err = pn532_exchange(
+        cmd, cmd_len, PN532_CMD_TG_INIT_AS_TARGET + 1, resp, sizeof(resp), &resp_len, timeout_ms);
+
+    if(err != FuriHalPn532ErrorNone) return err;
+    // Response: [cmd+1][status]
+    if(resp_len < 2) return FuriHalPn532ErrorComm;
+    // status 0x00 = success, 0x01 = timeout (no initiator)
+    return (resp[1] == 0x00) ? FuriHalPn532ErrorNone : FuriHalPn532ErrorTimeout;
+}
+
+// Target/Listener mode: receive data from initiator (reader)
+// Returns received data in buf, length in out_len.
+FuriHalPn532Error furi_hal_pn532_tg_get_data(
+    uint8_t* buf,
+    size_t buf_size,
+    size_t* out_len,
+    uint32_t timeout_ms) {
+    if(!pn532_ready && !furi_hal_pn532_init()) return FuriHalPn532ErrorComm;
+    if(!buf || !out_len) return FuriHalPn532ErrorComm;
+
+    uint8_t cmd[] = {PN532_CMD_TG_GET_DATA};
+    // Use send_command + read_response for flexible-length response
+    if(!pn532_write_frame(cmd, sizeof(cmd))) return FuriHalPn532ErrorComm;
+    if(!pn532_read_ack()) {
+        pn532_ready = false;
+        return FuriHalPn532ErrorInvalidAck;
     }
 
+    // Response: [cmd+1][status][data...]
+    uint8_t resp[PN532_MAX_RX_FRAME] = {0};
+    size_t resp_len = 0;
+    if(!pn532_read_response(resp, sizeof(resp), &resp_len, timeout_ms)) {
+        return FuriHalPn532ErrorComm;
+    }
+    if(resp_len < 2) return FuriHalPn532ErrorComm;
+    if(resp[0] != (PN532_CMD_TG_GET_DATA + 1)) return FuriHalPn532ErrorInvalidFrame;
+    if(resp[1] != 0x00) return FuriHalPn532ErrorTimeout; // No data from initiator
+
+    const size_t data_len = resp_len - 2;
+    if(data_len > buf_size) return FuriHalPn532ErrorBufferOverflow;
+    if(data_len > 0) memcpy(buf, &resp[2], data_len);
+    *out_len = data_len;
     return FuriHalPn532ErrorNone;
+}
+
+// Target/Listener mode: send data to initiator (reader)
+FuriHalPn532Error furi_hal_pn532_tg_set_data(const uint8_t* data, size_t data_len) {
+    if(!pn532_ready && !furi_hal_pn532_init()) return FuriHalPn532ErrorComm;
+    if(!data || data_len == 0) return FuriHalPn532ErrorComm;
+    if(data_len > (PN532_MAX_TX_PAYLOAD - 1)) return FuriHalPn532ErrorComm;
+
+    uint8_t cmd[PN532_MAX_TX_PAYLOAD] = {0};
+    cmd[0] = PN532_CMD_TG_SET_DATA;
+    memcpy(&cmd[1], data, data_len);
+
+    uint8_t resp[4] = {0};
+    size_t resp_len = sizeof(resp);
+    FuriHalPn532Error err = pn532_exchange(
+        cmd, data_len + 1, PN532_CMD_TG_SET_DATA + 1, resp, sizeof(resp), &resp_len, 1000);
+
+    if(err != FuriHalPn532ErrorNone) return err;
+    if(resp_len < 2) return FuriHalPn532ErrorComm;
+    return (resp[1] == 0x00) ? FuriHalPn532ErrorNone : FuriHalPn532ErrorComm;
 }

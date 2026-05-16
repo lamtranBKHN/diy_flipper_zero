@@ -427,13 +427,11 @@ FuriHalNfcError
  * @param[in] sak SAK byte value.
  * @returns FuriHalNfcErrorNone on success, any other error code on failure.
  */
-#ifndef FURI_HAL_NFC_PN532_ONLY
 FuriHalNfcError furi_hal_nfc_iso14443a_listener_set_col_res_data(
     uint8_t* uid,
     uint8_t uid_len,
     uint8_t* atqa,
     uint8_t sak);
-#endif
 
 /**
  * @brief Transmit ISO14443 (Type A) frame with custom parity bits in listener mode.
@@ -472,6 +470,26 @@ FuriHalNfcError furi_hal_nfc_felica_listener_set_sensf_res_data(
     const uint8_t* pmm,
     const uint8_t pmm_len,
     const uint16_t sys_code);
+
+/** Quick presence check — 50ms poll vs standard 300ms.
+ *
+ * Performs a fast InListPassiveTarget to check if any NFC card is present.
+ * Implementation is backend-specific (PN532 on DIY board).
+ *
+ * @returns true if any card detected, false otherwise.
+ */
+bool furi_hal_nfc_quick_poll(void);
+
+/** Store MIFARE Classic key for backend hardware auth.
+ *
+ * Some backends (e.g. PN532) require the key to be provided for MIFARE auth
+ * instead of sending raw frames. This function stores the key before the
+ * poller sends the auth frame, so the backend can intercept and use it.
+ *
+ * @param[in] key pointer to 6-byte MIFARE key
+ * @param[in] key_type 0 for key A, 1 for key B
+ */
+void furi_hal_nfc_mf_auth_key_store(const uint8_t* key, uint8_t key_type);
 
 #ifdef __cplusplus
 }

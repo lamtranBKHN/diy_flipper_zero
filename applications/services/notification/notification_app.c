@@ -373,7 +373,7 @@ static void notification_process_notification_message(
             // FURI_LOG_I(TAG, "Received LcdContrastUpdate message");
             int contrast = 127 + (app->settings.contrast * 20); // 20 = 255 / (2 * 8)
             if(contrast < 0) contrast = 0;
-            if(contrast > 255) contrast = 255;  
+            if(contrast > 255) contrast = 255;
             notification_apply_lcd_contrast(app, (uint8_t)contrast);
             break;
         }

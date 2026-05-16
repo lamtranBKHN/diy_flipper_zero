@@ -86,8 +86,20 @@ static NfcCommand iso14443_4a_listener_run(NfcGenericEvent event, void* context)
                         iso14443_4a_supports_frame_option(
                             instance->data, Iso14443_4aFrameOptionNad));
                 }
+            } else if(
+                bit_buffer_get_size_bytes(rx_buffer) >= 1 &&
+                (bit_buffer_get_byte(rx_buffer, 0) & 0xC0) == 0x00) {
+                // PN532 target mode: RATS/ATS handled by PN532 chip internally.
+                // First received frame is an I-block (not RATS). Activate 4A layer and
+                // process the I-block directly.
+                instance->state = Iso14443_4aListenerStateActive;
+                iso14443_4_layer_set_cid(
+                    instance->iso14443_4_layer, ISO14443_4_LAYER_CID_NOT_SUPPORTED);
+                iso14443_4_layer_set_nad_supported(instance->iso14443_4_layer, false);
+                // Fall through to active I-block processing below
             }
-        } else {
+        }
+        if(instance->state == Iso14443_4aListenerStateActive) {
             Iso14443_4LayerResult status = iso14443_4_layer_decode_command(
                 instance->iso14443_4_layer, rx_buffer, instance->rx_buffer);
             if(status & Iso14443_4LayerResultSend) {

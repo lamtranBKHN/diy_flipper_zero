@@ -7,6 +7,7 @@ enum SubmenuIndex {
     SubmenuIndexSaved,
     SubmenuIndexExtraAction,
     SubmenuIndexAddManually,
+    SubmenuIndexP2p,
     SubmenuIndexDebug,
 };
 
@@ -39,6 +40,8 @@ void nfc_scene_start_on_enter(void* context) {
         submenu, "Extra Actions", SubmenuIndexExtraAction, nfc_scene_start_submenu_callback, nfc);
     submenu_add_item(
         submenu, "Add Manually", SubmenuIndexAddManually, nfc_scene_start_submenu_callback, nfc);
+    submenu_add_item(
+        submenu, "P2P Transfer", SubmenuIndexP2p, nfc_scene_start_submenu_callback, nfc);
 
     submenu_add_lockable_item(
         submenu,
@@ -75,6 +78,8 @@ bool nfc_scene_start_on_event(void* context, SceneManagerEvent event) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneExtraActions);
         } else if(event.event == SubmenuIndexAddManually) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneSetType);
+        } else if(event.event == SubmenuIndexP2p) {
+            scene_manager_next_scene(nfc->scene_manager, NfcSceneP2p);
         } else if(event.event == SubmenuIndexDebug) {
             scene_manager_next_scene(nfc->scene_manager, NfcSceneDebug);
         } else {

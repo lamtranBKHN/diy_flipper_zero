@@ -71,7 +71,8 @@ static uint8_t input_pcf_mask_for_index(size_t idx) {
     // fallback: no mapping
     return 0;
 }
-#define GPIO_Read_PCF_BY_IDX(idx) (((g_pcf_state & input_pcf_mask_for_index(idx)) != 0) ^ (input_pins[idx].inverted))
+#define GPIO_Read_PCF_BY_IDX(idx) \
+    (((g_pcf_state & input_pcf_mask_for_index(idx)) != 0) ^ (input_pins[idx].inverted))
 
 void input_press_timer_callback(void* arg) {
     if(!arg) return;
@@ -158,8 +159,8 @@ int32_t input_srv(void* p) {
         pin_states[i].pin = &input_pins[i];
         pin_states[i].state = false;
         pin_states[i].debounce = INPUT_DEBOUNCE_TICKS_HALF;
-        pin_states[i].press_timer = furi_timer_alloc(
-            input_press_timer_callback, FuriTimerTypePeriodic, &pin_states[i]);
+        pin_states[i].press_timer =
+            furi_timer_alloc(input_press_timer_callback, FuriTimerTypePeriodic, &pin_states[i]);
         if(!pin_states[i].press_timer) {
             FURI_LOG_W(TAG, "Timer alloc failed for pin %u", (unsigned)i);
         }
@@ -167,7 +168,11 @@ int32_t input_srv(void* p) {
         pin_states[i].press_counter = 0;
     }
 
+    bool pcf_present = false;
+    bool pcf_int_working = false;
+
     if(furi_hal_pcf8574_init()) {
+        pcf_present = true;
         FURI_LOG_I(TAG, "PCF8574 initialized");
         for(size_t i = 0; i < input_pins_count; i++) {
             (void)input_pcf_mask_for_index(i);
@@ -197,6 +202,13 @@ int32_t input_srv(void* p) {
     }
 
     while(1) {
+        if(!pcf_present) {
+            // Back off if chip is missing to avoid DOSing the I2C bus with probes
+            furi_delay_ms(1000);
+            pcf_present = furi_hal_pcf8574_init();
+            continue;
+        }
+
         bool is_changing = false;
         uint8_t new_state = g_pcf_state;
         if(furi_hal_pcf8574_read(&new_state)) {
@@ -205,6 +217,9 @@ int32_t input_srv(void* p) {
             // I2C read failed — assume all buttons released (0xFF = all high = none pressed)
             // to prevent phantom stuck keys from stale cached state
             g_pcf_state = 0xFF;
+            // Also mark as not present so we back off in the next iteration
+            pcf_present = false;
+            continue;
         }
 
         for(size_t i = 0; i < input_pins_count; i++) {
@@ -279,8 +294,13 @@ int32_t input_srv(void* p) {
 #endif
             // Polling fallback: do not block forever waiting for INT.
             // Some board revisions have missing/unstable PCF8574 INT wiring.
-            (void)furi_thread_flags_wait(
-                INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, INPUT_IDLE_POLL_TICKS);
+            // If we detected that interrupt is working, we can increase polling timeout.
+            const uint32_t poll_timeout = pcf_int_working ? 500 : INPUT_IDLE_POLL_TICKS;
+            uint32_t flags =
+                furi_thread_flags_wait(INPUT_THREAD_FLAG_ISR, FuriFlagWaitAny, poll_timeout);
+            if(!(flags & FuriFlagError) && (flags & INPUT_THREAD_FLAG_ISR)) {
+                pcf_int_working = true;
+            }
         }
     }
 

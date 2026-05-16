@@ -20,6 +20,8 @@ bool mfkey32_logger_save_params(Mfkey32Logger* instance, const char* path);
 
 void mfkey32_logger_get_params_data(Mfkey32Logger* instance, FuriString* str);
 
+bool mfkey32_logger_export_mfkey32v2(Mfkey32Logger* instance, const char* path);
+
 #ifdef __cplusplus
 }
 #endif

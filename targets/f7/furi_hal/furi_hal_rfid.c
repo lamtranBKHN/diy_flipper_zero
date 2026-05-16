@@ -68,7 +68,6 @@ FuriHalRfid* furi_hal_rfid = NULL;
 #define LFRFID_LL_EMULATE_CHANNEL LL_TIM_CHANNEL_CH3
 
 void furi_hal_rfid_init(void) {
-
     // furi_check(furi_hal_rfid == NULL);
     // furi_hal_rfid = malloc(sizeof(FuriHalRfid));
     // furi_hal_rfid->field.counter = 0;
@@ -348,67 +347,67 @@ void furi_hal_rfid_tim_emulate_dma_start(
     UNUSED(length);
     UNUSED(callback);
     UNUSED(context);
-//     furi_check(furi_hal_rfid);
+    //     furi_check(furi_hal_rfid);
 
-//     // setup interrupts
-//     furi_hal_rfid->dma_callback = callback;
-//     furi_hal_rfid->context = context;
+    //     // setup interrupts
+    //     furi_hal_rfid->dma_callback = callback;
+    //     furi_hal_rfid->context = context;
 
-//     // setup pins
+    //     // setup pins
     furi_hal_rfid_pins_emulate();
 
-//     // configure timer
-//     furi_hal_bus_enable(FURI_HAL_RFID_EMULATE_TIMER_BUS);
+    //     // configure timer
+    //     furi_hal_bus_enable(FURI_HAL_RFID_EMULATE_TIMER_BUS);
     furi_hal_rfid_tim_emulate();
-//     LL_TIM_OC_SetPolarity(
-//         FURI_HAL_RFID_EMULATE_TIMER, FURI_HAL_RFID_EMULATE_TIMER_CHANNEL, LL_TIM_OCPOLARITY_HIGH);
-//     LL_TIM_EnableDMAReq_UPDATE(FURI_HAL_RFID_EMULATE_TIMER);
+    //     LL_TIM_OC_SetPolarity(
+    //         FURI_HAL_RFID_EMULATE_TIMER, FURI_HAL_RFID_EMULATE_TIMER_CHANNEL, LL_TIM_OCPOLARITY_HIGH);
+    //     LL_TIM_EnableDMAReq_UPDATE(FURI_HAL_RFID_EMULATE_TIMER);
 
-//     // configure DMA "mem -> ARR" channel
-//     LL_DMA_InitTypeDef dma_config = {0};
-//     dma_config.PeriphOrM2MSrcAddress = (uint32_t) & (FURI_HAL_RFID_EMULATE_TIMER->ARR);
-//     dma_config.MemoryOrM2MDstAddress = (uint32_t)duration;
-//     dma_config.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
-//     dma_config.Mode = LL_DMA_MODE_CIRCULAR;
-//     dma_config.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
-//     dma_config.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
-//     dma_config.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_WORD;
-//     dma_config.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_WORD;
-//     dma_config.NbData = length;
-//     dma_config.PeriphRequest = LL_DMAMUX_REQ_TIM2_UP;
-//     dma_config.Priority = LL_DMA_MODE_NORMAL;
-//     LL_DMA_Init(RFID_DMA_CH1_DEF, &dma_config);
-//     LL_DMA_EnableChannel(RFID_DMA_CH1_DEF);
+    //     // configure DMA "mem -> ARR" channel
+    //     LL_DMA_InitTypeDef dma_config = {0};
+    //     dma_config.PeriphOrM2MSrcAddress = (uint32_t) & (FURI_HAL_RFID_EMULATE_TIMER->ARR);
+    //     dma_config.MemoryOrM2MDstAddress = (uint32_t)duration;
+    //     dma_config.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
+    //     dma_config.Mode = LL_DMA_MODE_CIRCULAR;
+    //     dma_config.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+    //     dma_config.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+    //     dma_config.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_WORD;
+    //     dma_config.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_WORD;
+    //     dma_config.NbData = length;
+    //     dma_config.PeriphRequest = LL_DMAMUX_REQ_TIM2_UP;
+    //     dma_config.Priority = LL_DMA_MODE_NORMAL;
+    //     LL_DMA_Init(RFID_DMA_CH1_DEF, &dma_config);
+    //     LL_DMA_EnableChannel(RFID_DMA_CH1_DEF);
 
-//     // configure DMA "mem -> CCR3" channel
-// #if FURI_HAL_RFID_EMULATE_TIMER_CHANNEL == LL_TIM_CHANNEL_CH3
-//     dma_config.PeriphOrM2MSrcAddress = (uint32_t) & (FURI_HAL_RFID_EMULATE_TIMER->CCR3);
-// #else
-// #error Update this code. Would you kindly?
-// #endif
-//     dma_config.MemoryOrM2MDstAddress = (uint32_t)pulse;
-//     dma_config.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
-//     dma_config.Mode = LL_DMA_MODE_CIRCULAR;
-//     dma_config.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
-//     dma_config.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
-//     dma_config.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_WORD;
-//     dma_config.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_WORD;
-//     dma_config.NbData = length;
-//     dma_config.PeriphRequest = LL_DMAMUX_REQ_TIM2_UP;
-//     dma_config.Priority = LL_DMA_MODE_NORMAL;
-//     LL_DMA_Init(RFID_DMA_CH2_DEF, &dma_config);
-//     LL_DMA_EnableChannel(RFID_DMA_CH2_DEF);
+    //     // configure DMA "mem -> CCR3" channel
+    // #if FURI_HAL_RFID_EMULATE_TIMER_CHANNEL == LL_TIM_CHANNEL_CH3
+    //     dma_config.PeriphOrM2MSrcAddress = (uint32_t) & (FURI_HAL_RFID_EMULATE_TIMER->CCR3);
+    // #else
+    // #error Update this code. Would you kindly?
+    // #endif
+    //     dma_config.MemoryOrM2MDstAddress = (uint32_t)pulse;
+    //     dma_config.Direction = LL_DMA_DIRECTION_MEMORY_TO_PERIPH;
+    //     dma_config.Mode = LL_DMA_MODE_CIRCULAR;
+    //     dma_config.PeriphOrM2MSrcIncMode = LL_DMA_PERIPH_NOINCREMENT;
+    //     dma_config.MemoryOrM2MDstIncMode = LL_DMA_MEMORY_INCREMENT;
+    //     dma_config.PeriphOrM2MSrcDataSize = LL_DMA_PDATAALIGN_WORD;
+    //     dma_config.MemoryOrM2MDstDataSize = LL_DMA_MDATAALIGN_WORD;
+    //     dma_config.NbData = length;
+    //     dma_config.PeriphRequest = LL_DMAMUX_REQ_TIM2_UP;
+    //     dma_config.Priority = LL_DMA_MODE_NORMAL;
+    //     LL_DMA_Init(RFID_DMA_CH2_DEF, &dma_config);
+    //     LL_DMA_EnableChannel(RFID_DMA_CH2_DEF);
 
-//     // attach interrupt to one of DMA channels
-//     furi_hal_interrupt_set_isr(RFID_DMA_CH1_IRQ, furi_hal_rfid_dma_isr, NULL);
-//     LL_DMA_EnableIT_TC(RFID_DMA_CH1_DEF);
-//     LL_DMA_EnableIT_HT(RFID_DMA_CH1_DEF);
+    //     // attach interrupt to one of DMA channels
+    //     furi_hal_interrupt_set_isr(RFID_DMA_CH1_IRQ, furi_hal_rfid_dma_isr, NULL);
+    //     LL_DMA_EnableIT_TC(RFID_DMA_CH1_DEF);
+    //     LL_DMA_EnableIT_HT(RFID_DMA_CH1_DEF);
 
-//     // start
-//     LL_TIM_EnableAllOutputs(FURI_HAL_RFID_EMULATE_TIMER);
+    //     // start
+    //     LL_TIM_EnableAllOutputs(FURI_HAL_RFID_EMULATE_TIMER);
 
-//     LL_TIM_SetCounter(FURI_HAL_RFID_EMULATE_TIMER, 0);
-//     LL_TIM_EnableCounter(FURI_HAL_RFID_EMULATE_TIMER);
+    //     LL_TIM_SetCounter(FURI_HAL_RFID_EMULATE_TIMER, 0);
+    //     LL_TIM_EnableCounter(FURI_HAL_RFID_EMULATE_TIMER);
 }
 
 void furi_hal_rfid_tim_emulate_dma_stop(void) {
@@ -436,11 +435,11 @@ void furi_hal_rfid_set_read_period(uint32_t period) {
 
 void furi_hal_rfid_set_read_pulse(uint32_t pulse) {
     UNUSED(pulse);
-// #if FURI_HAL_RFID_READ_TIMER_CHANNEL == LL_TIM_CHANNEL_CH1N
-//     LL_TIM_OC_SetCompareCH1(FURI_HAL_RFID_READ_TIMER, pulse);
-// #else
-// #error Update this code. Would you kindly?
-// #endif
+    // #if FURI_HAL_RFID_READ_TIMER_CHANNEL == LL_TIM_CHANNEL_CH1N
+    //     LL_TIM_OC_SetCompareCH1(FURI_HAL_RFID_READ_TIMER, pulse);
+    // #else
+    // #error Update this code. Would you kindly?
+    // #endif
 }
 
 void furi_hal_rfid_comp_start(void) {

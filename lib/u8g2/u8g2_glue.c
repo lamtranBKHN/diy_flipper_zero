@@ -122,11 +122,7 @@ uint8_t u8x8_hw_spi_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_
  * We reinitialise them as output push-pull at the START of every transfer so
  * the display always sees valid signals regardless of prior SPI bus activity.
  */
-uint8_t u8x8_sw_spi_stm32_start(
-    u8x8_t* u8x8,
-    uint8_t msg,
-    uint8_t arg_int,
-    void* arg_ptr) {
+uint8_t u8x8_sw_spi_stm32_start(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
     switch(msg) {
     case U8X8_MSG_BYTE_START_TRANSFER:
         /* Reclaim shared pins stolen by HW SPI deactivation */
@@ -168,9 +164,9 @@ uint8_t u8x8_sw_spi_stm32_start(
  * Performance: ~4x faster than software I2C bit-banging
  */
 uint8_t u8x8_byte_hw_i2c_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
-    static uint8_t buffer[128];  // Increased buffer for better performance
+    static uint8_t buffer[128]; // Increased buffer for better performance
     static uint8_t buf_idx = 0;
-    
+
     switch(msg) {
     case U8X8_MSG_BYTE_SEND: {
         uint8_t* data = (uint8_t*)arg_ptr;
@@ -195,11 +191,7 @@ uint8_t u8x8_byte_hw_i2c_stm32(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void*
         // Send accumulated buffer via hardware I2C as ONE transaction
         if(buf_idx > 0) {
             bool success = furi_hal_i2c_tx(
-                &furi_hal_i2c_handle_power,
-                u8x8_GetI2CAddress(u8x8),
-                buffer,
-                buf_idx,
-                10);
+                &furi_hal_i2c_handle_power, u8x8_GetI2CAddress(u8x8), buffer, buf_idx, 10);
             if(!success) {
                 furi_hal_i2c_release(&furi_hal_i2c_handle_power);
                 return 0;

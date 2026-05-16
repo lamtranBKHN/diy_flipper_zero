@@ -306,7 +306,11 @@ static void susp_evt(usbd_device* dev, uint8_t event, uint8_t ep) {
 
         furi_hal_power_insomnia_exit();
     }
-    FURI_LOG_I(TAG, "USB suspended (SystemCoreClock=%lu, SYSTICK_LOAD=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "USB suspended (SystemCoreClock=%lu, SYSTICK_LOAD=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
     if(usb.callback != NULL) {
         usb.callback(FuriHalUsbStateEventSuspend, usb.callback_context);
     }
@@ -322,7 +326,11 @@ static void wkup_evt(usbd_device* dev, uint8_t event, uint8_t ep) {
 
         furi_hal_power_insomnia_enter();
     }
-    FURI_LOG_I(TAG, "USB wakeup (SystemCoreClock=%lu, SYSTICK_LOAD=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "USB wakeup (SystemCoreClock=%lu, SYSTICK_LOAD=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
     if(usb.callback != NULL) {
         usb.callback(FuriHalUsbStateEventWakeup, usb.callback_context);
     }

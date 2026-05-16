@@ -4,8 +4,6 @@
 
 #define TAG "FuriHalNfcEvent"
 
-
-
 FuriHalNfcEventInternal* furi_hal_nfc_event = NULL;
 
 void furi_hal_nfc_event_init(void) {
@@ -37,8 +35,7 @@ FuriHalNfcError furi_hal_nfc_event_stop(void) {
 void furi_hal_nfc_event_set(FuriHalNfcEventInternalType event) {
     furi_check(furi_hal_nfc_event);
     if(event == FuriHalNfcEventInternalTypeAbort) {
-        FURI_LOG_D(TAG, "Abort SET: pn532=%d",
-            furi_hal_nfc_pn532_is_active() ? 1 : 0);
+        FURI_LOG_D(TAG, "Abort SET: pn532=%d", furi_hal_nfc_pn532_is_active() ? 1 : 0);
     }
     if(furi_hal_nfc_event->thread) {
         furi_thread_flags_set(furi_hal_nfc_event->thread, event);
@@ -76,7 +73,10 @@ FuriHalNfcEvent furi_hal_nfc_wait_event_common(uint32_t timeout_ms) {
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeTimerBlockTxExpired);
         }
         if(event_flag & FuriHalNfcEventInternalTypeAbort) {
-            FURI_LOG_D(TAG, "Processing Abort Request event from thread %p", furi_thread_get_current_id());
+            FURI_LOG_D(
+                TAG,
+                "Processing Abort Request event from thread %p",
+                furi_thread_get_current_id());
             event |= FuriHalNfcEventAbortRequest;
             furi_thread_flags_clear(FuriHalNfcEventInternalTypeAbort);
         }

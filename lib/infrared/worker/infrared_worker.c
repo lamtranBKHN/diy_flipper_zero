@@ -180,16 +180,16 @@ static int32_t infrared_worker_rx_thread(void* thread_context) {
                 notification_message(instance->notification, &sequence_blink_blue_10);
             }
             if(instance->signal.timings_cnt == 0)
-              //  notification_message(instance->notification, &sequence_display_backlight_on);
-            while(sizeof(LevelDuration) ==
-                  furi_stream_buffer_receive(
-                      instance->stream, &level_duration, sizeof(LevelDuration), 0)) {
-                if(!instance->rx.overrun) {
-                    bool level = level_duration_get_level(level_duration);
-                    uint32_t duration = level_duration_get_duration(level_duration);
-                    infrared_worker_process_timings(instance, duration, level);
+                //  notification_message(instance->notification, &sequence_display_backlight_on);
+                while(sizeof(LevelDuration) ==
+                      furi_stream_buffer_receive(
+                          instance->stream, &level_duration, sizeof(LevelDuration), 0)) {
+                    if(!instance->rx.overrun) {
+                        bool level = level_duration_get_level(level_duration);
+                        uint32_t duration = level_duration_get_duration(level_duration);
+                        infrared_worker_process_timings(instance, duration, level);
+                    }
                 }
-            }
         }
         if(events & INFRARED_WORKER_OVERRUN) {
             printf("#");

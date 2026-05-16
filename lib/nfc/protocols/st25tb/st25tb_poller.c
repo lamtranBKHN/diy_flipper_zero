@@ -1,6 +1,7 @@
 #include "st25tb_poller.h"
 #include "st25tb_poller_i.h"
 
+#include <furi_hal_nfc_pn532.h>
 #include <nfc/protocols/nfc_poller_base.h>
 
 #define TAG "ST25TBPoller"
@@ -64,6 +65,12 @@ static NfcCommand st25tb_poller_select_handler(St25tbPoller* instance) {
     NfcCommand command = NfcCommandContinue;
 
     do {
+        if(furi_hal_nfc_pn532_is_active()) {
+            instance->state = St25tbPollerStateFailure;
+            instance->st25tb_event_data.error = St25tbErrorCommunication;
+            break;
+        }
+
         St25tbError error = st25tb_poller_select(instance, NULL);
         if(error != St25tbErrorNone) {
             instance->state = St25tbPollerStateFailure;

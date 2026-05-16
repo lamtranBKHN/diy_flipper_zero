@@ -52,6 +52,8 @@ struct Iso14443_3aPoller {
     Iso14443_3aPollerEventData iso14443_3a_event_data;
     NfcGenericCallback callback;
     void* context;
+
+    uint8_t consecutive_no_target;
 };
 
 const Iso14443_3aData* iso14443_3a_poller_get_data(Iso14443_3aPoller* instance);

@@ -19,12 +19,25 @@ static Iso14443_3aPoller* iso14443_3a_poller_alloc(Nfc* nfc) {
     Iso14443_3aPoller* instance = malloc(sizeof(Iso14443_3aPoller));
     instance->nfc = nfc;
     instance->tx_buffer = bit_buffer_alloc(ISO14443_3A_POLLER_MAX_BUFFER_SIZE);
-    if(!instance->tx_buffer) { free(instance); return NULL; }
+    if(!instance->tx_buffer) {
+        free(instance);
+        return NULL;
+    }
     instance->rx_buffer = bit_buffer_alloc(ISO14443_3A_POLLER_MAX_BUFFER_SIZE);
-    if(!instance->rx_buffer) { bit_buffer_free(instance->tx_buffer); free(instance); return NULL; }
+    if(!instance->rx_buffer) {
+        bit_buffer_free(instance->tx_buffer);
+        free(instance);
+        return NULL;
+    }
     instance->data = iso14443_3a_alloc();
-    if(!instance->data) { bit_buffer_free(instance->tx_buffer); bit_buffer_free(instance->rx_buffer); free(instance); return NULL; }
+    if(!instance->data) {
+        bit_buffer_free(instance->tx_buffer);
+        bit_buffer_free(instance->rx_buffer);
+        free(instance);
+        return NULL;
+    }
     instance->state = Iso14443_3aPollerStateIdle;
+    instance->consecutive_no_target = 0;
     nfc_config(instance->nfc, NfcModePoller, NfcTechIso14443a);
     nfc_set_guard_time_us(instance->nfc, ISO14443_3A_GUARD_TIME_US);
     nfc_set_fdt_poll_fc(instance->nfc, ISO14443_3A_FDT_POLL_FC);
@@ -77,18 +90,20 @@ static NfcCommand iso14443_3a_poller_run(NfcGenericEvent event, void* context) {
             Iso14443_3aData data = {};
             Iso14443_3aError error = iso14443_3a_poller_activate(instance, &data);
             if(error == Iso14443_3aErrorNone) {
+                instance->consecutive_no_target = 0;
                 instance->state = Iso14443_3aPollerStateActivated;
                 instance->iso14443_3a_event.type = Iso14443_3aPollerEventTypeReady;
                 instance->iso14443_3a_event_data.error = error;
                 command = instance->callback(instance->general_event, instance->context);
             } else {
+                instance->consecutive_no_target++;
                 instance->iso14443_3a_event.type = Iso14443_3aPollerEventTypeError;
                 instance->iso14443_3a_event_data.error = error;
                 command = instance->callback(instance->general_event, instance->context);
-                // Add delay to switch context
                 furi_delay_ms(100);
             }
         } else {
+            instance->consecutive_no_target = 0;
             instance->iso14443_3a_event.type = Iso14443_3aPollerEventTypeReady;
             instance->iso14443_3a_event_data.error = Iso14443_3aErrorNone;
             command = instance->callback(instance->general_event, instance->context);

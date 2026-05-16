@@ -1,0 +1,10 @@
+{
+  "name": "Debug",
+  "version": "0.1",
+  "description": "Debug application for testing system components",
+  "entry_point": "debug_app",
+  "icon": "A_Debugging_10x10",
+  "category": "Debug",
+  "sdk_version": 1,
+  "app_id": "debug_app"
+}

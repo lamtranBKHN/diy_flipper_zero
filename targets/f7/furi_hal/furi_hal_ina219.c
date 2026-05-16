@@ -9,12 +9,12 @@
 #define INA219_I2C_ADDR_BASE 0x40
 
 // INA219 register addresses
-#define INA219_REG_CONFIG 0x00
+#define INA219_REG_CONFIG        0x00
 #define INA219_REG_SHUNT_VOLTAGE 0x01
-#define INA219_REG_BUS_VOLTAGE 0x02
-#define INA219_REG_POWER 0x03
-#define INA219_REG_CURRENT 0x04
-#define INA219_REG_CALIBRATION 0x05
+#define INA219_REG_BUS_VOLTAGE   0x02
+#define INA219_REG_POWER         0x03
+#define INA219_REG_CURRENT       0x04
+#define INA219_REG_CALIBRATION   0x05
 
 // Default shunt resistor value in ohms (board-specific). Override if needed.
 #ifndef INA219_SHUNT_OHMS
@@ -56,7 +56,8 @@ bool furi_hal_ina219_init(void) {
     const int max_attempts = 3;
     for(int attempt = 0; attempt < max_attempts && !ok; ++attempt) {
         if(attempt > 0) {
-            FURI_LOG_I("FuriHalINA219", "Retrying INA219 scan (attempt %d/%d)", attempt + 1, max_attempts);
+            FURI_LOG_I(
+                "FuriHalINA219", "Retrying INA219 scan (attempt %d/%d)", attempt + 1, max_attempts);
             furi_delay_ms(100);
         }
         for(uint8_t a = INA219_I2C_ADDR_BASE; a <= (INA219_I2C_ADDR_BASE | 0x0F); ++a) {
@@ -70,7 +71,8 @@ bool furi_hal_ina219_init(void) {
             uint8_t addr7 = s_address;
             uint8_t addr8 = (uint8_t)(s_address << 1);
             uint16_t cfg_read = 0;
-            bool read7 = furi_hal_i2c_read_reg_16(&furi_hal_i2c_handle_power, addr7, INA219_REG_CONFIG, &cfg_read, 200);
+            bool read7 = furi_hal_i2c_read_reg_16(
+                &furi_hal_i2c_handle_power, addr7, INA219_REG_CONFIG, &cfg_read, 200);
             if(read7) {
                 ok = true;
                 // Detected via 7-bit read
@@ -79,12 +81,16 @@ bool furi_hal_ina219_init(void) {
                 break;
             }
             uint16_t cfg_read8 = 0;
-            bool read8 = furi_hal_i2c_read_reg_16(&furi_hal_i2c_handle_power, addr8, INA219_REG_CONFIG, &cfg_read8, 200);
+            bool read8 = furi_hal_i2c_read_reg_16(
+                &furi_hal_i2c_handle_power, addr8, INA219_REG_CONFIG, &cfg_read8, 200);
             if(read8) {
                 ok = true;
                 s_address = (uint8_t)(addr8 >> 1); // normalize to 7-bit
                 furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-                FURI_LOG_I("FuriHalINA219", "Detected INA219 (via 8bit read) at normalized 0x%02X", s_address);
+                FURI_LOG_I(
+                    "FuriHalINA219",
+                    "Detected INA219 (via 8bit read) at normalized 0x%02X",
+                    s_address);
                 break;
             }
             furi_hal_i2c_release(&furi_hal_i2c_handle_power);
@@ -102,24 +108,54 @@ bool furi_hal_ina219_init(void) {
 
     if(!ok) {
         // Extra diagnostic: try direct reads with longer timeouts and log results
-        FURI_LOG_I("FuriHalINA219", "Diagnostic: direct read attempts at 0x%02X", INA219_I2C_ADDR_BASE);
+        FURI_LOG_I(
+            "FuriHalINA219", "Diagnostic: direct read attempts at 0x%02X", INA219_I2C_ADDR_BASE);
         uint8_t probe_addr8 = (uint8_t)(INA219_I2C_ADDR_BASE << 1);
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        bool r1 = furi_hal_i2c_is_device_ready(&furi_hal_i2c_handle_power, INA219_I2C_ADDR_BASE, 200);
-        FURI_LOG_I("FuriHalINA219", "is_device_ready(0x%02X) -> %s", INA219_I2C_ADDR_BASE, r1 ? "ACK" : "NOACK");
+        bool r1 =
+            furi_hal_i2c_is_device_ready(&furi_hal_i2c_handle_power, INA219_I2C_ADDR_BASE, 200);
+        FURI_LOG_I(
+            "FuriHalINA219",
+            "is_device_ready(0x%02X) -> %s",
+            INA219_I2C_ADDR_BASE,
+            r1 ? "ACK" : "NOACK");
         uint16_t cfg2 = 0;
-        bool r2 = furi_hal_i2c_read_reg_16(&furi_hal_i2c_handle_power, probe_addr8, INA219_REG_CONFIG, &cfg2, 500);
-        FURI_LOG_I("FuriHalINA219", "read_reg_16 CONFIG(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)", INA219_I2C_ADDR_BASE, probe_addr8, r2 ? "OK" : "FAIL", cfg2);
+        bool r2 = furi_hal_i2c_read_reg_16(
+            &furi_hal_i2c_handle_power, probe_addr8, INA219_REG_CONFIG, &cfg2, 500);
+        FURI_LOG_I(
+            "FuriHalINA219",
+            "read_reg_16 CONFIG(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)",
+            INA219_I2C_ADDR_BASE,
+            probe_addr8,
+            r2 ? "OK" : "FAIL",
+            cfg2);
         uint16_t bv = 0;
-        bool r3 = furi_hal_i2c_read_reg_16(&furi_hal_i2c_handle_power, probe_addr8, INA219_REG_BUS_VOLTAGE, &bv, 500);
-        FURI_LOG_I("FuriHalINA219", "read_reg_16 BUS_VOLTAGE(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)", INA219_I2C_ADDR_BASE, probe_addr8, r3 ? "OK" : "FAIL", bv);
+        bool r3 = furi_hal_i2c_read_reg_16(
+            &furi_hal_i2c_handle_power, probe_addr8, INA219_REG_BUS_VOLTAGE, &bv, 500);
+        FURI_LOG_I(
+            "FuriHalINA219",
+            "read_reg_16 BUS_VOLTAGE(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)",
+            INA219_I2C_ADDR_BASE,
+            probe_addr8,
+            r3 ? "OK" : "FAIL",
+            bv);
         uint16_t cur = 0;
-        bool r4 = furi_hal_i2c_read_reg_16(&furi_hal_i2c_handle_power, probe_addr8, INA219_REG_CURRENT, &cur, 500);
-        FURI_LOG_I("FuriHalINA219", "read_reg_16 CURRENT(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)", INA219_I2C_ADDR_BASE, probe_addr8, r4 ? "OK" : "FAIL", cur);
+        bool r4 = furi_hal_i2c_read_reg_16(
+            &furi_hal_i2c_handle_power, probe_addr8, INA219_REG_CURRENT, &cur, 500);
+        FURI_LOG_I(
+            "FuriHalINA219",
+            "read_reg_16 CURRENT(0x%02X<<1 -> 0x%02X) -> %s (0x%04X)",
+            INA219_I2C_ADDR_BASE,
+            probe_addr8,
+            r4 ? "OK" : "FAIL",
+            cur);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-        (void)r1; (void)r2; (void)r3; (void)r4;
+        (void)r1;
+        (void)r2;
+        (void)r3;
+        (void)r4;
     }
-    
+
     s_detected = ok;
     if(!s_detected) FURI_LOG_I("FuriHalINA219", "INA219 not detected on I2C bus");
     return s_detected;

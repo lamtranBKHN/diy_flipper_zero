@@ -621,7 +621,8 @@ SubGhzRadioDeviceType
     if(radio_device_type == SubGhzRadioDeviceTypeExternalCC1101 &&
        subghz_txrx_radio_device_is_external_connected(instance, SUBGHZ_DEVICE_CC1101_EXT_NAME)) {
         subghz_txrx_radio_device_power_on(instance);
-        const SubGhzDevice* external_device = subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
+        const SubGhzDevice* external_device =
+            subghz_devices_get_by_name(SUBGHZ_DEVICE_CC1101_EXT_NAME);
         if(external_device && subghz_devices_begin(external_device)) {
             instance->radio_device = external_device;
             instance->radio_device_type = SubGhzRadioDeviceTypeExternalCC1101;

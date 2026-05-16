@@ -53,7 +53,8 @@ bool furi_hal_pcf8574_init(void) {
     pcf8574_addr = detected_addr;
     pcf8574_state = probe;
     // Keep input lines released (high) and restore current output latch.
-    uint8_t frame = (uint8_t)((~pcf8574_output_mask) | (pcf8574_output_state & pcf8574_output_mask));
+    uint8_t frame =
+        (uint8_t)((~pcf8574_output_mask) | (pcf8574_output_state & pcf8574_output_mask));
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
     bool wr_ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, 50);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
@@ -100,7 +101,7 @@ bool furi_hal_pcf8574_write_pin(uint8_t pin, bool value) {
     if(value) {
         next |= (1u << pin);
     } else {
-        next &= (uint8_t)~(1u << pin);
+        next &= (uint8_t) ~(1u << pin);
     }
     return furi_hal_pcf8574_write(next);
 }

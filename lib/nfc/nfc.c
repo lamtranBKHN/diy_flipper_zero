@@ -98,6 +98,12 @@ static NfcError nfc_process_hal_error(FuriHalNfcError error) {
     case FuriHalNfcErrorDataFormat:
         ret = NfcErrorDataFormat;
         break;
+    case FuriHalNfcErrorCommunicationTimeout:
+        ret = NfcErrorTimeout;
+        break;
+    case FuriHalNfcErrorBufferOverflow:
+        ret = NfcErrorBufferOverflow;
+        break;
 
     default:
         ret = NfcErrorInternal;
@@ -613,16 +619,8 @@ NfcError nfc_iso14443a_listener_set_col_res_data(
     uint8_t sak) {
     furi_check(instance);
 
-#ifndef FURI_HAL_NFC_PN532_ONLY
     FuriHalNfcError error =
         furi_hal_nfc_iso14443a_listener_set_col_res_data(uid, uid_len, atqa, sak);
-#else
-    UNUSED(uid);
-    UNUSED(uid_len);
-    UNUSED(atqa);
-    UNUSED(sak);
-    FuriHalNfcError error = FuriHalNfcErrorNone;
-#endif
     instance->comm_state = NfcCommStateIdle;
     return nfc_process_hal_error(error);
 }
@@ -632,10 +630,9 @@ NfcError nfc_iso14443a_poller_trx_short_frame(
     Nfc* instance,
     NfcIso14443aShortFrame frame,
     BitBuffer* rx_buffer,
-    uint32_t fwt) 
-    
-    {
+    uint32_t fwt)
 
+{
     furi_check(instance);
     furi_check(rx_buffer);
 
@@ -651,16 +648,13 @@ NfcError nfc_iso14443a_poller_trx_short_frame(
     do {
         furi_hal_nfc_trx_reset();
 
-
         while(furi_hal_nfc_timer_block_tx_is_running()) {
             FuriHalNfcEvent event =
                 furi_hal_nfc_poller_wait_event(FURI_HAL_NFC_EVENT_WAIT_FOREVER);
             if(event & FuriHalNfcEventTimerBlockTxExpired) {
                 break;
-            
             };
         }
-
 
         error = furi_hal_nfc_iso14443a_poller_trx_short_frame(short_frame);
         if(error != FuriHalNfcErrorNone) {

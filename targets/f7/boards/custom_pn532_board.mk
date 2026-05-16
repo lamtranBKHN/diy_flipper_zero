@@ -1,0 +1,1 @@
+env.Append(CPPDEFINES=["PN532_ENABLED"])

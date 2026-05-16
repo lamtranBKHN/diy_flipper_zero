@@ -356,9 +356,9 @@ static void power_check_low_battery(Power* power) {
 static void power_check_battery_level_change(Power* power) {
     // Use dead-band to prevent noisy ADC readings from spamming BLE updates.
     // Battery percentage doesn't change faster than ~1%/min in practice.
-    uint8_t diff = (power->battery_level > power->info.charge)
-                       ? (power->battery_level - power->info.charge)
-                       : (power->info.charge - power->battery_level);
+    uint8_t diff = (power->battery_level > power->info.charge) ?
+                       (power->battery_level - power->info.charge) :
+                       (power->info.charge - power->battery_level);
     if(diff >= 2) {
         power->battery_level = power->info.charge;
         power->event.type = PowerEventTypeBatteryLevelChanged;

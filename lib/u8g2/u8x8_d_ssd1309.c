@@ -149,8 +149,7 @@ static const uint8_t u8x8_d_ssd1309_128x64_noname_init_seq[] = {
     U8X8_C(0x0a4),
     U8X8_C(0x0a6),
     U8X8_END_TRANSFER(),
-    U8X8_END()
-};
+    U8X8_END()};
 
 uint8_t u8x8_d_ssd1309_128x64_noname2(u8x8_t* u8x8, uint8_t msg, uint8_t arg_int, void* arg_ptr) {
     if(u8x8_d_ssd1309_generic(u8x8, msg, arg_int, arg_ptr) != 0) return 1;

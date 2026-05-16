@@ -123,7 +123,11 @@ void furi_hal_clock_init(void) {
     LL_RCC_SetRFWKPClockSource(LL_RCC_RFWKP_CLKSOURCE_LSE);
     LL_RCC_SetADCClockSource(LL_RCC_ADC_CLKSOURCE_SYSCLK);
 
-        FURI_LOG_I(TAG, "Initialization successful (CoreClock=%lu, SysTickLoad=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "Initialization successful (CoreClock=%lu, SysTickLoad=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
 }
 
 void furi_hal_clock_switch_hse2hsi(void) {
@@ -141,7 +145,11 @@ void furi_hal_clock_switch_hse2hsi(void) {
     LL_FLASH_SetLatency(LL_FLASH_LATENCY_0);
     while(LL_FLASH_GetLatency() != LL_FLASH_LATENCY_0)
         ;
-        FURI_LOG_I(TAG, "Transitioned from HSE to HSI (CoreClock=%lu, SysTickLoad=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "Transitioned from HSE to HSI (CoreClock=%lu, SysTickLoad=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
 }
 
 void furi_hal_clock_switch_hsi2hse(void) {
@@ -168,7 +176,11 @@ void furi_hal_clock_switch_hsi2hse(void) {
         furi_crash("Slow HSE/PLL startup");
     }
 #endif
-    FURI_LOG_I(TAG, "Transitioned from HSI to HSE (CoreClock=%lu, SysTickLoad=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "Transitioned from HSI to HSE (CoreClock=%lu, SysTickLoad=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
 }
 
 bool furi_hal_clock_switch_hse2pll(void) {
@@ -191,7 +203,11 @@ bool furi_hal_clock_switch_hse2pll(void) {
 
     LL_SetSystemCoreClock(CPU_CLOCK_PLL_HZ);
     SysTick->LOAD = (uint32_t)((SystemCoreClock / 1000) - 1UL);
-        FURI_LOG_I(TAG, "Switched from HSE to PLL (CoreClock=%lu, SysTickLoad=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "Switched from HSE to PLL (CoreClock=%lu, SysTickLoad=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
 
     return true;
 }
@@ -212,7 +228,11 @@ bool furi_hal_clock_switch_pll2hse(void) {
 
     LL_SetSystemCoreClock(CPU_CLOCK_HSE_HZ);
     SysTick->LOAD = (uint32_t)((SystemCoreClock / 1000) - 1UL);
-        FURI_LOG_I(TAG, "Switched from PLL to HSE (CoreClock=%lu, SysTickLoad=%lu)", (unsigned long)SystemCoreClock, (unsigned long)SysTick->LOAD);
+    FURI_LOG_I(
+        TAG,
+        "Switched from PLL to HSE (CoreClock=%lu, SysTickLoad=%lu)",
+        (unsigned long)SystemCoreClock,
+        (unsigned long)SysTick->LOAD);
 
     return true;
 }

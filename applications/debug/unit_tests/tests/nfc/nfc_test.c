@@ -28,6 +28,14 @@
 
 #include "../test.h" // IWYU pragma: keep
 
+#define NFC_TEST_INCLUDED
+#include "test_pn532_protocol.c"
+#include "test_robustness.c"
+#include "test_worker_safety.c"
+#include "test_iso14443a_listener.c"
+#include "test_iso15693_lock.c"
+#undef NFC_TEST_INCLUDED
+
 #define TAG "NfcTest"
 
 #define NFC_TEST_NFC_DEV_PATH                  EXT_PATH("unit_tests/nfc/nfc_device_test.nfc")
@@ -871,6 +879,42 @@ MU_TEST_SUITE(nfc) {
     MU_RUN_TEST(slix_set_password_default_cap_correct_pass);
     MU_RUN_TEST(slix_set_password_default_cap_incorrect_pass);
     MU_RUN_TEST(slix_set_password_access_all_passwords_cap);
+
+    // Tests from test_pn532_protocol.c
+    MU_RUN_TEST(nfc_buffer_sizes);
+    MU_RUN_TEST(nfc_crc_a_known_values);
+    MU_RUN_TEST(nfc_frame_encode_decode);
+    MU_RUN_TEST(nfc_error_enum_completeness);
+    MU_RUN_TEST(nfc_pn532_result_enum_completeness);
+    MU_RUN_TEST(nfc_furi_hal_error_enum_completeness);
+
+    // Tests from test_robustness.c
+    MU_RUN_TEST(nfc_error_enum_values);
+    MU_RUN_TEST(nfc_timeout_constants_defined);
+    MU_RUN_TEST(nfc_i2c_retries_defined);
+    MU_RUN_TEST(nfc_error_str_mapping);
+    MU_RUN_TEST(nfc_error_buffer_overflow_exists);
+    MU_RUN_TEST(nfc_freshness_timeout_defined);
+    MU_RUN_TEST(nfc_max_frame_sizes);
+
+    // Tests from test_worker_safety.c
+    MU_RUN_TEST(test_listener_lifecycle_with_debounce);
+    MU_RUN_TEST(test_poller_abort_clean_exit);
+    MU_RUN_TEST(test_abort_token_reset_on_restart);
+    MU_RUN_TEST(test_poller_interval_valid);
+    MU_RUN_TEST(test_stack_canary_repeated_cycles);
+
+    // Tests from test_iso14443a_listener.c
+    MU_RUN_TEST(test_odd_parity_calc);
+    MU_RUN_TEST(test_frame_packing_single);
+    MU_RUN_TEST(test_frame_packing_multi);
+
+    // Tests from test_iso15693_lock.c
+    MU_RUN_TEST(test_lock_cmd_frame);
+    MU_RUN_TEST(test_lock_response_success);
+    MU_RUN_TEST(test_lock_response_error);
+    MU_RUN_TEST(test_listener_lock_tracking);
+    MU_RUN_TEST(test_lock_multiple_blocks);
 
     nfc_test_free();
 }

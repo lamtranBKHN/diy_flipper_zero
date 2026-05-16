@@ -1,4 +1,3 @@
-   
 #include "furi_hal_nfc_i.h"
 #include <furi.h>
 
@@ -16,5 +15,3 @@ void furi_hal_nfc_init_gpio_isr(void) {
 void furi_hal_nfc_deinit_gpio_isr(void) {
     FURI_LOG_D(TAG, "NFC GPIO ISR deinit skipped (PN532 mode)");
 }
-
-   

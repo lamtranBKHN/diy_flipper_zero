@@ -7,9 +7,9 @@
 
 #define TAG "FuriHalSpeaker"
 
-#define FURI_HAL_SPEAKER_DEFAULT_FREQUENCY (2000.0f)
+#define FURI_HAL_SPEAKER_DEFAULT_FREQUENCY      (2000.0f)
 #define FURI_HAL_SPEAKER_DEFAULT_HALF_PERIOD_US (250U)
-#define FURI_HAL_SPEAKER_THREAD_STACK_SIZE (1024U)
+#define FURI_HAL_SPEAKER_THREAD_STACK_SIZE      (1024U)
 
 typedef struct {
     FuriThread* thread;
@@ -83,8 +83,7 @@ static int32_t furi_hal_speaker_worker(void* context) {
 
         FuriHalCortexTimer timer = furi_hal_cortex_timer_get(half_period_us);
         while(!furi_hal_cortex_timer_is_expired(timer)) {
-            if(furi_hal_speaker_worker_state.terminate ||
-               !furi_hal_speaker_worker_state.active ||
+            if(furi_hal_speaker_worker_state.terminate || !furi_hal_speaker_worker_state.active ||
                (furi_hal_speaker_worker_state.half_period_us != half_period_us)) {
                 break;
             }

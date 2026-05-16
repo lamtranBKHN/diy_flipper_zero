@@ -78,6 +78,6 @@ int rand(void) {
     return furi_hal_random_get() & RAND_MAX;
 }
 
-long random(void) {
+long furi_random(void) {
     return furi_hal_random_get() & RAND_MAX;
 }

@@ -13,7 +13,6 @@ extern "C" {
 
 //const GpioPin gpio_button_sr_latch = {.port = GPIOH, .pin = LL_GPIO_PIN_3};
 
-
 // Shared SPI/radio routing: PA4=CC1101_CS, PA5=SPI_SCK, PA6=SPI_MISO, PA7=SPI_MOSI
 
 /* Input Keys */
@@ -51,7 +50,6 @@ typedef struct {
     const bool debug;
 } GpioPinRecord;
 
-
 extern const InputPin input_pins[];
 extern const size_t input_pins_count;
 
@@ -83,7 +81,6 @@ extern const GpioPin gpio_button_right;
 extern const GpioPin gpio_button_left;
 extern const GpioPin gpio_button_ok;
 extern const GpioPin gpio_button_back;
-
 
 extern const GpioPin gpio_spi_miso;
 extern const GpioPin gpio_spi_mosi;
@@ -144,27 +141,27 @@ extern const GpioPin gpio_usb_dp;
 #define CC1101_G0_GPIO_Port GPIOA
 #define CC1101_G0_Pin       LL_GPIO_PIN_1
 
-#define DISPLAY_CS_GPIO_Port  GPIOA
-#define DISPLAY_CS_Pin        LL_GPIO_PIN_2
-#define DISPLAY_DI_GPIO_Port  GPIOB
-#define DISPLAY_DI_Pin        LL_GPIO_PIN_6
-#define DISPLAY_RST_GPIO_Port GPIOB
-#define DISPLAY_RST_Pin       LL_GPIO_PIN_7
+#define DISPLAY_CS_GPIO_Port       GPIOA
+#define DISPLAY_CS_Pin             LL_GPIO_PIN_2
+#define DISPLAY_DI_GPIO_Port       GPIOB
+#define DISPLAY_DI_Pin             LL_GPIO_PIN_6
+#define DISPLAY_RST_GPIO_Port      GPIOB
+#define DISPLAY_RST_Pin            LL_GPIO_PIN_7
 // Set to 1 for SSD1306 (0.96") or 0 for SH1106 (1.3") OLED modules
 #define DISPLAY_CONTROLLER_SSD1306 0
 // Set to 1 for SSD1309 (Waveshare 1.54")
 #define DISPLAY_CONTROLLER_SSD1309 1
 // SSD1306 init variant: 0 = noname, 1 = vcomh0, 2 = alt0
-#define DISPLAY_SSD1306_VARIANT 1
+#define DISPLAY_SSD1306_VARIANT    1
 // SSD1309 init variant: 0 = noname0 (x_offset=0), 1 = noname2 (x_offset=2)
 // With A1 segment remap, x_offset=2 shifts LEFT — use 0 for 1.54" Waveshare
-#define DISPLAY_SSD1309_VARIANT 0
+#define DISPLAY_SSD1309_VARIANT    0
 // SPI mode for OLED: 0 = mode0 (CPOL=0, CPHA=0), 3 = mode3 (CPOL=1, CPHA=1)
-#define DISPLAY_SPI_MODE 0
+#define DISPLAY_SPI_MODE           0
 // Optional signal inversions for troubleshooting
-#define DISPLAY_CS_INVERT 0
-#define DISPLAY_DC_INVERT 0
-#define DISPLAY_RST_INVERT 0
+#define DISPLAY_CS_INVERT          0
+#define DISPLAY_DC_INVERT          0
+#define DISPLAY_RST_INVERT         0
 /* HW SPI (0) uses the SPI1 peripheral with furi_hal_spi_acquire/release mutex,
  * guaranteeing exclusive bus ownership during every display byte.  SW SPI (1)
  * bit-bangs PA5/PA7 but those pins are also owned by the SPI1 peripheral; the
@@ -172,7 +169,7 @@ extern const GpioPin gpio_usb_dp;
  * whenever a SubGHz or SD-card transfer preempts the display mid-byte.
  * SW SPI is fundamentally unreliable on a shared bus — keep this 0.
  */
-#define DISPLAY_USE_SW_SPI 0
+#define DISPLAY_USE_SW_SPI         0
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0
@@ -297,7 +294,6 @@ GND - GND
  */
 #define I2C_3_SDA_GPIO_Port GPIOB
 #define I2C_3_SDA_Pin       LL_GPIO_PIN_4
-
 
 void furi_hal_resources_init_early(void);
 

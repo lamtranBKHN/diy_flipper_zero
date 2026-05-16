@@ -17,8 +17,8 @@ void power_reboot(Power* power, PowerBootMode mode) {
         .boot_mode = mode,
     };
 
-   furi_check(
-       furi_message_queue_put(power->message_queue, &msg, FuriWaitForever) == FuriStatusOk);
+    furi_check(
+        furi_message_queue_put(power->message_queue, &msg, FuriWaitForever) == FuriStatusOk);
 }
 
 void power_get_info(Power* power, PowerInfo* info) {
@@ -44,7 +44,7 @@ FuriPubSub* power_get_pubsub(Power* power) {
 bool power_is_battery_healthy(Power* power) {
     furi_check(power);
 
-   // bool ret = false;
+    // bool ret = false;
 
     // PowerMessage msg = {
     //     .type = PowerMessageTypeIsBatteryHealthy,
@@ -81,7 +81,7 @@ void power_enable_otg(Power* power, bool enable) {
     //     .lock = api_lock_alloc_locked(),
     // };
 
-   // furi_check(
+    // furi_check(
     //     furi_message_queue_put(power->message_queue, &msg, FuriWaitForever) == FuriStatusOk);
     // api_lock_wait_unlock_and_free(msg.lock);
 }

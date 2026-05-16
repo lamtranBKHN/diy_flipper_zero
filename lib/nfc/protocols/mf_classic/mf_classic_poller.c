@@ -1,8 +1,6 @@
 #include "mf_classic_poller_i.h"
 
-#ifdef FURI_HAL_NFC_PN532_ONLY
 #include <furi_hal_nfc_pn532.h>
-#endif
 
 #include <nfc/protocols/nfc_poller_base.h>
 
@@ -37,17 +35,50 @@ MfClassicPoller* mf_classic_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) 
     if(!instance) return NULL;
     instance->iso14443_3a_poller = iso14443_3a_poller;
     instance->data = mf_classic_alloc();
-    if(!instance->data) { free(instance); return NULL; }
+    if(!instance->data) {
+        free(instance);
+        return NULL;
+    }
     instance->crypto = crypto1_alloc();
-    if(!instance->crypto) { mf_classic_free(instance->data); free(instance); return NULL; }
+    if(!instance->crypto) {
+        mf_classic_free(instance->data);
+        free(instance);
+        return NULL;
+    }
     instance->tx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
-    if(!instance->tx_plain_buffer) { crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
+    if(!instance->tx_plain_buffer) {
+        crypto1_free(instance->crypto);
+        mf_classic_free(instance->data);
+        free(instance);
+        return NULL;
+    }
     instance->tx_encrypted_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
-    if(!instance->tx_encrypted_buffer) { bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
+    if(!instance->tx_encrypted_buffer) {
+        bit_buffer_free(instance->tx_plain_buffer);
+        crypto1_free(instance->crypto);
+        mf_classic_free(instance->data);
+        free(instance);
+        return NULL;
+    }
     instance->rx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
-    if(!instance->rx_plain_buffer) { bit_buffer_free(instance->tx_encrypted_buffer); bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
+    if(!instance->rx_plain_buffer) {
+        bit_buffer_free(instance->tx_encrypted_buffer);
+        bit_buffer_free(instance->tx_plain_buffer);
+        crypto1_free(instance->crypto);
+        mf_classic_free(instance->data);
+        free(instance);
+        return NULL;
+    }
     instance->rx_encrypted_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
-    if(!instance->rx_encrypted_buffer) { bit_buffer_free(instance->rx_plain_buffer); bit_buffer_free(instance->tx_encrypted_buffer); bit_buffer_free(instance->tx_plain_buffer); crypto1_free(instance->crypto); mf_classic_free(instance->data); free(instance); return NULL; }
+    if(!instance->rx_encrypted_buffer) {
+        bit_buffer_free(instance->rx_plain_buffer);
+        bit_buffer_free(instance->tx_encrypted_buffer);
+        bit_buffer_free(instance->tx_plain_buffer);
+        crypto1_free(instance->crypto);
+        mf_classic_free(instance->data);
+        free(instance);
+        return NULL;
+    }
     instance->card_state = MfClassicCardStateLost;
 
     instance->mfc_event.data = &instance->mfc_event_data;
@@ -142,8 +173,7 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
 
     // MIFARE Classic 4K detection
     // ATQA 0x02/0x42 + SAK 0x18/0x88
-    if((atqa0 == 0x02 || atqa0 == 0x42) && atqa1 == 0x00 &&
-       (sak == 0x18 || sak == 0x88)) {
+    if((atqa0 == 0x02 || atqa0 == 0x42) && atqa1 == 0x00 && (sak == 0x18 || sak == 0x88)) {
         instance->data->type = MfClassicType4k;
         type_detected = true;
         FURI_LOG_D(TAG, "4K detected by ATQA/SAK");
@@ -151,8 +181,7 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
 
     // MIFARE Classic 1K detection
     // ATQA 0x04/0x44 + SAK 0x08/0x88
-    if((atqa0 == 0x04 || atqa0 == 0x44) && atqa1 == 0x00 &&
-       (sak == 0x08 || sak == 0x88)) {
+    if((atqa0 == 0x04 || atqa0 == 0x44) && atqa1 == 0x00 && (sak == 0x08 || sak == 0x88)) {
         instance->data->type = MfClassicType1k;
         type_detected = true;
         FURI_LOG_D(TAG, "1K detected by ATQA/SAK");
@@ -160,8 +189,7 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
 
     // MIFARE Classic Mini detection
     // ATQA 0x04/0x44 + SAK 0x09/0x89
-    if((atqa0 == 0x04 || atqa0 == 0x44) && atqa1 == 0x00 &&
-       (sak == 0x09 || sak == 0x89)) {
+    if((atqa0 == 0x04 || atqa0 == 0x44) && atqa1 == 0x00 && (sak == 0x09 || sak == 0x89)) {
         instance->data->type = MfClassicTypeMini;
         type_detected = true;
         FURI_LOG_D(TAG, "Mini detected by ATQA/SAK");
@@ -202,19 +230,7 @@ NfcCommand mf_classic_poller_handler_start(MfClassicPoller* instance) {
         instance->state = MfClassicPollerStateRequestKey;
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeDictAttackEnhanced) {
         mf_classic_copy(instance->data, instance->mfc_event_data.poller_mode.data);
-#ifdef FURI_HAL_NFC_PN532_ONLY
-        /* PN532: skip backdoor detection.
-         * Backdoor auth uses non-standard commands (0x64/0x65) that the
-         * PN532's InDataExchange sends to the card as raw bytes. Standard
-         * MIFARE Classic 1K/4K cards don't respond to these commands, causing
-         * a timeout → InRelease → target lost → restart loop.
-         * On ST25R3916 the host-side Crypto1 handles the encrypted frame
-         * exchange correctly, but PN532 can't do raw Crypto1 (no custom
-         * parity support for MIFARE).  Go directly to the dictionary attack. */
-        instance->state = MfClassicPollerStateRequestKey;
-#else
         instance->state = MfClassicPollerStateAnalyzeBackdoor;
-#endif
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeRead) {
         instance->state = MfClassicPollerStateRequestReadSector;
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeWrite) {
@@ -663,7 +679,8 @@ NfcCommand mf_classic_poller_handler_backdoor_read_sector(MfClassicPoller* insta
     uint8_t first_block_in_sector = mf_classic_get_first_block_num_of_sector(current_sector);
 
     do {
-        if(dict_attack_ctx->current_block >= mf_classic_get_total_block_num(instance->data->type)) {
+        if(dict_attack_ctx->current_block >=
+           mf_classic_get_total_block_num(instance->data->type)) {
             // We've read all blocks, reset current_block and move to next state
             dict_attack_ctx->current_block = 0;
             instance->state = MfClassicPollerStateNestedController;
@@ -2270,9 +2287,9 @@ NfcCommand mf_classic_poller_run(NfcGenericEvent event, void* context) {
         command = mf_classic_poller_dict_attack_handler[instance->state](instance);
     } else if(iso14443_3a_event->type == Iso14443_3aPollerEventTypeError) {
         if(instance->card_state == MfClassicCardStateDetected) {
-    instance->card_state = MfClassicCardStateLost;
-    instance->state = MfClassicPollerStateDetectType;
-    instance->auth_state = MfClassicAuthStateIdle;
+            instance->card_state = MfClassicCardStateLost;
+            instance->state = MfClassicPollerStateDetectType;
+            instance->auth_state = MfClassicAuthStateIdle;
             instance->mfc_event.type = MfClassicPollerEventTypeCardLost;
             command = instance->callback(instance->general_event, instance->context);
         }
@@ -2303,23 +2320,23 @@ bool mf_classic_poller_detect(NfcGenericEvent event, void* context) {
             FURI_LOG_D(TAG, "MIFARE Classic detected by ATQA/SAK");
         }
 
-#ifdef FURI_HAL_NFC_PN532_ONLY
         // Fallback: try AUTH with factory-default key via PN532 InDataExchange
         // This catches non-standard ATQA/SAK combinations (e.g., clone cards
         // with unusual SAK values that still support MIFARE protocol).
-        if(!detected) {
+        if(!detected && furi_hal_nfc_pn532_is_active()) {
             const uint8_t default_key[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
             FuriHalNfcError auth_err = furi_hal_nfc_pn532_mf_auth(
-                0,               // block 0 (first sector, first block)
-                default_key,     // factory default key A
-                0,               // key type A
+                0, // block 0 (first sector, first block)
+                default_key, // factory default key A
+                0, // key type A
                 iso3a_data->uid,
                 iso3a_data->uid_len);
             if(auth_err == FuriHalNfcErrorNone) {
                 detected = true;
                 FURI_LOG_D(TAG, "MIFARE Classic detected by AUTH fallback");
             } else {
-                FURI_LOG_D(TAG, "AUTH fallback failed (err=%d), card is not MIFARE Classic", auth_err);
+                FURI_LOG_D(
+                    TAG, "AUTH fallback failed (err=%d), card is not MIFARE Classic", auth_err);
             }
         }
         // CRITICAL: Reset PN532 target state after InDataExchange-based AUTH.
@@ -2332,10 +2349,11 @@ bool mf_classic_poller_detect(NfcGenericEvent event, void* context) {
         // re-initialize via nfc_config() -> furi_hal_nfc_set_mode() -> reset().
         // Acquire the NFC HAL mutex for the reset to protect against concurrent
         // NFC operations on other threads (e.g. scanner worker exit sequence).
-        furi_hal_nfc_acquire();
-        furi_hal_nfc_pn532_reset();
-        furi_hal_nfc_release();
-#endif
+        if(furi_hal_nfc_pn532_is_active()) {
+            furi_hal_nfc_acquire();
+            furi_hal_nfc_pn532_reset();
+            furi_hal_nfc_release();
+        }
     }
 
     return detected;

@@ -73,3 +73,6 @@ ADD_SCENE(nfc, slix_unlock_success, SlixUnlockSuccess)
 ADD_SCENE(nfc, felica_more_info, FelicaMoreInfo)
 
 ADD_SCENE(nfc, generate_info, GenerateInfo)
+ADD_SCENE(nfc, p2p, P2p)
+ADD_SCENE(nfc, p2p_send, P2pSend)
+ADD_SCENE(nfc, p2p_receive, P2pReceive)

@@ -1,6 +1,7 @@
 #include "mf_classic_poller_i.h"
 
 #include <furi.h>
+#include <furi_hal_nfc.h>
 #include <furi_hal_random.h>
 
 #include <nfc/helpers/iso14443_crc.h>
@@ -133,6 +134,7 @@ MfClassicError mf_classic_poller_auth_common(
             iso14443_3a_poller_get_data(instance->iso14443_3a_poller));
 
         MfClassicNt nt = {};
+        furi_hal_nfc_mf_auth_key_store(key->data, (uint8_t)(key_type == MfClassicKeyTypeB));
         if(is_nested) {
             ret =
                 mf_classic_poller_get_nt_nested(instance, block_num, key_type, &nt, backdoor_auth);

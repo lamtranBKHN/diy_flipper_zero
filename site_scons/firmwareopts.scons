@@ -48,6 +48,20 @@ ENV.AppendUnique(
     ],
 )
 
+if ENV["COMPACT"] and ENV["IS_BASE_FIRMWARE"]:
+    ENV.Append(
+        CCFLAGS=[
+            "-flto",
+            "-fno-fat-lto-objects",
+        ],
+    )
+    ENV.Append(
+        LINKFLAGS=[
+            "-flto",
+            "-fno-fat-lto-objects",
+        ],
+    )
+
 
 if ENV["FIRMWARE_BUILD_CFG"] == "updater":
     ENV.Append(

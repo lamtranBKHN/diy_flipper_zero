@@ -4,6 +4,8 @@
 #include <nfc/nfc_poller.h>
 
 #include <furi.h>
+#include <furi_hal_nfc.h>
+#include <furi_hal_pn532.h>
 
 #define TAG "MfClassicPoller"
 
@@ -517,6 +519,46 @@ MfClassicError mf_classic_poller_sync_detect_type(Nfc* nfc, MfClassicType* type)
         if(error == MfClassicErrorNone) {
             *type = MfClassicTypeNum - i - 1;
             break;
+        }
+    }
+
+    return error;
+}
+
+MfClassicError
+    mf_classic_poller_sync_cuid_write(Nfc* nfc, uint8_t uid[4], uint8_t sak, uint8_t atqa[2]) {
+    furi_check(nfc);
+    furi_check(uid);
+
+    MfClassicBlock block = {0};
+    memcpy(block.data, uid, 4);
+    block.data[4] = uid[0] ^ uid[1] ^ uid[2] ^ uid[3];
+    block.data[5] = sak;
+    block.data[6] = atqa[0];
+    block.data[7] = atqa[1];
+
+    const MfClassicBackdoorKeyPair* keys = mf_classic_backdoor_keys;
+    const size_t key_count = mf_classic_backdoor_keys_count;
+
+    MfClassicError error = MfClassicErrorAuth;
+
+    for(size_t i = 0; i < key_count && error != MfClassicErrorNone; i++) {
+        FURI_LOG_D(TAG, "Trying backdoor key %zu (type %d)", i, keys[i].type);
+
+        uint8_t key_type_byte = (uint8_t)MfClassicKeyTypeA;
+        furi_hal_nfc_mf_auth_key_store(keys[i].key.data, key_type_byte);
+
+        bool auth_ok = furi_hal_pn532_mf_backdoor_auth(0, key_type_byte, keys[i].key.data, 0);
+
+        if(auth_ok) {
+            FURI_LOG_I(TAG, "Backdoor auth succeeded with key %zu", i);
+
+            bool write_ok = furi_hal_pn532_mf_backdoor_write_block0(0, block.data);
+
+            if(write_ok) {
+                error = MfClassicErrorNone;
+                FURI_LOG_I(TAG, "Block 0 written with new UID");
+            }
         }
     }
 

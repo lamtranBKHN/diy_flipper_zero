@@ -42,7 +42,9 @@ bool nfc_scene_detect_on_event(void* context, SceneManagerEvent event) {
 
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventWorkerExit) {
-            if(nfc_detected_protocols_get_num(instance->detected_protocols) > 1) {
+            if(nfc_detected_protocols_get_num(instance->detected_protocols) == 0) {
+                scene_manager_next_scene(instance->scene_manager, NfcSceneStart);
+            } else if(nfc_detected_protocols_get_num(instance->detected_protocols) > 1) {
                 notification_message(instance->notifications, &sequence_single_vibro);
                 scene_manager_next_scene(instance->scene_manager, NfcSceneSelectProtocol);
             } else {

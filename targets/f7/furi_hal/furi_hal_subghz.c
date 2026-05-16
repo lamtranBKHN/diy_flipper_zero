@@ -149,7 +149,7 @@ void furi_hal_subghz_init(void) {
         furi_hal_gpio_init(&gpio_cc1101_g0, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
 
         // RF switches
-     //   furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
+        //   furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
         cc1101_write_reg(&furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW);
 
         // Go to sleep
@@ -454,7 +454,7 @@ uint32_t furi_hal_subghz_set_frequency(uint32_t value) {
 void furi_hal_subghz_set_path(FuriHalSubGhzPath path) {
     furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
     if(path == FuriHalSubGhzPath433) {
-       // furi_hal_gpio_write(&gpio_rf_sw_0, 0);
+        // furi_hal_gpio_write(&gpio_rf_sw_0, 0);
         cc1101_write_reg(
             &furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW | CC1101_IOCFG_INV);
     } else if(path == FuriHalSubGhzPath315) {
@@ -465,7 +465,7 @@ void furi_hal_subghz_set_path(FuriHalSubGhzPath path) {
         cc1101_write_reg(
             &furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW | CC1101_IOCFG_INV);
     } else if(path == FuriHalSubGhzPathIsolate) {
-      //  furi_hal_gpio_write(&gpio_rf_sw_0, 0);
+        //  furi_hal_gpio_write(&gpio_rf_sw_0, 0);
         cc1101_write_reg(&furi_hal_spi_bus_handle_subghz, CC1101_IOCFG2, CC1101IocfgHW);
     } else {
         furi_crash("SubGhz: Incorrect path during set.");
@@ -528,8 +528,7 @@ static void furi_hal_subghz_capture_ISR(void* context) {
     // Channel 2 — rising edge (low-pulse duration)
     if(LL_TIM_IsActiveFlag_CC2(TIM2)) {
         LL_TIM_ClearFlag_CC2(TIM2);
-        uint32_t duration =
-            LL_TIM_IC_GetCaptureCH2(TIM2) - furi_hal_subghz_capture_delta_duration;
+        uint32_t duration = LL_TIM_IC_GetCaptureCH2(TIM2) - furi_hal_subghz_capture_delta_duration;
 
         if(duration >= 30) {
             if(furi_hal_subghz_capture_callback) {
@@ -537,9 +536,7 @@ static void furi_hal_subghz_capture_ISR(void* context) {
                     furi_hal_gpio_write(furi_hal_subghz.async_mirror_pin, true);
 
                 furi_hal_subghz_capture_callback(
-                    false,
-                    duration,
-                    (void*)furi_hal_subghz_capture_callback_context);
+                    false, duration, (void*)furi_hal_subghz_capture_callback_context);
             }
         }
     }
@@ -559,11 +556,7 @@ void furi_hal_subghz_start_async_rx(FuriHalSubGhzCaptureCallback callback, void*
     // With real CC1101 hardware, GDO0 actively drives the line, so this pull does not
     // interfere with valid RX edges.
     furi_hal_gpio_init_ex(
-        &gpio_cc1101_g0,
-        GpioModeAltFunctionPushPull,
-        GpioPullDown,
-        GpioSpeedLow,
-        GpioAltFn1TIM2);
+        &gpio_cc1101_g0, GpioModeAltFunctionPushPull, GpioPullDown, GpioSpeedLow, GpioAltFn1TIM2);
 
     furi_hal_bus_enable(FuriHalBusTIM2);
 
@@ -593,10 +586,7 @@ void furi_hal_subghz_start_async_rx(FuriHalSubGhzCaptureCallback callback, void*
     // Match CH2's glitch filter so both edges reject the same noise.
     // Without this, CH1 fires on every sub-microsecond glitch while CH2
     // is filtered to 16µs, creating an asymmetric interrupt storm.
-    LL_TIM_IC_SetFilter(
-        TIM2,
-        LL_TIM_CHANNEL_CH1,
-        LL_TIM_IC_FILTER_FDIV32_N8);
+    LL_TIM_IC_SetFilter(TIM2, LL_TIM_CHANNEL_CH1, LL_TIM_IC_FILTER_FDIV32_N8);
 
     // Timer: channel 2 direct (rising edge)
     LL_TIM_IC_SetActiveInput(TIM2, LL_TIM_CHANNEL_CH2, LL_TIM_ACTIVEINPUT_DIRECTTI);

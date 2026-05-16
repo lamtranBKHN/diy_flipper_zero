@@ -4,24 +4,23 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-
- #include <furi_hal_clock.h>
- #include <furi_hal_bt.h>
- #include <furi_hal_vibro.h>
- #include <furi_hal_resources.h>
- #include <furi_hal_adc.h>
- #include <furi_hal_serial_control.h>
- #include <furi_hal_rtc.h>
- #include <furi_hal_debug.h>
- #include <stm32wbxx_ll_rcc.h>
- #include <stm32wbxx_ll_pwr.h>
- #include <stm32wbxx_ll_hsem.h>
- #include <stm32wbxx_ll_cortex.h>
- #include <stm32wbxx_ll_gpio.h>
- #include <hsem_map.h>
- #include <bq27220.h>
- #include <bq27220_data_memory.h>
- #include <bq25896.h>
+#include <furi_hal_clock.h>
+#include <furi_hal_bt.h>
+#include <furi_hal_vibro.h>
+#include <furi_hal_resources.h>
+#include <furi_hal_adc.h>
+#include <furi_hal_serial_control.h>
+#include <furi_hal_rtc.h>
+#include <furi_hal_debug.h>
+#include <stm32wbxx_ll_rcc.h>
+#include <stm32wbxx_ll_pwr.h>
+#include <stm32wbxx_ll_hsem.h>
+#include <stm32wbxx_ll_cortex.h>
+#include <stm32wbxx_ll_gpio.h>
+#include <hsem_map.h>
+#include <bq27220.h>
+#include <bq27220_data_memory.h>
+#include <bq25896.h>
 
 #include <string.h>
 
@@ -66,7 +65,6 @@ void furi_hal_power_init(void) {
     FURI_LOG_I(TAG, "Using ADC power monitor path");
     furi_hal_adc_init();
 }
-
 
 bool furi_hal_power_gauge_is_ok(void) {
     // Return a default "OK" state
@@ -138,8 +136,10 @@ uint8_t furi_hal_power_get_pct(void) {
     float vbat = vbat_mV / 1000.0f;
     furi_hal_adc_release(handle);
     /* V_MIN and V_MAX defined below in ADC fallback, avoid redeclaration */
-    if(vbat <= V_MIN) pct = 0;
-    else if(vbat >= V_MAX) pct = 100;
+    if(vbat <= V_MIN)
+        pct = 0;
+    else if(vbat >= V_MAX)
+        pct = 100;
     else {
         float t = (vbat - V_MIN) / (V_MAX - V_MIN);
         pct = (uint8_t)(t * 100.0f + 0.5f);

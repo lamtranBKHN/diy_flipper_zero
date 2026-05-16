@@ -54,6 +54,9 @@ MfClassicError mf_classic_poller_sync_detect_type(Nfc* nfc, MfClassicType* type)
 MfClassicError
     mf_classic_poller_sync_read(Nfc* nfc, const MfClassicDeviceKeys* keys, MfClassicData* data);
 
+MfClassicError
+    mf_classic_poller_sync_cuid_write(Nfc* nfc, uint8_t uid[4], uint8_t sak, uint8_t atqa[2]);
+
 #ifdef __cplusplus
 }
 #endif

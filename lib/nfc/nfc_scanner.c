@@ -6,7 +6,11 @@
 
 #include <furi/furi.h>
 
-#define TAG "NfcScanner"
+#define TAG                               "NfcScanner"
+#define NFC_SCANNER_IDLE_DELAY_MS         300
+#define NFC_SCANNER_IDLE_DELAY_REDUCED_MS 150
+#define NFC_SCANNER_IDLE_REDUCE_THRESHOLD 3
+#define NFC_SCANNER_MAX_EMPTY_ROUNDS      3
 
 typedef enum {
     NfcScannerStateIdle,
@@ -52,6 +56,9 @@ struct NfcScanner {
 
     NfcProtocol current_protocol;
 
+    uint8_t consecutive_empty_scans;
+    bool type_a_no_target;
+
     FuriThread* scan_worker;
 };
 
@@ -67,6 +74,8 @@ static void nfc_scanner_reset(NfcScanner* instance) {
     instance->detected_base_protocols_num = 0;
 
     instance->current_protocol = 0;
+    instance->consecutive_empty_scans = 0;
+    instance->type_a_no_target = false;
 }
 
 typedef void (*NfcScannerStateHandler)(NfcScanner* instance);
@@ -81,17 +90,27 @@ void nfc_scanner_state_handler_idle(NfcScanner* instance) {
     }
 
     if(furi_hal_nfc_pn532_is_active()) {
+        static const NfcProtocol pn532_probe_order[] = {
+            NfcProtocolIso14443_3a,
+            NfcProtocolIso14443_3b,
+            NfcProtocolFelica,
+            NfcProtocolSrix,
+            NfcProtocolIso15693_3,
+            NfcProtocolSt25tb,
+        };
+
         size_t write_idx = 0;
-        for(size_t i = 0; i < instance->base_protocols_num; i++) {
-            NfcProtocol p = instance->base_protocols[i];
-            if(p == NfcProtocolIso14443_3a ||
-               p == NfcProtocolIso14443_3b ||
-               p == NfcProtocolFelica) {
-                instance->base_protocols[write_idx++] = p;
+        for(size_t i = 0; i < COUNT_OF(pn532_probe_order); i++) {
+            const NfcProtocol ordered_protocol = pn532_probe_order[i];
+            for(size_t j = 0; j < instance->base_protocols_num; j++) {
+                if(instance->base_protocols[j] == ordered_protocol) {
+                    instance->base_protocols[write_idx++] = ordered_protocol;
+                    break;
+                }
             }
         }
         instance->base_protocols_num = write_idx;
-        FURI_LOG_W(TAG, "PN532 active - filtered to %zu base protocols (A/B/Felica)", instance->base_protocols_num);
+        FURI_LOG_W(TAG, "PN532 active - best-effort probe order enabled");
     }
 
     FURI_LOG_D(TAG, "Found %zu base protocols", instance->base_protocols_num);
@@ -105,12 +124,57 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
         instance->state = NfcScannerStateComplete;
         return;
     }
-    do {
-        instance->current_protocol = instance->base_protocols[instance->base_protocols_idx];
 
-        if(instance->first_detected_protocol == instance->current_protocol) {
-            instance->state = NfcScannerStateFindChildrenProtocols;
-            break;
+    instance->current_protocol = instance->base_protocols[instance->base_protocols_idx];
+
+    if(instance->first_detected_protocol == instance->current_protocol) {
+        instance->state = NfcScannerStateFindChildrenProtocols;
+        return;
+    }
+
+    /* Quick presence check — at the start of each new round (idx == 0),
+     * do a fast 50ms InListPassiveTarget instead of individually polling
+     * all 4 base protocols (~1200ms).  Once a card is detected, this
+     * check passes and the normal per-protocol detection runs. */
+    if(furi_hal_nfc_pn532_is_active() && instance->base_protocols_idx == 0 &&
+       instance->consecutive_empty_scans > 0 &&
+       instance->consecutive_empty_scans < 2 &&
+       instance->detected_base_protocols_num == 0 &&
+       !furi_hal_nfc_quick_poll()) {
+        instance->type_a_no_target = false;
+        uint32_t delay_ms;
+        if(instance->consecutive_empty_scans < NFC_SCANNER_IDLE_REDUCE_THRESHOLD) {
+            delay_ms = NFC_SCANNER_IDLE_DELAY_REDUCED_MS;
+            instance->consecutive_empty_scans++;
+        } else {
+            delay_ms = NFC_SCANNER_IDLE_DELAY_MS;
+        }
+        furi_delay_ms(delay_ms);
+        return;
+    }
+
+    /* Skip B/FeliCa when Type A already failed this round, no card detected,
+     * and we're still in the first 2 rapid-scan rounds.  After 2 empty rounds,
+     * always probe B/FeliCa at least once to detect rare Type B/FeliCa-only cards.
+     * Tradeoff: rounds 1-2 skip B/FeliCa (~400ms saved per round), round 3 does
+     * a full scan, catching B/FeliCa within ~1.3s worst case. */
+    bool skip_poll = false;
+    if(instance->type_a_no_target && instance->detected_base_protocols_num == 0 &&
+       instance->consecutive_empty_scans < 2 &&
+       (instance->current_protocol == NfcProtocolIso14443_3b ||
+        instance->current_protocol == NfcProtocolFelica)) {
+        skip_poll = true;
+        FURI_LOG_D(
+            TAG,
+            "Skipping protocol %d (Type A failed, fast scan round %d)",
+            instance->current_protocol,
+            instance->consecutive_empty_scans);
+    }
+
+    if(!skip_poll) {
+        /* Reset Type A tracking when starting a fresh Type A poll */
+        if(instance->current_protocol == NfcProtocolIso14443_3a) {
+            instance->type_a_no_target = false;
         }
 
         NfcPoller* poller = nfc_poller_alloc(instance->nfc, instance->current_protocol);
@@ -130,20 +194,64 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
                 instance->first_detected_protocol = instance->current_protocol;
                 instance->current_protocol = NfcProtocolInvalid;
             }
+        } else if(instance->current_protocol == NfcProtocolIso14443_3a) {
+            instance->type_a_no_target = true;
+        } else if(furi_hal_nfc_pn532_is_active()) {
+            FURI_LOG_D(
+                TAG,
+                "PN532 probe protocol %u: %s",
+                instance->current_protocol,
+                furi_hal_nfc_pn532_last_result_str());
         }
+    }
 
-        instance->base_protocols_idx =
-            (instance->base_protocols_idx + 1) % instance->base_protocols_num;
-    } while(false);
+    instance->base_protocols_idx =
+        (instance->base_protocols_idx + 1) % instance->base_protocols_num;
+
+    if(instance->base_protocols_idx == 0 && instance->detected_base_protocols_num == 0) {
+        /* Reset per-round flag for next cycle */
+        instance->type_a_no_target = false;
+
+        /* Dynamic timing: start with reduced delay, escalate to full
+          * delay only after several consecutive empty scan rounds.
+          * This gives faster response when a tag is brought near. */
+        uint32_t delay_ms;
+        if(instance->consecutive_empty_scans < NFC_SCANNER_IDLE_REDUCE_THRESHOLD) {
+            delay_ms = NFC_SCANNER_IDLE_DELAY_REDUCED_MS;
+            instance->consecutive_empty_scans++;
+        } else {
+            delay_ms = NFC_SCANNER_IDLE_DELAY_MS;
+        }
+        furi_delay_ms(delay_ms);
+    } else if(instance->detected_base_protocols_num > 0) {
+        /* Reset counter when any protocol is detected */
+        instance->consecutive_empty_scans = 0;
+    }
 }
 
 void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
+    /* Check if detected card supports ISO-DEP (ISO14443-4).
+     * SAK bit 5 = 0x20 indicates ISO-DEP capability.
+     * Non-ISO-DEP cards (e.g. NTAG, MIFARE Classic) cannot activate
+     * ISO14443-4A children (MfDesfire, MfPlus, NTAG4xx, Type4Tag, EMV),
+     * so skip probing them to save ~275ms. */
+    bool sak_has_iso_dep = false;
+    if(furi_hal_nfc_pn532_is_active() && furi_hal_nfc_pn532_target_is_valid()) {
+        sak_has_iso_dep = (furi_hal_nfc_pn532_get_sak() & 0x20) != 0;
+    }
+
     for(size_t i = 0; i < NfcProtocolNum; i++) {
         for(size_t j = 0; j < instance->detected_base_protocols_num; j++) {
-            if(nfc_protocol_has_parent(i, instance->detected_base_protocols[j])) {
-                instance->children_protocols[instance->children_protocols_num] = i;
-                instance->children_protocols_num++;
+            if(!nfc_protocol_has_parent(i, instance->detected_base_protocols[j])) {
+                continue;
             }
+            /* Skip 4A children on non-ISO-DEP cards (SAK bit 5 = 0) */
+            if(!sak_has_iso_dep &&
+               nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
+                continue;
+            }
+            instance->children_protocols[instance->children_protocols_num] = i;
+            instance->children_protocols_num++;
         }
     }
 
@@ -194,7 +302,10 @@ static void nfc_scanner_filter_detected_protocols(NfcScanner* instance) {
     }
 
     instance->detected_protocols_num = filtered_protocols_num;
-    memcpy(instance->detected_protocols, filtered_protocols, filtered_protocols_num * sizeof(NfcProtocol));
+    memcpy(
+        instance->detected_protocols,
+        filtered_protocols,
+        filtered_protocols_num * sizeof(NfcProtocol));
 }
 
 void nfc_scanner_state_handler_complete(NfcScanner* instance) {

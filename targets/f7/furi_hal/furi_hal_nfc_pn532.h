@@ -1,6 +1,7 @@
 #pragma once
 
 #include "furi_hal_nfc_i.h"
+#include "furi_hal_pn532.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -9,6 +10,14 @@ extern "C" {
 bool furi_hal_nfc_pn532_backend_init(void);
 bool furi_hal_nfc_pn532_is_active(void);
 void furi_hal_nfc_pn532_reset(void);
+
+typedef enum {
+    FuriHalNfcPn532ResultDetected,
+    FuriHalNfcPn532ResultNotPresent,
+    FuriHalNfcPn532ResultUnsupportedByPn532,
+    FuriHalNfcPn532ResultCommunicationError,
+    FuriHalNfcPn532ResultParseError,
+} FuriHalNfcPn532Result;
 
 FuriHalNfcError furi_hal_nfc_pn532_set_mode(FuriHalNfcMode mode, FuriHalNfcTech tech);
 FuriHalNfcError furi_hal_nfc_pn532_low_power_mode_start(void);
@@ -29,6 +38,28 @@ FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
     uint8_t key_type,
     const uint8_t* uid,
     uint8_t uid_len);
+
+// Listener (target) mode functions
+FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms);
+FuriHalNfcError furi_hal_nfc_pn532_listener_tx(const uint8_t* tx_data, size_t tx_bits);
+FuriHalNfcError
+    furi_hal_nfc_pn532_listener_rx(uint8_t* rx_data, size_t rx_data_size, size_t* rx_bits);
+FuriHalNfcError furi_hal_nfc_pn532_listener_idle(void);
+FuriHalNfcError furi_hal_nfc_pn532_listener_sleep(void);
+FuriHalNfcError furi_hal_nfc_pn532_listener_enable_rx(void);
+
+// Diagnostic API
+FuriHalPn532Error furi_hal_nfc_pn532_last_error_get(void);
+const char* furi_hal_nfc_pn532_last_error_str(void);
+FuriHalNfcPn532Result furi_hal_nfc_pn532_last_result_get(void);
+const char* furi_hal_nfc_pn532_last_result_str(void);
+
+// Store MIFARE Classic auth key for hardware auth interception
+void furi_hal_nfc_pn532_mf_key_store(const uint8_t* key, uint8_t key_type);
+
+// Access cached target data (used by scanner for SAK-based child optimization)
+uint8_t furi_hal_nfc_pn532_get_sak(void);
+bool furi_hal_nfc_pn532_target_is_valid(void);
 
 #ifdef __cplusplus
 }

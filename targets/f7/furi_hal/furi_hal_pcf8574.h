@@ -8,9 +8,9 @@
 extern "C" {
 #endif
 
-#define PCF8574_I2C_ADDR       0x20
-#define PCF8574_PIN_BUZZER     7
-#define PCF8574_PIN_VIBRO      6
+#define PCF8574_I2C_ADDR   0x20
+#define PCF8574_PIN_BUZZER 7
+#define PCF8574_PIN_VIBRO  6
 
 bool furi_hal_pcf8574_init(void);
 bool furi_hal_pcf8574_read(uint8_t* data);

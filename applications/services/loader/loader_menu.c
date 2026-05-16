@@ -38,7 +38,7 @@ struct LoaderMenu {
     uint32_t selected_setting;
     LoaderMenuView current_view;
     bool settings_only;
-    
+
     /* Cache for .mainmenu_apps.txt - TODO: implement proper caching */
     FuriString* cached_menu_content;
     uint32_t cache_timestamp;

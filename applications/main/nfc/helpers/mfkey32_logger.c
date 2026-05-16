@@ -155,6 +155,58 @@ bool mfkey32_logger_save_params(Mfkey32Logger* instance, const char* path) {
     return params_saved;
 }
 
+bool mfkey32_logger_export_mfkey32v2(Mfkey32Logger* instance, const char* path) {
+    furi_assert(instance);
+    furi_assert(path);
+    furi_assert(instance->params_collected > 0);
+
+    bool exported = false;
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    Stream* stream = buffered_file_stream_alloc(storage);
+    FuriString* temp_str = furi_string_alloc();
+
+    do {
+        if(!buffered_file_stream_open(stream, path, FSAM_WRITE, FSOM_CREATE_ALWAYS)) break;
+
+        bool write_ok = true;
+        Mfkey32LoggerParams_it_t it;
+        for(Mfkey32LoggerParams_it(it, instance->params_arr); !Mfkey32LoggerParams_end_p(it);
+            Mfkey32LoggerParams_next(it)) {
+            Mfkey32LoggerParams* params = Mfkey32LoggerParams_ref(it);
+            if(!params->is_filled) continue;
+
+            // mfkey32v2 format: <uid> <nt0> <nr0> <ar0> <nt1> <nr1> <ar1> [sector] [keytype]
+            // https://github.com/nfc-tools/mfkey32v2
+            furi_string_printf(
+                temp_str,
+                "%08lx %08lx %08lx %08lx %08lx %08lx %08lx %d %d\n",
+                params->cuid,
+                params->nt0,
+                params->nr0,
+                params->ar0,
+                params->nt1,
+                params->nr1,
+                params->ar1,
+                params->sector_num,
+                params->key_type == MfClassicKeyTypeA ? 0 : 1);
+            if(!stream_write_string(stream, temp_str)) {
+                write_ok = false;
+                break;
+            }
+        }
+        if(!write_ok) break;
+
+        exported = true;
+    } while(false);
+
+    furi_string_free(temp_str);
+    buffered_file_stream_close(stream);
+    stream_free(stream);
+    furi_record_close(RECORD_STORAGE);
+
+    return exported;
+}
+
 void mfkey32_logger_get_params_data(Mfkey32Logger* instance, FuriString* str) {
     furi_assert(instance);
     furi_assert(str);

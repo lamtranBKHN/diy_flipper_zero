@@ -185,10 +185,7 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH,
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
                 if(copy_result != FSE_OK) {
-                    FURI_LOG_E(
-                        TAG,
-                        "Failed to copy system dict to nested: %d",
-                        copy_result);
+                    FURI_LOG_E(TAG, "Failed to copy system dict to nested: %d", copy_result);
                     notification_message(instance->notifications, &sequence_error);
                 }
             }
@@ -206,10 +203,7 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
                 NFC_APP_MF_CLASSIC_DICT_USER_PATH,
                 NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
             if(copy_result != FSE_OK) {
-                FURI_LOG_E(
-                    TAG,
-                    "Failed to copy user dict to nested: %d",
-                    copy_result);
+                FURI_LOG_E(TAG, "Failed to copy user dict to nested: %d", copy_result);
                 notification_message(instance->notifications, &sequence_error);
             }
 

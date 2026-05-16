@@ -4,6 +4,8 @@
 
 #define TAG "MfUltralightPoller"
 
+#define NTAG_CMD_FAST_READ 0x3A
+
 MfUltralightError mf_ultralight_process_error(Iso14443_3aError error) {
     MfUltralightError ret = MfUltralightErrorNone;
 
@@ -262,6 +264,42 @@ MfUltralightError mf_ultralight_poller_read_page(
             break;
         }
         bit_buffer_write_bytes(instance->rx_buffer, data, sizeof(MfUltralightPageReadCommandData));
+    } while(false);
+
+    return ret;
+}
+
+MfUltralightError mf_ultralight_poller_fast_read_pages(
+    MfUltralightPoller* instance,
+    uint8_t start_page,
+    uint8_t count,
+    MfUltralightPageReadCommandData* data) {
+    furi_check(instance);
+    furi_check(data);
+    furi_check(count > 0 && count <= 4);
+
+    MfUltralightError ret = MfUltralightErrorNone;
+    Iso14443_3aError error = Iso14443_3aErrorNone;
+
+    do {
+        const uint8_t end_page = start_page + count - 1;
+        uint8_t fast_read_cmd[3] = {NTAG_CMD_FAST_READ, start_page, end_page};
+        bit_buffer_copy_bytes(instance->tx_buffer, fast_read_cmd, sizeof(fast_read_cmd));
+        error = iso14443_3a_poller_send_standard_frame(
+            instance->iso14443_3a_poller,
+            instance->tx_buffer,
+            instance->rx_buffer,
+            MF_ULTRALIGHT_POLLER_STANDARD_FWT_FC);
+        if(error != Iso14443_3aErrorNone) {
+            ret = mf_ultralight_process_error(error);
+            break;
+        }
+        const size_t expected_bytes = count * sizeof(MfUltralightPage);
+        if(bit_buffer_get_size_bytes(instance->rx_buffer) != expected_bytes) {
+            ret = MfUltralightErrorProtocol;
+            break;
+        }
+        bit_buffer_write_bytes(instance->rx_buffer, data, expected_bytes);
     } while(false);
 
     return ret;

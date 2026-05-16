@@ -27,7 +27,6 @@ const NotificationSequence sequence_alarm = {
     &message_force_speaker_volume_setting_1f,
 
     &message_force_display_brightness_setting_1f,
-    
 
     &message_display_backlight_on,
     &message_note_c7,
@@ -46,7 +45,7 @@ const NotificationSequence sequence_alarm = {
     &message_delay_250,
 
     &message_sound_off,
-    
+
     NULL,
 };
 

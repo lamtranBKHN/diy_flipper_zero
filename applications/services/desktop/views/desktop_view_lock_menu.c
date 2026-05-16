@@ -117,7 +117,8 @@ void desktop_lock_menu_draw_callback(Canvas* canvas, void* model) {
             icon = &I_Pin_star_7x7;
             // Contrast is -8..+8; map to 0..total and invert for visual
             // (contrast + 8) -> 0..16, then scale to total
-            value = total - ((int)(m->lock_menu->notification->settings.contrast + 8) * total + 8) / 16;
+            value = total -
+                    ((int)(m->lock_menu->notification->settings.contrast + 8) * total + 8) / 16;
             break;
         case DesktopLockMenuIndexVolume:
             icon = m->stealth_mode ? &I_Muted_8x8 : &I_Volup_8x6;
@@ -329,7 +330,8 @@ bool desktop_lock_menu_input_callback(InputEvent* event, void* context) {
                 case DesktopLockMenuIndexBrightness:
                     // Contrast setting is from -8 to 8
                     {
-                        int8_t contrast_offset = lock_menu->notification->settings.contrast + offset;
+                        int8_t contrast_offset =
+                            lock_menu->notification->settings.contrast + offset;
                         if(contrast_offset < -8) {
                             contrast_offset = -8;
                         } else if(contrast_offset > 8) {
@@ -338,7 +340,8 @@ bool desktop_lock_menu_input_callback(InputEvent* event, void* context) {
                         lock_menu->notification->settings.contrast = contrast_offset;
                         lock_menu->save_notification = true;
                         // Update OLED contrast
-                        notification_message(lock_menu->notification, &sequence_lcd_contrast_update);
+                        notification_message(
+                            lock_menu->notification, &sequence_lcd_contrast_update);
                     }
                     break;
                 case DesktopLockMenuIndexVolume:

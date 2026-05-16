@@ -11,6 +11,8 @@
 
 #define TAG "FuriHalSpi"
 
+#define FURI_HAL_SPI_MAX_TRANSACTION_MS 100
+
 #define SPI_DMA            DMA2
 #define SPI_DMA_RX_CHANNEL LL_DMA_CHANNEL_6
 #define SPI_DMA_TX_CHANNEL LL_DMA_CHANNEL_7
@@ -22,6 +24,9 @@
 // For simplicity, I assume that only one SPI DMA transaction can occur at a time.
 static FuriSemaphore* spi_dma_lock = NULL;
 static FuriSemaphore* spi_dma_completed = NULL;
+
+static uint32_t spi_acquire_tick = 0;
+static const char* spi_acquire_caller = NULL;
 
 void furi_hal_spi_dma_init(void) {
     spi_dma_lock = furi_semaphore_alloc(1, 1);
@@ -60,11 +65,19 @@ void furi_hal_spi_acquire(const FuriHalSpiBusHandle* handle) {
 
     handle->bus->current_handle = handle;
     handle->callback(handle, FuriHalSpiBusHandleEventActivate);
+
+    spi_acquire_tick = furi_get_tick();
+    spi_acquire_caller = NULL;
 }
 
 void furi_hal_spi_release(const FuriHalSpiBusHandle* handle) {
     furi_check(handle);
     furi_check(handle->bus->current_handle == handle);
+
+    uint32_t elapsed = furi_get_tick() - spi_acquire_tick;
+    if(elapsed > FURI_HAL_SPI_MAX_TRANSACTION_MS) {
+        FURI_LOG_W(TAG, "SPI held for %lums (>%dms limit, caller=%p)", elapsed, FURI_HAL_SPI_MAX_TRANSACTION_MS, (void*)spi_acquire_caller);
+    }
 
     // Handle event and unset handle
     handle->callback(handle, FuriHalSpiBusHandleEventDeactivate);
@@ -207,8 +220,8 @@ bool furi_hal_spi_bus_trx_dma(
     }
 
     const uint32_t timeout_scale = MAX((uint32_t)1, (uint32_t)((size + 511) / 512));
-    const uint32_t dma_timeout_ms =
-        timeout_ms == FuriWaitForever ? FuriWaitForever : timeout_ms * timeout_scale;
+    const uint32_t dma_timeout_ms = timeout_ms == FuriWaitForever ? FuriWaitForever :
+                                                                    timeout_ms * timeout_scale;
 
     // Lock DMA
     furi_check(furi_semaphore_acquire(spi_dma_lock, FuriWaitForever) == FuriStatusOk);

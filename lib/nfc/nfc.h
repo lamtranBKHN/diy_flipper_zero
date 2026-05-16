@@ -120,6 +120,7 @@ typedef enum {
     NfcErrorTimeout, /**< Operation is taking too long (e.g. card does not respond). */
     NfcErrorIncompleteFrame, /**< An incomplete data frame has been received. */
     NfcErrorDataFormat, /**< Data has not been parsed due to wrong/unknown format. */
+    NfcErrorBufferOverflow, /**< Receive buffer was too small for the received data. */
 } NfcError;
 
 /**

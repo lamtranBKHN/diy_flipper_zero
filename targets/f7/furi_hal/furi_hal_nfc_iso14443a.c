@@ -96,7 +96,6 @@ FuriHalNfcError
     return FuriHalNfcErrorNone;
 }
 
-#ifndef FURI_HAL_NFC_PN532_ONLY
 FuriHalNfcError furi_hal_nfc_iso14443a_listener_set_col_res_data(
     uint8_t* uid,
     uint8_t uid_len,
@@ -107,11 +106,10 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_set_col_res_data(
         UNUSED(uid_len);
         UNUSED(atqa);
         UNUSED(sak);
-        return FuriHalNfcErrorCommunication;
+        return FuriHalNfcErrorNone;
     }
     return FuriHalNfcErrorNone;
 }
-#endif
 
 FuriHalNfcError furi_hal_nfc_iso14443a_listener_tx(
     const FuriHalSpiBusHandle* handle,
@@ -127,9 +125,10 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_tx_custom_parity(
     const uint8_t* tx_data,
     const uint8_t* tx_parity,
     size_t tx_bits) {
-    UNUSED(tx_data);
     UNUSED(tx_parity);
-    UNUSED(tx_bits);
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_listener_tx(tx_data, tx_bits);
+    }
     return FuriHalNfcErrorNone;
 }
 

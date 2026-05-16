@@ -57,6 +57,22 @@ null.d
 # openocd output file
 openocd.log
 
+# Generated build artifacts (root-level)
+build_clean.txt
+build_final.txt
+build_output*.txt
+build.log
+server.log
+null
+inc_summary.py
+
+# Debug/test build scripts
+test_build.cmd
+test_build.py
+
+# Non-JS/TS project cruft
+tsconfig.json
+
 # PVS Studio temporary files
 .PVS-Studio/
 PVS-Studio.log
@@ -72,3 +88,24 @@ node_modules/
 # cli_perf script output in case of errors
 /block.bin
 /return_block.bin
+
+# Build artifacts in root
+build_clean.txt
+build_final.txt
+build_output*.txt
+build.log
+server.log
+null
+inc_summary.py
+
+# Temp build scripts
+test_build.cmd
+test_build.py
+
+# Unused config (not a TS project)
+tsconfig.json
+
+# Misc generated artifacts
+/graphify-out/
+/test_nfc/
+/free-claude-code/

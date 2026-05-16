@@ -6,7 +6,6 @@
 
 #define TAG "FuriHalSpiConfig"
 
-
 const LL_SPI_InitTypeDef furi_hal_spi_preset_2edge_low_8m = {
     .Mode = LL_SPI_MODE_MASTER,
     .TransferDirection = LL_SPI_FULL_DUPLEX,
@@ -132,7 +131,6 @@ static void furi_hal_spi_bus_event_callback(FuriHalSpiBus* bus, FuriHalSpiBusEve
         furi_hal_bus_disable(FuriHalBusSPI1);
     }
 }
-
 
 // The single SPI bus structure for SPI1, named furi_hal_spi_bus
 FuriHalSpiBus furi_hal_spi_bus = {
@@ -261,7 +259,7 @@ inline static void furi_hal_spi_bus_nfc_handle_event_callback(
  * @brief Generic event callback for standard SPI devices using SPI1 bus.
  */
 inline static void furi_hal_spi_bus_generic_handle_event_callback(
-        const FuriHalSpiBusHandle* handle,
+    const FuriHalSpiBusHandle* handle,
     FuriHalSpiBusHandleEvent event,
     const LL_SPI_InitTypeDef* preset) {
     if(event == FuriHalSpiBusHandleEventInit) {
@@ -305,7 +303,6 @@ inline static void furi_hal_spi_bus_generic_handle_event_callback(
         LL_SPI_Disable(handle->bus->spi);
     }
 }
-
 
 inline static void furi_hal_spi_bus_handle_event_callback(
     const FuriHalSpiBusHandle* handle,
@@ -446,7 +443,6 @@ const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external = {
     .sck = &gpio_spi_sck, // Use shared pin
     .cs = &gpio_ext_pb2, // Keep external CS off restored CC1101 CS on PA4
 };
-
 
 const FuriHalSpiBusHandle furi_hal_spi_bus_handle_external_extra = {
     .bus = &furi_hal_spi_bus,

@@ -38,7 +38,6 @@ void furi_hal_i2c_bus_reset(I2C_TypeDef* i2c) {
     furi_delay_us(10);
 }
 
-
 void furi_hal_i2c_init_early(void) {
     furi_hal_i2c_bus_power.callback(&furi_hal_i2c_bus_power, FuriHalI2cBusEventInit);
 }

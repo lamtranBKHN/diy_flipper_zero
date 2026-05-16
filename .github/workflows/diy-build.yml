@@ -1,0 +1,39 @@
+name: "DIY Build"
+
+on:
+  push:
+    branches:
+      - "**"
+      - "!release"
+    tags:
+      - "*"
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: "Build release firmware"
+        run: |
+          ./fbt TARGET_HW=7 DEBUG=0 COMPACT=1 copro_dist updater_package fap_dist
+
+      - name: "Check for uncommitted changes"
+        run: |
+          git diff --exit-code
+
+      - name: "Upload firmware artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware
+          path: |
+            dist/f7-C/flipper-z-f7-full-*.dfu
+            dist/f7-C/flipper-z-f7-update-*.tgz

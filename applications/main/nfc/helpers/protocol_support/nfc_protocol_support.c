@@ -117,6 +117,7 @@ const char* nfc_protocol_support_plugin_names[NfcProtocolNum] = {
     [NfcProtocolNtag4xx] = "ntag4xx",
     [NfcProtocolType4Tag] = "type_4_tag",
     [NfcProtocolEmv] = "emv",
+    [NfcProtocolSrix] = "srix",
     /* Add new protocol support plugin names here */
 };
 
@@ -127,22 +128,31 @@ void nfc_protocol_support_alloc(NfcProtocol protocol, void* context) {
 
     NfcProtocolSupport* protocol_support = malloc(sizeof(NfcProtocolSupport));
     protocol_support->protocol = protocol;
-
-    const char* protocol_name = nfc_protocol_support_plugin_names[protocol];
-    FuriString* plugin_path =
-        furi_string_alloc_printf(APP_ASSETS_PATH("plugins/nfc_%s.fal"), protocol_name);
-    FURI_LOG_D(TAG, "Loading %s", furi_string_get_cstr(plugin_path));
+    protocol_support->base = NULL;
+    protocol_support->plugin_manager = NULL;
 
     protocol_support->plugin_manager = plugin_manager_alloc(
         NFC_PROTOCOL_SUPPORT_PLUGIN_APP_ID,
         NFC_PROTOCOL_SUPPORT_PLUGIN_API_VERSION,
         composite_api_resolver_get(instance->api_resolver));
     do {
+        const char* protocol_name = nfc_protocol_support_plugin_names[protocol];
+        if(!protocol_name) {
+            FURI_LOG_W(TAG, "No support plugin registered for protocol %u", protocol);
+            break;
+        }
+
+        FuriString* plugin_path =
+            furi_string_alloc_printf(APP_ASSETS_PATH("plugins/nfc_%s.fal"), protocol_name);
+        FURI_LOG_D(TAG, "Loading %s", furi_string_get_cstr(plugin_path));
+
         if(plugin_manager_load_single(
                protocol_support->plugin_manager, furi_string_get_cstr(plugin_path)) !=
            PluginManagerErrorNone) {
+            furi_string_free(plugin_path);
             break;
         }
+        furi_string_free(plugin_path);
         const NfcProtocolSupportPlugin* plugin =
             plugin_manager_get_ep(protocol_support->plugin_manager, 0);
 
@@ -157,9 +167,6 @@ void nfc_protocol_support_alloc(NfcProtocol protocol, void* context) {
         plugin_manager_free(protocol_support->plugin_manager);
         protocol_support->plugin_manager = NULL;
     }
-
-    furi_string_free(plugin_path);
-
     instance->protocol_support = protocol_support;
 }
 
@@ -342,11 +349,17 @@ static bool nfc_protocol_support_scene_read_on_event(NfcApp* instance, SceneMana
                                ->scene_read.on_event(instance, event);
             }
         } else if(event.event == NfcCustomEventPollerFailure) {
-            nfc_poller_stop(instance->poller);
-            nfc_poller_free(instance->poller);
+            if(instance->poller) {
+                nfc_poller_free(instance->poller);
+                instance->poller = NULL;
+            }
             if(scene_manager_has_previous_scene(instance->scene_manager, NfcSceneDetect)) {
                 scene_manager_search_and_switch_to_previous_scene(
                     instance->scene_manager, NfcSceneDetect);
+            } else {
+                const uint32_t possible_scenes[] = {NfcSceneSelectProtocol, NfcSceneStart};
+                scene_manager_search_and_switch_to_previous_scene_one_of(
+                    instance->scene_manager, possible_scenes, COUNT_OF(possible_scenes));
             }
             consumed = true;
         } else if(event.event == NfcCustomEventCardDetected) {

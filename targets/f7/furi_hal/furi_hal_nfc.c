@@ -284,8 +284,7 @@ FuriHalNfcEvent furi_hal_nfc_poller_wait_event(uint32_t timeout_ms) {
 
 FuriHalNfcEvent furi_hal_nfc_listener_wait_event(uint32_t timeout_ms) {
     if(furi_hal_nfc_pn532_is_active()) {
-        UNUSED(timeout_ms);
-        return FuriHalNfcEventTimeout;
+        return furi_hal_nfc_pn532_listener_wait_event(timeout_ms);
     }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
@@ -298,8 +297,7 @@ FuriHalNfcError furi_hal_nfc_listener_tx(const uint8_t* tx_data, size_t tx_bits)
     furi_check(tx_data);
 
     if(furi_hal_nfc_pn532_is_active()) {
-        UNUSED(tx_bits);
-        return FuriHalNfcErrorCommunication;
+        return furi_hal_nfc_pn532_listener_tx(tx_data, tx_bits);
     }
 
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
@@ -334,8 +332,7 @@ FuriHalNfcError furi_hal_nfc_listener_rx(uint8_t* rx_data, size_t rx_data_size, 
     furi_check(rx_bits);
 
     if(furi_hal_nfc_pn532_is_active()) {
-        UNUSED(rx_data_size);
-        return FuriHalNfcErrorCommunication;
+        return furi_hal_nfc_pn532_listener_rx(rx_data, rx_data_size, rx_bits);
     }
 
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
@@ -355,7 +352,7 @@ FuriHalNfcError furi_hal_nfc_trx_reset(void) {
 
 FuriHalNfcError furi_hal_nfc_listener_sleep(void) {
     if(furi_hal_nfc_pn532_is_active()) {
-        return FuriHalNfcErrorCommunication;
+        return furi_hal_nfc_pn532_listener_sleep();
     }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
@@ -366,7 +363,7 @@ FuriHalNfcError furi_hal_nfc_listener_sleep(void) {
 
 FuriHalNfcError furi_hal_nfc_listener_idle(void) {
     if(furi_hal_nfc_pn532_is_active()) {
-        return FuriHalNfcErrorCommunication;
+        return furi_hal_nfc_pn532_listener_idle();
     }
     furi_check(furi_hal_nfc.mode == FuriHalNfcModeListener);
     furi_check(furi_hal_nfc.tech < FuriHalNfcTechNum);
@@ -377,9 +374,15 @@ FuriHalNfcError furi_hal_nfc_listener_idle(void) {
 
 FuriHalNfcError furi_hal_nfc_listener_enable_rx(void) {
     if(furi_hal_nfc_pn532_is_active()) {
-        return FuriHalNfcErrorCommunication;
+        return furi_hal_nfc_pn532_listener_enable_rx();
     }
     return FuriHalNfcErrorCommunication;
+}
+
+void furi_hal_nfc_mf_auth_key_store(const uint8_t* key, uint8_t key_type) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        furi_hal_nfc_pn532_mf_key_store(key, key_type);
+    }
 }
 
 FuriHalNfcError furi_hal_nfc_common_listener_rx_start(const FuriHalSpiBusHandle* handle) {

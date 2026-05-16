@@ -9,7 +9,6 @@
 
 // Legacy/debug GPIOs removed: keep main pin definitions only.
 
-
 const GpioPin gpio_swdio = {.port = GPIOA, .pin = LL_GPIO_PIN_13};
 const GpioPin gpio_swclk = {.port = GPIOA, .pin = LL_GPIO_PIN_14};
 
@@ -66,7 +65,6 @@ const GpioPin gpio_i2c_1_scl = {.port = I2C_1_SCL_GPIO_Port, .pin = I2C_1_SCL_Pi
 
 const GpioPin gpio_i2c_3_sda = {.port = I2C_3_SDA_GPIO_Port, .pin = I2C_3_SDA_Pin};
 const GpioPin gpio_i2c_3_scl = {.port = I2C_3_SCL_GPIO_Port, .pin = I2C_3_SCL_Pin};
-
 
 const GpioPin gpio_speaker = {.port = SPEAKER_GPIO_Port, .pin = SPEAKER_Pin};
 
@@ -178,7 +176,6 @@ const InputPin input_pins[] = {
     {.gpio = NULL, .key = InputKeyBack, .inverted = true, .name = "Back"},
 };
 
-
 const size_t input_pins_count = COUNT_OF(input_pins);
 
 // static void furi_hal_resources_init_input_pins(GpioMode mode) {
@@ -258,14 +255,12 @@ void furi_hal_resources_deinit_early(void) {
 }
 
 void furi_hal_resources_init(void) {
-
-    
-   furi_hal_gpio_init(&gpio_ibutton, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
+    furi_hal_gpio_init(&gpio_ibutton, GpioModeAnalog, GpioPullNo, GpioSpeedLow);
 
     // furi_hal_gpio_init(&gpio_nfc_irq_rfid_pull, GpioModeInterruptRiseFall, GpioPullUp, GpioSpeedLow);
     // FURI_LOG_T(TAG, "IRQ4");
 
-  //  furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
+    //  furi_hal_gpio_init(&gpio_rf_sw_0, GpioModeOutputPushPull, GpioPullNo, GpioSpeedLow);
 
     NVIC_SetPriority(EXTI0_IRQn, NVIC_EncodePriority(NVIC_GetPriorityGrouping(), 5, 0));
     NVIC_EnableIRQ(EXTI0_IRQn);

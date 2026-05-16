@@ -144,6 +144,25 @@ MfUltralightError mf_ultralight_poller_read_page(
     MfUltralightPageReadCommandData* data);
 
 /**
+ * @brief Fast read multiple consecutive pages (NTAG21x FAST_READ command).
+ *
+ * Must ONLY be used inside the callback function.
+ * Uses the FAST_READ (0x3A) command which reads up to 4 consecutive pages
+ * in a single transaction. Falls back gracefully on cards that don't support it.
+ *
+ * @param[in, out] instance pointer to the instance to be used in the transaction.
+ * @param[in] start_page first page to read.
+ * @param[in] count number of pages to read (1-4).
+ * @param[out] data pointer to the MfUltralightPageReadCommandData structure to be filled.
+ * @return MfUltralightErrorNone on success, an error code on failure.
+ */
+MfUltralightError mf_ultralight_poller_fast_read_pages(
+    MfUltralightPoller* instance,
+    uint8_t start_page,
+    uint8_t count,
+    MfUltralightPageReadCommandData* data);
+
+/**
  * @brief Read page from sector.
  *
  * Must ONLY be used inside the callback function.

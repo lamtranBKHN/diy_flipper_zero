@@ -75,7 +75,10 @@ bool mf_user_dict_delete_key(MfUserDict* instance, uint32_t index) {
 
     if(key_delete_success) {
         instance->keys_num--;
-        memmove(&instance->keys_arr[index], &instance->keys_arr[index + 1], (instance->keys_num - index) * sizeof(MfClassicKey));
+        memmove(
+            &instance->keys_arr[index],
+            &instance->keys_arr[index + 1],
+            (instance->keys_num - index) * sizeof(MfClassicKey));
     }
 
     return key_delete_success;
