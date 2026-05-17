@@ -165,9 +165,12 @@ static int32_t subghz_tx_rx_worker_thread(void* context) {
                     SUBGHZ_TXRX_WORKER_TIMEOUT_READ_WRITE_BUF);
                 subghz_tx_rx_worker_tx(instance, data, SUBGHZ_TXRX_WORKER_MAX_TXRX_SIZE);
             } else {
-                //TODO FL-3554: checking that it managed to write all the data to the TX buffer
-                furi_stream_buffer_receive(
+                size_t received = furi_stream_buffer_receive(
                     instance->stream_tx, &data, size_tx, SUBGHZ_TXRX_WORKER_TIMEOUT_READ_WRITE_BUF);
+                if(received < size_tx) {
+                    FURI_LOG_W(TAG, "TX short read: got %zu, expected %zu", received, size_tx);
+                    memset(data + received, 0, size_tx - received);
+                }
                 subghz_tx_rx_worker_tx(instance, data, size_tx);
             }
         } else {
@@ -178,18 +181,22 @@ static int32_t subghz_tx_rx_worker_thread(void* context) {
                        furi_stream_buffer_bytes_available(instance->stream_rx) == 0) {
                         callback_rx = true;
                     }
-                    //TODO FL-3554: checking that it managed to write all the data to the RX buffer
-                    furi_stream_buffer_send(
+                    size_t sent = furi_stream_buffer_send(
                         instance->stream_rx,
                         &data,
                         size_rx[0],
                         SUBGHZ_TXRX_WORKER_TIMEOUT_READ_WRITE_BUF);
+                    if(sent < size_rx[0]) {
+                        FURI_LOG_W(TAG, "RX short write: sent %zu, expected %d", sent, size_rx[0]);
+                    }
                     if(callback_rx) {
                         instance->callback_have_read(instance->context_have_read);
                         callback_rx = false;
                     }
                 } else {
-                    //TODO FL-3555: RX buffer overflow
+                    FURI_LOG_W(TAG, "RX buffer overflow: need %d bytes, available %zu",
+                        size_rx[0],
+                        furi_stream_buffer_spaces_available(instance->stream_rx));
                 }
             }
         }
