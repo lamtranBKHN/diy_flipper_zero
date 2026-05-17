@@ -27,6 +27,10 @@ jobs:
       fail-fast: false
       matrix:
         target: [f7]
+        config:
+          - app_set: ""
+          - app_set: "FIRMWARE_APP_SET=unit_tests"
+    # Ignore the unit_tests config for artifact and comment steps
     steps:
       - name: "Checkout code"
         uses: actions/checkout@v4
@@ -52,6 +56,8 @@ jobs:
           echo "TARGET_HW=$(echo "${{ matrix.target }}" | sed 's/f//')" >> $GITHUB_ENV
 
       - name: "Check API versions for consistency between targets"
+        # NOTE: only targets/f7/ exists currently, so this is a no-op
+        # Preserved for future multi-target support
         run: |
           set -e
           N_API_HEADER_SIGNATURES=`ls -1 targets/f*/api_symbols.csv | xargs -I {} sh -c "head -n2 {} | md5sum" | sort -u | wc -l`
@@ -72,7 +78,7 @@ jobs:
             echo API versions aren\'t matching OFW release channel. Please update!
             echo API versions are:
             echo "Official: $(tail -n1 <<< "$ofw_api")"
-            echo "Momentum: $(tail -n1 <<< "$our_api")"
+            echo "DIY: $(tail -n1 <<< "$our_api")"
             exit 1
           fi
 
@@ -105,14 +111,18 @@ jobs:
       - name: "Build the firmware and apps"
         id: build-fw
         run: |
-          ./fbt TARGET_HW=$TARGET_HW $FBT_BUILD_TYPE copro_dist updater_package fap_dist
-          echo "firmware_api=$(./fbt TARGET_HW=$TARGET_HW get_apiversion)" >> $GITHUB_OUTPUT
+          ./fbt TARGET_HW=$TARGET_HW $FBT_BUILD_TYPE ${{ matrix.config.app_set }} copro_dist updater_package fap_dist
+          if [ "${{ matrix.config.app_set }}" = "" ]; then
+            echo "firmware_api=$(./fbt TARGET_HW=$TARGET_HW get_apiversion)" >> $GITHUB_OUTPUT
+          fi
 
       - name: "Check for uncommitted changes"
+        if: ${{ matrix.config.app_set == '' }}
         run: |
           git diff --exit-code
 
       - name: "Upload artifacts to GitHub"
+        if: ${{ matrix.config.app_set == '' }}
         uses: actions/upload-artifact@v4
         with:
           path: |
@@ -120,7 +130,7 @@ jobs:
             dist/${{ env.TARGET }}-*/flipper-z-${{ env.TARGET }}-sdk-*
 
       - name: "Copy build output"
-        if: ${{ env.SHOULD_UPLOAD == 'true' }}
+        if: ${{ env.SHOULD_UPLOAD == 'true' && matrix.config.app_set == '' }}
         run: |
           set -e
           rm -rf artifacts || true
@@ -136,13 +146,13 @@ jobs:
           echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
 
       - name: "Copy universal artifacts"
-        if: ${{ env.SHOULD_UPLOAD == 'true' }}
+        if: ${{ env.SHOULD_UPLOAD == 'true' && matrix.config.app_set == '' }}
         run: |
           tar czpf "artifacts/flipper-z-any-scripts-${SUFFIX}.tgz" scripts
           cp build/core2_firmware.tgz "artifacts/flipper-z-any-core2_firmware-${SUFFIX}.tgz"
 
       - name: "Upload artifacts to update server"
-        if: ${{ env.SHOULD_UPLOAD == 'true' }}
+        if: ${{ env.SHOULD_UPLOAD == 'true' && matrix.config.app_set == '' }}
         run: |
           curl "${{ secrets.INDEXER_URL }}"/firmware/directory.json > previndex.json
           FILES=$(for ARTIFACT in $(find artifacts -maxdepth 1 -not -type d); do echo "-F files=@${ARTIFACT}"; done)
@@ -153,7 +163,7 @@ jobs:
               "${{ secrets.INDEXER_URL }}"/firmware/uploadfiles
 
       - name: "Force deploy website to refresh devbuilds"
-        if: ${{ env.SHOULD_DEPLOY == 'true' }}
+        if: ${{ env.SHOULD_DEPLOY == 'true' && matrix.config.app_set == '' }}
         uses: Codex-/return-dispatch@v2
         id: force-deploy
         with:
@@ -166,7 +176,7 @@ jobs:
           workflow_job_steps_retry_seconds: 5
 
       - name: "Calculate DFU sizes"
-        if: ${{ env.SHOULD_PRBUILD == 'true' }}
+        if: ${{ env.SHOULD_PRBUILD == 'true' && matrix.config.app_set == '' }}
         run: |
           curl -L "${{ secrets.INDEXER_URL }}"/firmware/development/f7/full_dfu -o dev.dfu
           dfu_size_new=$(du --apparent-size -B 1 artifacts/flipper-z-${TARGET}-full-*.dfu | cut -f1)
@@ -189,7 +199,7 @@ jobs:
           echo "FLASH_USABLE=$FLASH_USABLE" >> $GITHUB_ENV
 
       - name: "Find previous comment"
-        if: ${{ env.SHOULD_PRBUILD == 'true' }}
+        if: ${{ env.SHOULD_PRBUILD == 'true' && matrix.config.app_set == '' }}
         uses: peter-evans/find-comment@v3
         id: find-comment
         with:
@@ -198,7 +208,7 @@ jobs:
           body-includes: "Compiled ${{ matrix.target }} firmware for commit"
 
       - name: "Wait for deploy (Run ID ${{ steps.force-deploy.outputs.run_id }})"
-        if: ${{ env.SHOULD_DEPLOY == 'true' }}
+        if: ${{ env.SHOULD_DEPLOY == 'true' && matrix.config.app_set == '' }}
         uses: Codex-/await-remote-run@v1
         with:
           token: ${{ github.token }}
@@ -209,7 +219,7 @@ jobs:
           poll_interval_ms: 5000
 
       - name: "Create or update comment"
-        if: ${{ env.SHOULD_PRBUILD == 'true' }}
+        if: ${{ env.SHOULD_PRBUILD == 'true' && matrix.config.app_set == '' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.find-comment.outputs.comment-id }}
@@ -217,7 +227,7 @@ jobs:
           body: |
             **Compiled ${{ matrix.target }} firmware for commit `${{steps.names.outputs.commit_sha}}`:**
             - [🖥️ Web Updater](https://momentum-fw.dev/update?branch=${{steps.names.outputs.branch_name_urlencoded}})
-            - [☁️ Flipper Lab/App](https://lab.flipper.net/?url=${{secrets.INDEXER_URL}}/builds/firmware/${{steps.names.outputs.branch_name}}/flipper-z-${{steps.names.outputs.default_target}}-update-${{steps.names.outputs.suffix}}.tgz&channel=mntm-${{steps.names.outputs.branch_name}}&version=${{steps.names.outputs.commit_sha}})
+            - [☁️ Flipper Lab/App](https://lab.flipper.net/?url=${{secrets.INDEXER_URL}}/builds/firmware/${{steps.names.outputs.branch_name}}/flipper-z-${{steps.names.outputs.default_target}}-update-${{steps.names.outputs.suffix}}.tgz&channel=dev-${{steps.names.outputs.branch_name}}&version=${{steps.names.outputs.commit_sha}})
             - [📦 qFlipper Package](${{secrets.INDEXER_URL}}/builds/firmware/${{steps.names.outputs.branch_name}}/flipper-z-${{steps.names.outputs.default_target}}-update-${{steps.names.outputs.suffix}}.tgz)
             - DFU Size: `${{ env.DFU_SIZE }}` (`${{ env.DFU_DIFF }}` from dev)
             - Free Flash: `${{ env.FLASH_FREE }}` (`${{ env.FLASH_USABLE }}` usable)
@@ -227,6 +237,6 @@ jobs:
         env:
           INDEXER_URL: ${{ secrets.INDEXER_URL }}
           BUILD_WEBHOOK: ${{ secrets.BUILD_WEBHOOK }}
-        if: ${{ env.SHOULD_DEVBUILD == 'true' }}
+        if: ${{ env.SHOULD_DEVBUILD == 'true' && matrix.config.app_set == '' }}
         run: |
           python .github/workflow_data/devbuild.py
