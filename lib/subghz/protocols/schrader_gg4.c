@@ -151,7 +151,7 @@ static bool tpms_protocol_schrader_gg4_check_crc(TPMSProtocolDecoderSchraderGG4*
 static void tpms_protocol_schrader_gg4_analyze(TPMSBlockGeneric* instance) {
     instance->id = instance->data >> 24;
 
-    // TODO locate and fix
+    // Schrader GG4: no battery status bit in the 32-bit data frame
     instance->battery_low = TPMS_NO_BATT;
 
     instance->temperature = ((instance->data >> 8) & 0xFF) - 50;

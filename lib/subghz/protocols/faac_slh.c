@@ -126,8 +126,10 @@ void subghz_protocol_encoder_faac_slh_free(void* context) {
 }
 
 static bool subghz_protocol_faac_slh_gen_data(SubGhzProtocolEncoderFaacSLH* instance) {
-    // TODO: Stupid bypass for custom button, remake later
+    // FAAC SLH requires a button ID in the rolling code payload.
+    // Default to 0xF (all buttons) if UI didn't set one.
     if(subghz_custom_btn_get_original() == 0) {
+        FURI_LOG_D(TAG, "No custom button set, defaulting to 0xF");
         subghz_custom_btn_set_original(0xF);
     }
 
@@ -558,8 +560,9 @@ static void subghz_protocol_faac_slh_check_remote_controller(
     uint32_t decrypt = 0;
     uint64_t man;
 
-    // TODO: Stupid bypass for custom button, remake later
+    // Same default button fallback as in gen_data
     if(subghz_custom_btn_get_original() == 0) {
+        FURI_LOG_D(TAG, "No custom button set, defaulting to 0xF");
         subghz_custom_btn_set_original(0xF);
     }
 

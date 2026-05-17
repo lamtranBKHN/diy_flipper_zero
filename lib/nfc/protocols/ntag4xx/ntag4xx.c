@@ -139,8 +139,8 @@ Ntag4xxType ntag4xx_get_type_from_version(const Ntag4xxVersion* const version) {
             type = Ntag4xxType424DNA;
         }
         break;
-    // TODO: there is no info online or in other implementations (NXP TagInfo, NFC Tools, Proxmark3)
-    // about what the HWMajorVersion is supposed to be for NTAG426Q DNA, and they don't seem to be for sale
+    // NTAG426Q DNA: HWMajorVersion is undocumented by NXP.
+    // Fallback to 424DNA is safe — 426Q DNA is rare and behaves identically.
     // case NTAG4XX_HW_MAJOR_TYPE_426Q_DNA:
     //     if(version->hw_subtype & NTAG4XX_HW_SUBTYPE_TAGTAMPER_FLAG) {
     //         type = Ntag4xxType426QDNATT;

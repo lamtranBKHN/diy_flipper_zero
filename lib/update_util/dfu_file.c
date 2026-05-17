@@ -6,6 +6,7 @@
 #define VALID_WHOLE_FILE_CRC 0xFFFFFFFF
 #define DFU_SUFFIX_VERSION   0x011A
 #define DFU_SIGNATURE        "DfuSe"
+#define TAG                  "DfuFile"
 
 bool dfu_file_validate_crc(File* dfuf, const DfuPageTaskProgressCb progress_cb, void* context) {
     uint32_t file_crc = crc32_calc_file(dfuf, progress_cb, context);
@@ -55,7 +56,11 @@ uint8_t dfu_file_validate_headers(File* dfuf, const DfuValidationParams* referen
     if((dfu_suffix.bLength != sizeof(DfuSuffix)) || (dfu_suffix.bcdDFU != DFU_SUFFIX_VERSION)) {
         return 0;
     }
-    /* TODO FL-3561: check DfuSignature?.. */
+    if(dfu_suffix.ucDfuSignature_U != 'U' || dfu_suffix.ucDfuSignature_F != 'F' ||
+       dfu_suffix.ucDfuSignature_D != 'D') {
+        FURI_LOG_E(TAG, "Invalid DFU suffix signature");
+        return 0;
+    }
 
     if((dfu_suffix.idVendor != reference_params->vendor) ||
        (dfu_suffix.idProduct != reference_params->product) ||

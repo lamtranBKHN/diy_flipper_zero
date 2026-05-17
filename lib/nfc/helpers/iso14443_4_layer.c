@@ -190,7 +190,12 @@ Iso14443_4aError iso14443_4_layer_decode_response_pwt_ext(
             }
             break;
         case ISO14443_4_BLOCK_PCB_R_:
-            // TODO
+            // R-block during PWT extension: ACK = continue, NACK = retransmit
+            if(pcb_field & ISO14443_4_BLOCK_PCB_R_NACK_MASK) {
+                ret = Iso14443_4aErrorSendExtra;
+            } else {
+                ret = Iso14443_4aErrorNone;
+            }
             break;
         case ISO14443_4_BLOCK_PCB_S:
             if((pcb_field & ISO14443_4_BLOCK_PCB_S_WTX) == ISO14443_4_BLOCK_PCB_S_WTX) {

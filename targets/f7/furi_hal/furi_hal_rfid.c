@@ -38,14 +38,6 @@
 
 #define FURI_HAL_RFID_FIELD_DMAMUX_DMA LL_DMAMUX_REQ_TIM1_UP
 
-/* DMA Channels definition */
-#define RFID_DMA             DMA2
-#define RFID_DMA_CH1_CHANNEL LL_DMA_CHANNEL_1
-#define RFID_DMA_CH2_CHANNEL LL_DMA_CHANNEL_2
-#define RFID_DMA_CH1_IRQ     FuriHalInterruptIdDma2Ch1
-#define RFID_DMA_CH1_DEF     RFID_DMA, RFID_DMA_CH1_CHANNEL
-#define RFID_DMA_CH2_DEF     RFID_DMA, RFID_DMA_CH2_CHANNEL
-
 typedef struct {
     uint32_t counter;
     uint32_t set_tim_counter_cnt;
@@ -318,23 +310,6 @@ void furi_hal_rfid_tim_read_capture_stop(void) {
     // furi_hal_interrupt_set_isr(FURI_HAL_RFID_EMULATE_TIMER_IRQ, NULL, NULL);
     // furi_hal_bus_disable(RFID_CAPTURE_TIM_BUS);
 }
-
-// static void furi_hal_rfid_dma_isr(void* context) {
-//     UNUSED(context);
-// // #if RFID_DMA_CH1_CHANNEL == LL_DMA_CHANNEL_1
-// //     if(LL_DMA_IsActiveFlag_HT1(RFID_DMA)) {
-// //         LL_DMA_ClearFlag_HT1(RFID_DMA);
-// //         furi_hal_rfid->dma_callback(true, furi_hal_rfid->context);
-// //     }
-
-// //     if(LL_DMA_IsActiveFlag_TC1(RFID_DMA)) {
-// //         LL_DMA_ClearFlag_TC1(RFID_DMA);
-// //         furi_hal_rfid->dma_callback(false, furi_hal_rfid->context);
-// //     }
-// // #else
-// // #error Update this code. Would you kindly?
-// // #endif
-// }
 
 void furi_hal_rfid_tim_emulate_dma_start(
     uint32_t* duration,

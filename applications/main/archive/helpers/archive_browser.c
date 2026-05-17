@@ -7,6 +7,68 @@
 #include <core/log.h>
 #include <gui/modules/file_browser_worker.h>
 #include <flipper_application/flipper_application.h>
+#include <furi.h>
+
+#define FAP_CACHE_SIZE   64
+#define FAP_CACHE_TTL_MS 5000
+
+typedef struct {
+    char path[256];
+    char name[64];
+    uint8_t icon[FAP_MANIFEST_MAX_ICON_SIZE];
+    uint32_t cached_at;
+    bool valid;
+} FapCacheEntry;
+
+typedef struct {
+    FapCacheEntry entries[FAP_CACHE_SIZE];
+    uint32_t count;
+    uint32_t last_dir_at;
+} FapCache;
+
+static FapCache fap_cache = {0};
+
+static bool fap_cache_get(const char* path, FapCacheEntry* out) {
+    for(uint32_t i = 0; i < fap_cache.count; i++) {
+        if(strcmp(fap_cache.entries[i].path, path) == 0) {
+            if(fap_cache.entries[i].valid &&
+               (furi_get_tick() - fap_cache.entries[i].cached_at < FAP_CACHE_TTL_MS)) {
+                *out = fap_cache.entries[i];
+                return true;
+            }
+            fap_cache.entries[i].valid = false;
+            return false;
+        }
+    }
+    return false;
+}
+
+static void fap_cache_set(const char* path, const char* name, const uint8_t* icon) {
+    uint32_t slot = fap_cache.count;
+    if(slot >= FAP_CACHE_SIZE) {
+        uint32_t oldest_tick = furi_get_tick();
+        for(uint32_t i = 0; i < FAP_CACHE_SIZE; i++) {
+            if(fap_cache.entries[i].cached_at < oldest_tick) {
+                oldest_tick = fap_cache.entries[i].cached_at;
+                slot = i;
+            }
+        }
+    } else {
+        fap_cache.count++;
+    }
+    FapCacheEntry* e = &fap_cache.entries[slot];
+    strncpy(e->path, path, sizeof(e->path) - 1);
+    e->path[sizeof(e->path) - 1] = '\0';
+    strncpy(e->name, name, sizeof(e->name) - 1);
+    e->name[sizeof(e->name) - 1] = '\0';
+    memcpy(e->icon, icon, FAP_MANIFEST_MAX_ICON_SIZE);
+    e->cached_at = furi_get_tick();
+    e->valid = true;
+}
+
+static void fap_cache_flush(void) {
+    fap_cache.count = 0;
+}
 
 static void
     archive_folder_open_cb(void* context, uint32_t item_cnt, int32_t file_idx, bool is_root) {
@@ -46,6 +108,7 @@ static void
 static void archive_list_load_cb(void* context, uint32_t list_load_offset) {
     furi_assert(context);
     ArchiveBrowserView* browser = (ArchiveBrowserView*)context;
+    fap_cache_flush();
 
     with_view_model(
         browser->view,
@@ -436,12 +499,19 @@ void archive_add_app_item(ArchiveBrowserView* browser, const char* name) {
 }
 
 static bool archive_get_fap_meta(FuriString* file_path, FuriString* fap_name, uint8_t** icon_ptr) {
-    Storage* storage = furi_record_open(RECORD_STORAGE);
-    bool success = false;
-    if(flipper_application_load_name_and_icon(file_path, storage, icon_ptr, fap_name)) {
-        success = true;
+    FapCacheEntry entry;
+    const char* path_str = furi_string_get_cstr(file_path);
+    if(fap_cache_get(path_str, &entry)) {
+        furi_string_set(fap_name, entry.name);
+        memcpy(*icon_ptr, entry.icon, FAP_MANIFEST_MAX_ICON_SIZE);
+        return true;
     }
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    bool success = flipper_application_load_name_and_icon(file_path, storage, icon_ptr, fap_name);
     furi_record_close(RECORD_STORAGE);
+    if(success) {
+        fap_cache_set(path_str, furi_string_get_cstr(fap_name), *icon_ptr);
+    }
     return success;
 }
 

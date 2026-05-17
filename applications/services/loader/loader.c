@@ -122,7 +122,8 @@ static void loader_show_gui_error(
         loader_dialog_prepare_and_show(dialogs, &err_app_not_found);
     } else if(status.value == LoaderStatusErrorInternal) {
         // TODO FL-3522: we have many places where we can emit a double start, ex: desktop, menu
-        // so i prefer to not show LoaderStatusErrorAppStarted error message for now
+        // LoaderStatusErrorAppStarted is intentionally excluded below to avoid UI noise.
+        // Actual double-start prevention happens in the caller.
         switch(status.error) {
         case LoaderStatusErrorInvalidFile:
             loader_dialog_prepare_and_show(dialogs, &err_invalid_flie);

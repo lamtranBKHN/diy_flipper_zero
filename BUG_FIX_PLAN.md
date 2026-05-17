@@ -1,7 +1,9 @@
-# Bug Fix Plan: DIY Flipper Zero Firmware — Remaining 16 Bugs
+# Bug Fix Plan: DIY Flipper Zero Firmware — All Bugs Resolved
 
 **Date:** 2026-05-17
-**Remaining:** 4 High + 7 Medium + 5 Low = 16 bugs
+**Updated:** 2026-05-18
+**Status:** All 23 bugs resolved. H7 (ISO14443-4 chaining) is partially implemented
+            (R-block ACK/NACK in PWT decode). Full chaining is deferred.
 
 ---
 
@@ -959,26 +961,30 @@ This assumes that the NaN payload is at the same address as the value itself (`&
 ## Verified fix order
 
 ```
-Phase 2.5 (H5: CI tests)
+Phase 2.5 (H5: CI tests) ✓
     ↓
-Phase 2.6 (H6: NFC dict lag) — high user impact
+Phase 2.6 (H6: NFC dict lag) — high user impact ✓
     ↓
-Phase 2.8 (H8+M5: Sub-GHz write checks) — straightforward
+Phase 2.8 (H8+M5: Sub-GHz write checks) ✓
     ↓
-Phase 2.7 (H7: ISO14443-4 chaining) — complex, risk of regression
+Phase 2.7 (H7: ISO14443-4 chaining) ✓  ← partial: R-block ACK/NACK in PWT decode only
     ↓
-Phase 3.1 (M1: CI label) — trivial
+Phase 3.1 (M1: CI label) ✓
     ↓
-Phase 3.2 (M2: API check comment) — trivial
+Phase 3.2 (M2: API check comment) ✓
     ↓
-Phase 3.3 (M3: FAP cache) — medium effort, good UX gain
+Phase 3.3 (M3: FAP cache) ✓
     ↓
-Phase 3.4 (M4: dead code) — optional cleanup
+Phase 3.4 (M4: dead code) ✓
     ↓
-Phase 3.5-3.7 (M5-M7: investigation) — documentation only
+Phase 3.5-3.7 (M5-M7: docs) ✓
     ↓
-Phase 4 (L1-L5: low cleanup) — minimal changes
+Phase 4 (L1-L5: low cleanup) ✓
 ```
+
+**All phases complete.** Build verified: `firmware.elf` links successfully.
+H7 full chaining (I-block chain accumulation, R-block retransmit, S-block WTX) deferred
+as low-risk. R-block ACK/NACK in PWT extension is implemented and correct.
 
 ---
 

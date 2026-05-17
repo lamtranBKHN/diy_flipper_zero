@@ -35,8 +35,12 @@ MJS_PRIVATE void embed_string(
     size_t len,
     uint8_t /*enum embstr_flags*/ flags);
 
-/* TODO(lsm): NaN payload location depends on endianness, make crossplatform */
+/* NaN payload location depends on endianness */
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define GET_VAL_NAN_PAYLOAD(v) ((char*)&(v) + 4)
+#else
 #define GET_VAL_NAN_PAYLOAD(v) ((char*)&(v))
+#endif
 
 int mjs_is_string(mjs_val_t v) {
     uint64_t t = v & MJS_TAG_MASK;
