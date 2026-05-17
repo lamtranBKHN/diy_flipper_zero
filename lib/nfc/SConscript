@@ -71,6 +71,7 @@ env.Append(
         File("helpers/nfc_data_generator.h"),
         File("helpers/crypto1.h"),
         File("helpers/ndef.h"),
+        File("helpers/ndef_write.h"),
         # P2P
         File("p2p/llcp.h"),
         File("p2p/snep.h"),

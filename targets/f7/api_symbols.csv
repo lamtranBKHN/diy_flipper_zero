@@ -140,6 +140,7 @@ Header,+,lib/nfc/helpers/felica_crc.h,,
 Header,+,lib/nfc/helpers/iso13239_crc.h,,
 Header,+,lib/nfc/helpers/iso14443_crc.h,,
 Header,+,lib/nfc/helpers/ndef.h,,
+Header,+,lib/nfc/helpers/ndef_write.h,,
 Header,+,lib/nfc/helpers/nfc_data_generator.h,,
 Header,+,lib/nfc/helpers/nfc_util.h,,
 Header,+,lib/nfc/nfc.h,,
@@ -3051,6 +3052,8 @@ Function,+,ndef_extract_url,_Bool,"const NdefMessage*, char*, size_t"
 Function,+,ndef_find_tlv,_Bool,"const uint8_t*, size_t, size_t*, size_t*"
 Function,+,ndef_message_clear,void,NdefMessage*
 Function,+,ndef_parse,_Bool,"const uint8_t*, size_t, NdefMessage*"
+Function,+,ndef_write_classic,MfClassicError,"Nfc*, const NdefWriteContext*, const uint8_t[6], MfClassicKeyType"
+Function,+,ndef_write_ultralight,MfUltralightError,"Nfc*, const NdefWriteContext*"
 Function,-,nearbyint,double,double
 Function,-,nearbyintf,float,float
 Function,-,nearbyintl,long double,long double

@@ -39,7 +39,10 @@ struct LoaderMenu {
     LoaderMenuView current_view;
     bool settings_only;
 
-    /* Cache for .mainmenu_apps.txt - TODO: implement proper caching */
+    /* Cache for .mainmenu_apps.txt (IMP-1)
+     * cached_menu_content holds the raw file text.
+     * cache_timestamp is the furi_get_tick() value at read time.
+     * cache_valid is false until the first successful SD read. */
     FuriString* cached_menu_content;
     uint32_t cache_timestamp;
     bool cache_valid;
@@ -303,6 +306,11 @@ static void loader_menu_find_add_app(LoaderMenuApp* app, Storage* storage, FuriS
     }
 }
 
+/* IMP-1: Cache TTL in milliseconds. After this period the SD file is re-read.
+ * 30 seconds is long enough to survive repeated app launches and NFC scans,
+ * but short enough to pick up user edits to .mainmenu_apps.txt. */
+#define MENU_CACHE_TTL_MS 30000U
+
 static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
     menu_add_item(
         app->primary_menu,
@@ -313,40 +321,100 @@ static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
         NULL);
 
     MenuAppList_init(app->apps_list);
-    Storage* storage = furi_record_open(RECORD_STORAGE);
-    Stream* stream = file_stream_alloc(storage);
-    FuriString* line = furi_string_alloc();
-    uint32_t version;
-    if(file_stream_open(stream, MAINMENU_APPS_PATH, FSAM_READ, FSOM_OPEN_EXISTING) &&
-       stream_read_line(stream, line) &&
-       sscanf(furi_string_get_cstr(line), "MenuAppList Version %lu", &version) == 1 &&
-       version <= 1) {
-        while(stream_read_line(stream, line)) {
-            furi_string_trim(line);
-            if(version == 0) {
-                if(furi_string_equal(line, "RFID")) {
-                    furi_string_set(line, "125 kHz RFID");
-                } else if(furi_string_equal(line, "SubGHz")) {
-                    furi_string_set(line, "Sub-GHz");
-                } else if(furi_string_equal(line, "Xtreme")) {
-                    furi_string_set(line, "Momentum");
+
+    /* IMP-1: Use cached menu content if it is still fresh */
+    bool use_cached = menu->cache_valid &&
+                      (furi_get_tick() - menu->cache_timestamp) < MENU_CACHE_TTL_MS;
+
+    FuriString* file_content = NULL;
+    if(!use_cached) {
+        /* Read the file from SD and populate the cache */
+        Storage* storage = furi_record_open(RECORD_STORAGE);
+        Stream* stream = file_stream_alloc(storage);
+        bool file_ok = file_stream_open(stream, MAINMENU_APPS_PATH, FSAM_READ, FSOM_OPEN_EXISTING);
+        if(file_ok) {
+            /* Slurp entire file into a single FuriString */
+            if(menu->cached_menu_content) {
+                furi_string_reset(menu->cached_menu_content);
+            } else {
+                menu->cached_menu_content = furi_string_alloc();
+            }
+            FuriString* tmp = furi_string_alloc();
+            while(stream_read_line(stream, tmp)) {
+                furi_string_cat(menu->cached_menu_content, tmp);
+                /* Ensure each line ends with \n so line-by-line replay works */
+                if(!furi_string_end_with(menu->cached_menu_content, "\n")) {
+                    furi_string_cat_str(menu->cached_menu_content, "\n");
                 }
             }
-            loader_menu_find_add_app(app, storage, line);
+            furi_string_free(tmp);
+            menu->cache_timestamp = furi_get_tick();
+            menu->cache_valid = true;
+            file_content = menu->cached_menu_content;
         }
+        stream_free(stream);
+        furi_record_close(RECORD_STORAGE);
     } else {
+        file_content = menu->cached_menu_content;
+        FURI_LOG_D(TAG, "Using cached menu content (age=%lums)",
+                   furi_get_tick() - menu->cache_timestamp);
+    }
+
+    if(file_content && !furi_string_empty(file_content)) {
+        /* Replay lines from the cached C string directly — no extra allocation.
+         * Walk the raw pointer with strchr/strnlen to find line boundaries. */
+        Storage* storage = furi_record_open(RECORD_STORAGE);
+        FuriString* line = furi_string_alloc();
+        uint32_t version = 0;
+        const char* cstr = furi_string_get_cstr(file_content);
+
+        /* Parse version header from the first line */
+        const char* nl = strchr(cstr, '\n');
+        const size_t hdr_len = nl ? (size_t)(nl - cstr) : strlen(cstr);
+        bool version_ok = false;
+        /* sscanf on a non-NUL-terminated substring: copy just the header */
+        if(hdr_len > 0 && hdr_len < 64) {
+            char hdr_buf[64];
+            memcpy(hdr_buf, cstr, hdr_len);
+            hdr_buf[hdr_len] = '\0';
+            version_ok = (sscanf(hdr_buf, "MenuAppList Version %lu", &version) == 1 &&
+                          version <= 1);
+        }
+
+        if(version_ok) {
+            /* Walk remaining lines */
+            const char* p = nl ? nl + 1 : cstr + hdr_len;
+            while(*p) {
+                const char* eol = strchr(p, '\n');
+                const size_t len = eol ? (size_t)(eol - p) : strlen(p);
+                furi_string_set_strn(line, p, len);
+                furi_string_trim(line);
+                p = eol ? eol + 1 : p + len;
+                if(furi_string_empty(line)) continue;
+                if(version == 0) {
+                    if(furi_string_equal(line, "RFID")) {
+                        furi_string_set(line, "125 kHz RFID");
+                    } else if(furi_string_equal(line, "SubGHz")) {
+                        furi_string_set(line, "Sub-GHz");
+                    } else if(furi_string_equal(line, "Xtreme")) {
+                        furi_string_set(line, "Momentum");
+                    }
+                }
+                loader_menu_find_add_app(app, storage, line);
+            }
+        }
+        furi_string_free(line);
+        furi_record_close(RECORD_STORAGE);
+    } else {
+        /* Fallback: no file or empty cache — use hardcoded list */
         for(size_t i = 0; i < FLIPPER_APPS_COUNT; i++) {
             loader_menu_add_app_entry(app, FLIPPER_APPS[i].name, FLIPPER_APPS[i].icon, NULL);
         }
-        // Until count - 1 because last app is hardcoded below
         for(size_t i = 0; i < FLIPPER_EXTERNAL_APPS_COUNT - 1; i++) {
             loader_menu_add_app_entry(
                 app, FLIPPER_EXTERNAL_APPS[i].name, FLIPPER_EXTERNAL_APPS[i].icon, NULL);
         }
     }
-    furi_string_free(line);
-    stream_free(stream);
-    furi_record_close(RECORD_STORAGE);
 
     const FlipperExternalApplication* last =
         &FLIPPER_EXTERNAL_APPS[FLIPPER_EXTERNAL_APPS_COUNT - 1];

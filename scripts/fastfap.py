@@ -63,17 +63,26 @@ def serialize_relsection_data(data: dict[UniqueRelData, list[int]]) -> bytes:
 
 class Main(App):
     def init(self):
-        self.parser.add_argument("fap_src_path", help="App file to upload")
+        self.parser.add_argument("fap_src_path", help="App .fap file to patch")
         self.parser.add_argument("objcopy_path", help="Objcopy path")
+        self.parser.add_argument(
+            "fap_elf_path",
+            nargs="?",
+            default=None,
+            help="Unstripped debug ELF to read relocations from (optional; defaults to fap_src_path)",
+        )
         self.parser.set_defaults(func=self.process)
 
     def process(self):
         fap_path = self.args.fap_src_path
         objcopy_path = self.args.objcopy_path
+        # Read relocation data from the debug ELF if provided (the .fap has already
+        # been stripped of .symtab and .rel* by objcopy --strip-debug --strip-unneeded).
+        elf_read_path = self.args.fap_elf_path if self.args.fap_elf_path else fap_path
 
         sections: list[RelSection] = []
 
-        with open(fap_path, "rb") as f:
+        with open(elf_read_path, "rb") as f:
             elf_file = ELFFile(f)
 
             relocation_sections: list[RelocationSection] = []

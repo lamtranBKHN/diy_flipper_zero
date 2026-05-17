@@ -59,10 +59,13 @@ static void furi_hal_i2c_bus_external_event(FuriHalI2cBus* bus, FuriHalI2cBusEve
     } else if(event == FuriHalI2cBusEventUnlock) {
         furi_check(furi_mutex_release(furi_hal_i2c_bus_external_mutex) == FuriStatusOk);
     } else if(event == FuriHalI2cBusEventActivate) {
-        FURI_CRITICAL_ENTER();
-        furi_hal_bus_enable(FuriHalBusI2C3);
-        LL_RCC_SetI2CClockSource(LL_RCC_I2C3_CLKSOURCE_PCLK1);
-        FURI_CRITICAL_EXIT();
+        /* IMP-4: I2C3 is DISABLED on this DIY board.
+         * PA7 (I2C3_SCL) is shared with SPI1_MOSI; enabling I2C3 here would
+         * immediately conflict with any SPI traffic (display, CC1101, SD card).
+         * A hardware RST pin for the PN532 is not present, so I2C3 will never
+         * be safely usable without a board spin.  Crash loudly here rather than
+         * silently corrupting SPI transfers. */
+        furi_crash("I2C3 is disabled on this board (PA7/SPI_MOSI conflict)");
     } else if(event == FuriHalI2cBusEventDeactivate) {
         furi_hal_bus_disable(FuriHalBusI2C3);
     }

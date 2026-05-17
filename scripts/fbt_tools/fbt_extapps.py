@@ -523,6 +523,7 @@ def generate_embed_app_metadata_actions(source, target, env, for_signature):
                         "${FBT_SCRIPT_DIR}/fastfap.py",
                         "${TARGET}",
                         "${OBJCOPY}",
+                        "${SOURCE}",
                     ]
                 ],
                 "$FASTFAP_COMSTR",

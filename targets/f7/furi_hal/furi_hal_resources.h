@@ -151,6 +151,11 @@ extern const GpioPin gpio_usb_dp;
 #define DISPLAY_CONTROLLER_SSD1306 0
 // Set to 1 for SSD1309 (Waveshare 1.54")
 #define DISPLAY_CONTROLLER_SSD1309 1
+/* IMP-7: Exactly one display controller must be selected.
+ * Enabling both causes double-init and conflicting SPI command sequences. */
+#if DISPLAY_CONTROLLER_SSD1306 && DISPLAY_CONTROLLER_SSD1309
+#error "Cannot enable both DISPLAY_CONTROLLER_SSD1306 and DISPLAY_CONTROLLER_SSD1309 simultaneously. Set exactly one to 1."
+#endif
 // SSD1306 init variant: 0 = noname, 1 = vcomh0, 2 = alt0
 #define DISPLAY_SSD1306_VARIANT    1
 // SSD1309 init variant: 0 = noname0 (x_offset=0), 1 = noname2 (x_offset=2)

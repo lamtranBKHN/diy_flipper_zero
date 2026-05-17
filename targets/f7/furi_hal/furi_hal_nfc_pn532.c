@@ -36,6 +36,7 @@ typedef struct {
     uint8_t cached_ats[20];
     size_t cached_ats_len;
     bool iso_dep_mode;
+    bool needs_relist;
     uint8_t iso_dep_block_num; /**< Block number toggle for I-block responses */
 } FuriHalNfcPn532State;
 
@@ -565,6 +566,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         // Target found — store it
         furi_hal_nfc_pn532.target = target;
         furi_hal_nfc_pn532.target_valid = true;
+        furi_hal_nfc_pn532.needs_relist = false;
         furi_hal_nfc_pn532.target_tick = furi_get_tick();
 
         // Type B REQB: synthesize ATQB from poll result
@@ -583,9 +585,32 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         // when a FeliCa target is in-listed. Fall through to InDataExchange path below.
     }
 
+    // WUPA/REQA interception — return cached ATQA
+    // The PN532 already activated the target; forwarding WUPA would break its
+    // internal state machine.  We return the ATQA we saved during InListPassiveTarget.
+    if(effective_tx_len == 1 && (tx_bytes[0] == 0x26 || tx_bytes[0] == 0x52)) {
+        if(furi_hal_nfc_pn532.target_valid) {
+            if(furi_hal_nfc_pn532.needs_relist) {
+                FuriHalPn532Target target;
+                if(!furi_hal_pn532_poll_iso14443a_timeout(&target, 50)) {
+                    furi_hal_nfc_pn532.target_valid = false;
+                    furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
+                    return FuriHalNfcErrorCommunication;
+                }
+                furi_hal_nfc_pn532.target = target;
+                furi_hal_nfc_pn532.needs_relist = false;
+            }
+            uint8_t atqa[2];
+            atqa[0] = furi_hal_nfc_pn532.target.atqa[1];
+            atqa[1] = furi_hal_nfc_pn532.target.atqa[0];
+            furi_hal_nfc_pn532_prepare_rx(atqa, sizeof(atqa), false, false);
+            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+        }
+    }
+
     // Handle HLTA (Halt Type A) — tag goes to HALT state, target is lost
     if(effective_tx_len == 2U && tx_bytes[0] == 0x50U && tx_bytes[1] == 0x00U) {
-        furi_hal_nfc_pn532.target_valid = false;
+        furi_hal_nfc_pn532.needs_relist = true;
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
         return FuriHalNfcErrorNone;
     }
@@ -701,10 +726,12 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             furi_hal_nfc_pn532_prepare_rx(rx_payload, rx_len, false, false);
             return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
         }
-        // Auth InCommunicateThru failed — do NOT fall through to InDataExchange
+        // Auth InCommunicateThru failed — likely wrong key, tag enters HALT state.
+        // We set needs_relist so the next WUPA command physically wakes it up.
+        // Do NOT set target_valid = false, allowing poller retry logic to proceed!
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
         furi_hal_nfc_pn532.rx_bits = 0;
-        furi_hal_nfc_pn532.target_valid = false;
+        furi_hal_nfc_pn532.needs_relist = true;
         furi_hal_nfc_pn532.iso_dep_mode = false;
         return furi_hal_nfc_pn532_finalize_exchange(err, false);
     } else if(furi_hal_nfc_pn532.iso_dep_mode) {
@@ -780,7 +807,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
                 tx_bytes,
                 send_len,
                 rx_payload,
-                sizeof(rx_payload),
+                PN532_MAX_FRAME_SIZE,
                 &rx_len);
         } else {
             err = FuriHalPn532ErrorComm;
@@ -793,7 +820,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             tx_bytes,
             ide_len,
             rx_payload,
-            sizeof(rx_payload),
+            PN532_MAX_FRAME_SIZE,
             &rx_len);
     }
 
@@ -940,7 +967,11 @@ FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms) {
                     // for 3A→4A→Type4Tag listener chain to process correctly
                     if(len + 3U <= (sizeof(furi_hal_nfc_pn532.rx_buffer) * 8U / 9U)) {
                         memmove(&furi_hal_nfc_pn532.scratch[1], furi_hal_nfc_pn532.scratch, len);
-                        furi_hal_nfc_pn532.scratch[0] = 0x02;
+                        /* IMP-6: PCB byte must toggle between 0x02/0x03 per ISO14443-4.
+                         * iso_dep_block_num tracks the current block number (0 or 1). */
+                        furi_hal_nfc_pn532.scratch[0] =
+                            (uint8_t)(0x02U | (furi_hal_nfc_pn532.iso_dep_block_num & 1U));
+                        furi_hal_nfc_pn532.iso_dep_block_num ^= 1U;
                         const uint16_t crc = furi_hal_nfc_pn532_crc_a(furi_hal_nfc_pn532.scratch, len + 1);
                         furi_hal_nfc_pn532.scratch[len + 1] = (uint8_t)(crc & 0xFFU);
                         furi_hal_nfc_pn532.scratch[len + 2] = (uint8_t)(crc >> 8U);

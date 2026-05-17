@@ -9,6 +9,7 @@ static uint8_t pcf8574_state = 0xFF;
 static bool pcf8574_ready = false;
 static uint8_t pcf8574_addr = PCF8574_I2C_ADDR;
 static uint32_t pcf8574_last_error_tick = 0;
+#define PCF8574_REINIT_COOLDOWN_MS 500U /* Minimum ms between full I2C address scans */
 static GpioExtiCallback pcf8574_int_cb = NULL;
 static void* pcf8574_int_ctx = NULL;
 static const uint8_t pcf8574_output_mask = (1u << PCF8574_PIN_VIBRO) | (1u << PCF8574_PIN_BUZZER);
@@ -43,10 +44,9 @@ bool furi_hal_pcf8574_init(void) {
     if(!ok) {
         pcf8574_ready = false;
         uint32_t now = furi_get_tick();
-        if((now - pcf8574_last_error_tick) > 1000) {
-            pcf8574_last_error_tick = now;
-            FURI_LOG_E(TAG, "PCF8574 not detected on I2C (tried 0x20..0x27 and shifted forms)");
-        }
+        /* Always update the tick so cooldown resets from the most recent failure */
+        pcf8574_last_error_tick = now;
+        FURI_LOG_E(TAG, "PCF8574 not detected on I2C (tried 0x20..0x27 and shifted forms)");
         return false;
     }
 
@@ -68,7 +68,17 @@ bool furi_hal_pcf8574_init(void) {
 
 bool furi_hal_pcf8574_read(uint8_t* data) {
     if(!data) return false;
-    if(!pcf8574_ready && !furi_hal_pcf8574_init()) return false;
+    if(!pcf8574_ready) {
+        /* RISK-2 mitigation: throttle full 16-address reinit scan to once every
+         * PCF8574_REINIT_COOLDOWN_MS ms. Without this guard a single I2C glitch
+         * triggers up to 16 x 50ms probes = 800ms of bus time on every poll. */
+        uint32_t now = furi_get_tick();
+        if((now - pcf8574_last_error_tick) < PCF8574_REINIT_COOLDOWN_MS) {
+            *data = pcf8574_state; /* return last known state during cooldown */
+            return false;
+        }
+        if(!furi_hal_pcf8574_init()) return false;
+    }
 
     uint8_t value = 0xFF;
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
@@ -81,7 +91,11 @@ bool furi_hal_pcf8574_read(uint8_t* data) {
 }
 
 bool furi_hal_pcf8574_write(uint8_t data) {
-    if(!pcf8574_ready && !furi_hal_pcf8574_init()) return false;
+    if(!pcf8574_ready) {
+        uint32_t now = furi_get_tick();
+        if((now - pcf8574_last_error_tick) < PCF8574_REINIT_COOLDOWN_MS) return false;
+        if(!furi_hal_pcf8574_init()) return false;
+    }
 
     // Never drive input buttons (pins 0..5). Preserve only output pins in latch.
     pcf8574_output_state = data & pcf8574_output_mask;

@@ -242,7 +242,7 @@ static bool pn532_read_ack(void) {
 }
 
 static FuriHalPn532Error pn532_read_raw_response(uint8_t* rx, size_t rx_size, uint32_t timeout_ms) {
-    if(!rx || rx_size == 0) return FuriHalPn532ErrorInvalidFrame;
+    if(!rx || rx_size < 8) return FuriHalPn532ErrorInvalidFrame;
     if(!pn532_wait_ready_ms(timeout_ms)) return FuriHalPn532ErrorTimeout;
 
     furi_delay_ms(1);
@@ -250,14 +250,18 @@ static FuriHalPn532Error pn532_read_raw_response(uint8_t* rx, size_t rx_size, ui
     bool ok = false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 150);
+    
+    // Read the maximum possible frame in a single transaction.
+    // PN532 I2C requires reading the entire frame in one go, as every new read transaction
+    // starts with a READY byte, and incomplete reads will cause desync.
+    ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 50);
 
     uint8_t retry_count = 0;
     while(!ok || rx[0] != PN532_I2C_READY) {
         if(retry_count >= PN532_I2C_RETRIES) break;
         retry_count++;
         furi_delay_ms(pn532_read_backoff_ms[retry_count - 1]);
-        ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 150);
+        ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, rx, rx_size, 50);
     }
 
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
@@ -567,7 +571,16 @@ static FuriHalPn532Error pn532_exchange(
 
     if(!pn532_read_ack()) {
         FURI_LOG_W(TAG, "pn532_exchange: ACK failed");
-        pn532_ready = false;
+        /* RISK-3: Only mark the chip absent if a quick re-probe confirms it is
+         * gone.  Transient I2C glitches produce ACK failures but the PN532 is
+         * still alive; setting pn532_ready=false here causes every subsequent
+         * call to trigger a full cold reinit (SAM + 100ms delays) mid-session.
+         * Re-probe with a 10ms timeout — if the chip ACKs we keep pn532_ready
+         * true and let the caller retry; if the probe fails the chip is gone. */
+        if(!pn532_probe_address()) {
+            pn532_ready = false;
+            FURI_LOG_E(TAG, "pn532_exchange: ACK failed and probe failed — marking PN532 absent");
+        }
         return FuriHalPn532ErrorComm;
     }
 
@@ -910,7 +923,7 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
     uint8_t response[PN532_MAX_RX_FRAME] = {0};
     size_t response_len = 0;
     FuriHalPn532Error error = pn532_exchange(
-        cmd, tx_len + 1, 0x43, response, sizeof(response), &response_len, PN532_TIMEOUT_CMD_MS);
+        cmd, tx_len + 1, 0x43, response, sizeof(response), &response_len, PN532_TIMEOUT_EXCHANGE_MS);
     if(error != FuriHalPn532ErrorNone) return error;
     if(response_len < 2) return FuriHalPn532ErrorInvalidFrame;
     if(response[1] != 0x00) {

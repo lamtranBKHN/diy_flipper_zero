@@ -1943,8 +1943,7 @@ NfcCommand mf_classic_poller_handler_nested_controller(MfClassicPoller* instance
         } else if(dict_attack_ctx->prng_type == MfClassicPrngTypeNoTag) {
             FURI_LOG_E(TAG, "No tag detected");
             // Free nonce array
-            // TODO FL-3926: Consider using .count here
-            if(dict_attack_ctx->nested_nonce.nonces) {
+            if(dict_attack_ctx->nested_nonce.count > 0) {
                 free(dict_attack_ctx->nested_nonce.nonces);
                 dict_attack_ctx->nested_nonce.nonces = NULL;
                 dict_attack_ctx->nested_nonce.count = 0;
@@ -1952,9 +1951,8 @@ NfcCommand mf_classic_poller_handler_nested_controller(MfClassicPoller* instance
             instance->state = MfClassicPollerStateFail;
             return command;
         }
-        if(dict_attack_ctx->nested_nonce.nonces) {
+        if(dict_attack_ctx->nested_nonce.count > 0) {
             // Free nonce array
-            // TODO FL-3926: Consider using .count here
             free(dict_attack_ctx->nested_nonce.nonces);
             dict_attack_ctx->nested_nonce.nonces = NULL;
             dict_attack_ctx->nested_nonce.count = 0;
@@ -2109,7 +2107,7 @@ NfcCommand mf_classic_poller_handler_nested_controller(MfClassicPoller* instance
                     // All Hardnested nonces collected
                     dict_attack_ctx->nested_target_key++;
                     dict_attack_ctx->current_key_checked = false;
-                    instance->state = MfClassicPollerStateNestedController;
+                    instance->state = MfClassicPollerStateNestedLog;
                 } else {
                     // Nonces do not match an expected sum
                     dict_attack_ctx->attempt_count++;
