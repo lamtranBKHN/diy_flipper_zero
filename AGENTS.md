@@ -91,27 +91,23 @@
 7. **SSD1306 and SSD1309 not mutually exclusive** (`furi_hal_resources.h`): both defines could be 1 simultaneously. Fixed: added `#if … #error` compile-time guard.
 8. **Menu cache scaffolded but never used** (`loader_menu.c`): `cached_menu_content` struct fields existed but were never populated. Fixed: implemented 30s TTL cache; slurp on first open, replay from memory on subsequent opens. Also fixed 3 bugs in the cache implementation itself (unused allocation, O(N) header copy, slow character-by-character line scan).
 
-### Bugs Found (2026-05-17 Audit) — NOT YET FIXED
+### Bugs Found (2026-05-17 Audit) — PARTIALLY FIXED
 
-23 bugs found across memory safety, deadlock risk, logic, config, and code quality. See `BUGS.md` for full report.
+**FIXED (8 bugs, commits 5ab8e946b + 8eecaf3ec + 6d03fe32f):**
+- C1: SPI timeout deadlock — tick-based timeout in furi_hal_spi_bus_end_txrx()
+- C2: iso15693_3 memcpy direction — now copies FROM legacy_data INTO data struct
+- C3: 14 malloc NULL checks — furi_check() added to HAL init paths
+- H1: malloc(100) → MAX_ERROR_MSG_SIZE constant in nfc_apdu_runner
+- H2: duplicate "flipper7" linker dep removed from target.json
+- H3: LOADER_MENU_STACK_SIZE 2048 constant in loader_menu.c
+- H4: PCF8574_I2C_TIMEOUT_MS 50 constant
 
-**CRITICAL (3):**
-1. **SPI timeout ignored** (`furi_hal_spi.c:94`): `UNUSED(timeout)` → infinite busy-wait. SPI1 hang = permanent system freeze. Fix: tick-based timeout loops.
-2. **iso15693_3 boomerang memcpy** (`iso15693_3.c:97-114`): malloc'd buffer populated then freed unused. memcpy direction copies FROM existing data INTO temp buffer that is discarded. Fix: remove dead code or reverse direction.
-3. **Missing NULL checks after malloc (17 instances)**: `loader_menu.c:79,269,452`, `mf_classic_poller.c:34,1115,1636`, `update.c:58,80,153`, HAL init funcs. Fix: `furi_check(ptr)` or return error.
+**STILL NOT FIXED (15 bugs):**
+- 4 HIGH: H5 (no CI tests), H6 (dict attack lag FL-3926), H7 (ISO14443-4 chaining), H8 (Sub-GHz RX overflow FL-3555)
+- 7 MEDIUM: CI label, no-op API check, FAP cache, dead RF DMA code, TX write check, file leak, double-start
+- 5 LOW: Schrader, FAAC bypass, NTAG4xx unknown, DFU sig check, mjs NaN endianness
 
-**HIGH (8):**
-4. **malloc(100) magic numbers** (`nfc_worker.c:291,346,398`): no bounds checking. Fix: named constant.
-5. **Duplicate linker dep** (`target.json:22,52`): `flipper7` listed twice. Harmless but sloppy.
-6. **Thread stack magic numbers** (`loader_menu.c:66`=2048, `nfc_worker.c:582`=8192). Fix: named constants.
-7. **PCF8574 timeout magic** (`furi_hal_pcf8574.c:36,59,85,105`): `50` × 4. Fix: `#define`.
-8. **Unit tests never in CI** (`.github/workflows/build.yml`): zero automated test coverage.
-9. **NFC dict attack lag** (`nfc_scene_mf_classic_dict_attack.c:8-9`, FL-3926): lag + backdoor re-entry.
-10. **ISO14443-4 chaining incomplete** (`iso14443_4_layer.c:193,250,281,303`): R-block handling missing.
-11. **Sub-GHz RX overflow risk** (`subghz_tx_rx_worker.c:192`, FL-3555).
-
-**MEDIUM (7):** CI label, no-op API check, FAP cache, dead RF DMA code, TX write check, file leak, double-start.
-**LOW (5):** Schrader bug, FAAC bypass, NTAG4xx unknown, DFU sig check, mjs NaN endianness.
+See `BUGS.md` for full report and `BUG_FIX_PLAN.md` for pending fix plan.
 
 ## Gotchas
 

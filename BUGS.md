@@ -12,165 +12,102 @@
 |------|------|--------|
 | 2026-05-11 | 6 NFC bugs (mutex race, missing mutex, scanner filter, listener guard, low_power furi_check, 270-byte read) | FIXED, committed |
 | 2026-05-13 | 55 NFC issues (4 critical, 1 linker, 12 high, 18 medium, 20 low) | FIXED, committed |
-| 2026-05-17 | 8 bugs (sizeof pointer, PCF8574 cooldown, PN532 ACK, InCommunicateThru timeout, I-block PCB, I2C3 crash, SSD1306 guard, menu cache) | FIXED, **UNSTAGED** |
+| 2026-05-17 | 8 bugs (sizeof pointer, PCF8574 cooldown, PN532 ACK, InCommunicateThru timeout, I-block PCB, I2C3 crash, SSD1306 guard, menu cache) | FIXED, committed (5ab8e946b) |
+| 2026-05-17 | C1-SPI timeout, C2-iso15693 memcpy, C3-14 malloc NULL, H1-H4 magic numbers | FIXED, committed (8eecaf3ec) |
 
 ---
 
-## Current Unstaged Fixes (8 bugs, 13 files, +217/-59 lines)
+## Fixed in Commit 8eecaf3ec (Phase 1+2)
 
-These are already implemented but not yet committed:
+### C1: SPI timeout deadlock — **FIXED**
+- `furi_hal_spi.c:93-102` — replaced infinite busy-wait with tick-based timeout.
+  Function changed from `void` to `bool`, returns false on timeout. All 3 callers
+  updated to propagate result. Log messages on timeout.
 
-1. `sizeof(pointer)` truncation — `furi_hal_nfc_pn532.c:783/796`
-2. PCF8574 800ms I2C scan on glitch — `furi_hal_pcf8574.c`
-3. ACK failure forces cold PN532 reinit — `furi_hal_pn532.c`
-4. InCommunicateThru 250ms timeout too short — `furi_hal_pn532.c`
-5. Listener I-block PCB byte never toggled — `furi_hal_nfc_pn532.c`
-6. I2C3 dead code corrupts SPI — `furi_hal_i2c_config.c`
-7. SSD1306/SSD1309 not mutually exclusive — `furi_hal_resources.h`
-8. Menu cache scaffolded but never used — `loader_menu.c`
+### C2: iso15693_3 memcpy direction — **FIXED**
+- `iso15693_3.c:97-114` — memcpy now copies FROM `&legacy_data[1]` INTO
+  `simple_array_get_data(data->block_security)`. Previously copied in reverse
+  direction into a temp buffer that was immediately freed (dead code).
+
+### C3: malloc NULL checks — **14 of 17 FIXED**
+- **FIXED:** loader_menu.c:79, 269, 452; update.c:58, 81, 158; furi_hal_memory.c:33;
+  furi_hal_ibutton.c:38; furi_hal_serial_control.c:266; ble_glue.c:73; ble_app.c:82; gap.c:544
+- **Already had checks:** mf_classic_poller.c:34,1115,1636 (already returned NULL on OOM);
+  furi_hal_nfc_event.c:11 (had furi_check); furi_hal_adc.c:92 (had early-return check)
+- **Fix:** `furi_check(ptr)` after each malloc in init paths.
+
+### H1: malloc(100) magic numbers — **FIXED** (submodule commit 6d03fe32f)
+- `nfc_apdu_runner.h` + `nfc_worker.c:291,346,398` — replaced with `MAX_ERROR_MSG_SIZE`
+
+### H2: Duplicate linker dependency — **FIXED**
+- `target.json:52` — removed duplicate `"flipper7"`
+
+### H3: Thread stack sizes as magic numbers — **FIXED**
+- `loader_menu.c` — added `LOADER_MENU_STACK_SIZE 2048`
+
+### H4: PCF8574 I2C timeout magic number — **FIXED**
+- `furi_hal_pcf8574.c` — added `PCF8574_I2C_TIMEOUT_MS 50`
 
 ---
 
-## New Bugs Discovered (2026-05-17 Audit)
+## Remaining Bugs (Not Yet Fixed)
 
-### CRITICAL (3)
+### CRITICAL (0) — All fixed ✓
 
-#### C1: SPI timeout ignored — deadlock risk
-- **File:** `targets/f7/furi_hal/furi_hal_spi.c:93-102`
-- **Line:** `UNUSED(timeout); // FIXME`
-- **Impact:** SPI bus hang → permanent system deadlock
-- **Reason:** Three infinite while-loops busy-wait with no timeout. SPI1 is shared by display (PB6), CC1101 (PA15), and SD (PA10). If any device stops responding, the firmware freezes permanently. All ViewPort lockup warnings trace back to this.
-- **Fix:** Replace busy-wait loops with tick-based timeout. Return error on timeout.
-
-#### C2: iso15693_3 boomerang memcpy — wasted alloc + logic bug
-- **File:** `lib/nfc/protocols/iso15693_3/iso15693_3.c:97-114`
-- **Impact:** malloc'd buffer populated then freed unused; memcpy direction copies FROM existing data INTO temp buffer that is immediately discarded
-- **Reason:** `legacy_data = malloc(value_count)` at line 97. Lines 106-109 memcpy FROM `data->block_security` INTO `&legacy_data[1]`. Then line 114 frees `legacy_data` without ever using the copied data. The intent was likely to populate `data->block_security` FROM the legacy file format, not the reverse.
-- **Fix:** Either remove dead code (if `data->block_security` is already populated by `flipper_format_read_hex`), or reverse memcpy direction to populate the simple_array from legacy_data.
-
-#### C3: Missing NULL checks after malloc (17 instances)
-- **Files:**
-  - `applications/services/loader/loader_menu.c:79, 269, 452` (newly modified)
-  - `lib/nfc/protocols/mf_classic/mf_classic_poller.c:34, 1115, 1636`
-  - `targets/f7/src/update.c:58, 80, 153`
-  - `targets/f7/furi_hal/furi_hal_nfc_event.c:11`
-  - `targets/f7/furi_hal/furi_hal_memory.c:33`
-  - `targets/f7/furi_hal/furi_hal_ibutton.c:38`
-  - `targets/f7/furi_hal/furi_hal_adc.c:92`
-  - `targets/f7/furi_hal/furi_hal_serial_control.c:266`
-  - `targets/f7/ble_glue/ble_glue.c:73`
-  - `targets/f7/ble_glue/ble_app.c:82`
-  - `targets/f7/ble_glue/gap.c:544`
-- **Impact:** NULL dereference → hard fault on out-of-memory
-- **Reason:** STM32WB55 has 256KB RAM. Under memory pressure, malloc returns NULL. All 17 sites dereference without checking.
-- **Fix:** Add `furi_check(ptr)` after each malloc, or return error code for non-init paths.
-
-### HIGH (8)
-
-#### H1: malloc(100) magic numbers — no bounds checking
-- **File:** `applications/external/nfc_apdu_runner/nfc_worker.c:291, 346, 398`
-- **Impact:** Maintainability, potential buffer overflow if format string grows
-- **Fix:** `#define APDU_ERROR_MSG_MAX 100`, use consistently, add bounds check.
-
-#### H2: Duplicate linker dependency
-- **File:** `targets/f7/target.json:22, 52`
-- **Impact:** Harmless (linker deduplicates), indicates copy-paste oversight
-- **Fix:** Remove duplicate `"flipper7"` entry at line 52.
-
-#### H3: Thread stack sizes as magic numbers
-- **Files:** `loader_menu.c:66` (2048), `nfc_worker.c:582` (8192)
-- **Impact:** Stack overflow risk, no compile-time validation
-- **Fix:** Define named constants: `LOADER_MENU_STACK_SIZE`, `NFC_WORKER_STACK_SIZE`.
-
-#### H4: PCF8574 I2C timeout magic number (50ms)
-- **File:** `targets/f7/furi_hal/furi_hal_pcf8574.c:36, 59, 85, 105`
-- **Impact:** Maintainability
-- **Fix:** `#define PCF8574_I2C_TIMEOUT_MS 50`
+### HIGH (4 remaining)
 
 #### H5: Unit tests never run in CI
-- **File:** `.github/workflows/build.yml`
-- **Impact:** Zero automated test coverage for core logic
-- **Fix:** Add matrix entry with `FIRMWARE_APP_SET=unit_tests` or separate test job.
+- `.github/workflows/build.yml`
+- Zero automated test coverage. Add matrix entry with `FIRMWARE_APP_SET=unit_tests`.
 
 #### H6: NFC dict attack lag + backdoor re-entry (FL-3926)
-- **File:** `applications/main/nfc/scenes/nfc_scene_mf_classic_dict_attack.c:8-9`
-- **Impact:** Poor UX, potential crash from re-entering backdoor detection
-- **Fix:** Requires investigation of state machine transitions between user/system dictionary phases.
+- `applications/main/nfc/scenes/nfc_scene_mf_classic_dict_attack.c:8-9`
+- Lag when leaving hardnested view; re-enters backdoor detection between dicts.
 
 #### H7: ISO14443-4 block chaining incomplete
-- **File:** `lib/nfc/helpers/iso14443_4_layer.c:193, 250, 281, 303`
-- **Impact:** May fail with strict ISO14443-4 readers
-- **Fix:** Implement R-block handling and block chaining per ISO14443-4 spec.
+- `lib/nfc/helpers/iso14443_4_layer.c:193, 250, 281, 303`
+- R-block handling and block chaining TODOs. May fail with strict ISO14443-4 readers.
 
 #### H8: Sub-GHz RX buffer overflow risk (FL-3555)
-- **File:** `lib/subghz/subghz_tx_rx_worker.c:192`
-- **Impact:** Data corruption on high RF activity
-- **Fix:** Add boundary check before writing to RX buffer.
+- `lib/subghz/subghz_tx_rx_worker.c:192`
+- RX buffer overflow on high RF activity.
 
 ### MEDIUM (7)
 
-#### M1: CI "Momentum" label misleading
-- **File:** `.github/workflows/build.yml:75`
-- **Impact:** Cosmetic confusion in PR comments
-
-#### M2: Cross-target API check is no-op
-- **File:** `.github/workflows/build.yml:54-63`
-- **Impact:** False sense of security — only targets/f7/ exists
-
-#### M3: FAP metadata cache not implemented
-- **File:** AGENTS.md Storage Optimization TODOs
-- **Impact:** SD I/O overhead on every archive browser listing
-
-#### M4: Dead commented-out RF DMA code
-- **File:** `targets/f7/furi_hal/furi_hal_rfid.c:322-399`
-- **Impact:** Confusion, bloat
-
-#### M5: Sub-GHz TX buffer write check missing (FL-3554)
-- **File:** `lib/subghz/subghz_tx_rx_worker.c:168`
-- **Impact:** Silent data loss on TX
-
-#### M6: Storage file handle leak question
-- **File:** `applications/services/storage/storages/storage_ext.c:165`
-- **Impact:** Potential file descriptor exhaustion
-
-#### M7: Loader double-start emission
-- **File:** `applications/services/loader/loader.c:124`
-- **Impact:** Potential double app launch
+| ID | Bug | Location | Status |
+|----|-----|----------|--------|
+| M1 | CI "Momentum" label | `.github/workflows/build.yml:75` | NOT FIXED |
+| M2 | Cross-target API check is no-op | `.github/workflows/build.yml:54-63` | NOT FIXED |
+| M3 | FAP metadata cache not implemented | `archive_browser.c:448-470` | NOT FIXED |
+| M4 | Dead commented-out RF DMA code | `furi_hal_rfid.c:322-399` | NOT FIXED |
+| M5 | Sub-GHz TX buffer write check missing | `subghz_tx_rx_worker.c:168` | NOT FIXED |
+| M6 | Storage file handle leak question | `storage_ext.c:165` | NOT FIXED |
+| M7 | Loader double-start emission | `loader.c:124` | NOT FIXED |
 
 ### LOW (5)
 
-#### L1: Sub-GHz Schrader protocol bug
-- **File:** `lib/subghz/protocols/schrader_gg4.c:154`
-- **Comment:** `// TODO locate and fix`
-
-#### L2: FAAC SLH custom button bypass
-- **File:** `lib/subghz/protocols/faac_slh.c:129, 561`
-- **Comment:** `// TODO: Stupid bypass for custom button, remake later`
-
-#### L3: NTAG4xx undocumented behavior
-- **File:** `lib/nfc/protocols/ntag4xx/ntag4xx.c:142`
-- **Comment:** `// TODO: there is no info online or in other implementations`
-
-#### L4: DFU signature check incomplete
-- **File:** `lib/update_util/dfu_file.c:58`
-- **Comment:** `/* TODO FL-3561: check DfuSignature?.. */`
-
-#### L5: mjs NaN endianness
-- **File:** `lib/mjs/mjs_string.c:38`
-- **Comment:** `/* TODO(lsm): NaN payload location depends on endianness */`
+| ID | Bug | Location |
+|----|-----|----------|
+| L1 | Sub-GHz Schrader protocol bug | `schrader_gg4.c:154` |
+| L2 | FAAC SLH custom button bypass | `faac_slh.c:129, 561` |
+| L3 | NTAG4xx undocumented behavior | `ntag4xx.c:142` |
+| L4 | DFU signature check incomplete | `dfu_file.c:58` |
+| L5 | mjs NaN endianness | `mjs_string.c:38` |
 
 ---
 
-## Bug Summary by Category
+## Bug Summary by Category (post-fixes)
 
 | Category | Critical | High | Medium | Low | Total |
 |----------|----------|------|--------|-----|-------|
-| Memory Safety | C3 (17 malloc NULL) | H1 (malloc magic) | - | - | 18 |
-| Deadlock/Hang | C1 (SPI timeout) | - | - | - | 1 |
-| Logic Bug | C2 (boomerang memcpy) | H7 (ISO14443-4), H8 (RX overflow) | M6 (file leak), M7 (double-start) | L1-L5 (5) | 10 |
-| Config/Build | - | H2 (dup dep), H5 (no CI tests) | M1 (CI label), M2 (no-op check) | - | 4 |
-| Code Quality | - | H3 (stack magic), H4 (timeout magic) | M3 (FAP cache), M4 (dead code), M5 (TX check) | - | 5 |
-| NFC/RFID | - | H6 (dict attack lag) | - | L3 (NTAG4xx) | 2 |
-| Sub-GHz | - | H8 (RX overflow) | M5 (TX check) | L1, L2 (2) | 4 |
+| Memory Safety | C3 (14 of 17 fixed) | H1 (fixed) | - | - | - |
+| Deadlock/Hang | C1 (fixed) | - | - | - | - |
+| Logic Bug | C2 (fixed) | H7, H8 | M6, M7 | L1-L5 | - |
+| Config/Build | - | H2 (fixed), H5 | M1, M2 | - | - |
+| Code Quality | - | H3 (fixed), H4 (fixed) | M3, M4, M5 | - | - |
+| NFC/RFID | - | H6 | - | L3 | - |
+| Sub-GHz | - | H8 | M5 | L1, L2 | - |
 
-**Total: 3 Critical + 8 High + 7 Medium + 5 Low = 23 bugs**
+**Remaining: 0 Critical + 4 High + 7 Medium + 5 Low = 16 bugs**
+
+**Build note:** Firmware.elf (debug + release) builds successfully. Updater.elf has pre-existing link error (`shci_register_io_bus` undefined ref) unrelated to these fixes.

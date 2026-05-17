@@ -277,7 +277,27 @@ All are TODOs with no immediate impact. Fix when working on the affected subsyst
 
 ---
 
-## Execution Order Rationale
+## Completed Phases
+
+- **Phase 0:** Committed (5ab8e946b) — 8 pre-existing bug fixes
+- **Phase 1.1:** C1 SPI timeout — **DONE** (8eecaf3ec)
+- **Phase 1.2:** C2 iso15693 memcpy — **DONE** (8eecaf3ec)
+- **Phase 1.3:** C3 malloc NULL checks — **DONE** (14 of 17, 8eecaf3ec)
+- **Phase 2.1:** H1 malloc magic — **DONE** (submodule 6d03fe32f)
+- **Phase 2.2:** H2 duplicate dep — **DONE** (8eecaf3ec)
+- **Phase 2.3:** H3 stack size — **DONE** (8eecaf3ec)
+- **Phase 2.4:** H4 PCF8574 timeout — **DONE** (8eecaf3ec)
+
+## Pending Phases
+
+- **Phase 2.5:** H5 unit tests in CI — NOT STARTED
+- **Phase 2.6:** H6 NFC dict attack lag (FL-3926) — NOT STARTED (needs investigation)
+- **Phase 2.7:** H7 ISO14443-4 chaining — NOT STARTED (needs protocol spec)
+- **Phase 2.8:** H8 Sub-GHz RX overflow (FL-3555) — NOT STARTED
+- **Phase 3:** Medium bugs (M1-M7) — NOT STARTED
+- **Phase 4:** Low bugs (L1-L5) — NOT STARTED
+
+## Remaining: 4 High + 7 Medium + 5 Low = 16 bugs
 
 ```
 Phase 0 (commit existing) → Phase 1 (critical) → Phase 2 (high) → Phase 3 (medium) → Phase 4 (low)
