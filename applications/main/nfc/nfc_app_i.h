@@ -112,6 +112,10 @@ typedef struct {
     uint16_t nested_target_key;
     uint16_t msb_count;
     bool enhanced_dict;
+    bool saved_backdoor_valid;
+    MfClassicNestedPhase saved_nested_phase;
+    MfClassicPrngType saved_prng_type;
+    MfClassicBackdoor saved_backdoor;
 } NfcMfClassicDictAttackContext;
 
 typedef struct {
