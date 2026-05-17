@@ -31,6 +31,7 @@ void furi_hal_memory_init(void) {
     }
 
     FuriHalMemory* memory = malloc(sizeof(FuriHalMemory));
+    furi_check(memory);
 
     uint32_t sbrsa = (FLASH->SRRVR & FLASH_SRRVR_SBRSA_Msk) >> FLASH_SRRVR_SBRSA_Pos;
     uint32_t snbrsa = (FLASH->SRRVR & FLASH_SRRVR_SNBRSA_Msk) >> FLASH_SRRVR_SNBRSA_Pos;

@@ -102,10 +102,10 @@ static inline bool iso15693_3_load_security_legacy(Iso15693_3Data* data, Flipper
         data->settings.lock_bits.dsfid = legacy_data[0] & ISO15693_3_LOCK_DSFID_LEGACY;
         data->settings.lock_bits.afi = legacy_data[0] & ISO15693_3_LOCK_AFI_LEGACY;
 
-        // The rest are block security
+        // The rest are block security — write from legacy buffer into data struct
         memcpy(
-            &legacy_data[1],
             simple_array_get_data(data->block_security),
+            &legacy_data[1],
             simple_array_get_count(data->block_security));
 
         loaded = true;

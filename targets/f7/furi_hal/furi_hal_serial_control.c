@@ -264,6 +264,7 @@ void furi_hal_serial_control_init(void) {
     furi_check(furi_hal_serial_control == NULL);
     // Allocate resources
     furi_hal_serial_control = malloc(sizeof(FuriHalSerialControl));
+    furi_check(furi_hal_serial_control);
     furi_hal_serial_control->handles[FuriHalSerialIdUsart].id = FuriHalSerialIdUsart;
     furi_hal_serial_control->handles[FuriHalSerialIdLpuart].id = FuriHalSerialIdLpuart;
     furi_hal_serial_control->queue =

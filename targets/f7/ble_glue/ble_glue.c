@@ -71,6 +71,7 @@ static void furi_hal_bt_hardfault_check(void* context) {
 
 void ble_glue_init(void) {
     ble_glue = malloc(sizeof(BleGlue));
+    furi_check(ble_glue);
     ble_glue->status = BleGlueStatusStartup;
     ble_glue->hardfault_check_timer =
         furi_timer_alloc(furi_hal_bt_hardfault_check, FuriTimerTypePeriodic, NULL);

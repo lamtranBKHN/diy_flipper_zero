@@ -90,15 +90,29 @@ void furi_hal_spi_release(const FuriHalSpiBusHandle* handle) {
     furi_hal_power_insomnia_exit();
 }
 
-static void furi_hal_spi_bus_end_txrx(const FuriHalSpiBusHandle* handle, uint32_t timeout) {
-    UNUSED(timeout); // FIXME
-    while(LL_SPI_GetTxFIFOLevel(handle->bus->spi) != LL_SPI_TX_FIFO_EMPTY)
-        ;
-    while(LL_SPI_IsActiveFlag_BSY(handle->bus->spi))
-        ;
+static bool furi_hal_spi_bus_end_txrx(const FuriHalSpiBusHandle* handle, uint32_t timeout) {
+    uint32_t deadline = furi_get_tick() + timeout;
+
+    while(LL_SPI_GetTxFIFOLevel(handle->bus->spi) != LL_SPI_TX_FIFO_EMPTY) {
+        if(furi_get_tick() >= deadline) {
+            FURI_LOG_E(TAG, "SPI TX FIFO drain timeout");
+            return false;
+        }
+    }
+
+    deadline = furi_get_tick() + timeout;
+    while(LL_SPI_IsActiveFlag_BSY(handle->bus->spi)) {
+        if(furi_get_tick() >= deadline) {
+            FURI_LOG_E(TAG, "SPI BUSY wait timeout");
+            return false;
+        }
+    }
+
     while(LL_SPI_GetRxFIFOLevel(handle->bus->spi) != LL_SPI_RX_FIFO_EMPTY) {
         LL_SPI_ReceiveData8(handle->bus->spi);
     }
+
+    return true;
 }
 
 bool furi_hal_spi_bus_rx(
@@ -134,10 +148,10 @@ bool furi_hal_spi_bus_tx(
         }
     }
 
-    furi_hal_spi_bus_end_txrx(handle, timeout);
+    bool end_ok = furi_hal_spi_bus_end_txrx(handle, timeout);
     LL_SPI_ClearFlag_OVR(handle->bus->spi);
 
-    return ret;
+    return ret && end_ok;
 }
 
 bool furi_hal_spi_bus_trx(
@@ -178,9 +192,9 @@ bool furi_hal_spi_bus_trx(
         }
     }
 
-    furi_hal_spi_bus_end_txrx(handle, timeout);
+    bool end_ok = furi_hal_spi_bus_end_txrx(handle, timeout);
 
-    return ret;
+    return ret && end_ok;
 }
 
 static void spi_dma_isr(void* context) {
@@ -397,9 +411,9 @@ bool furi_hal_spi_bus_trx_dma(
         LL_DMA_DeInit(SPI_DMA_RX_DEF);
     }
 
-    furi_hal_spi_bus_end_txrx(handle, timeout_ms);
+    bool end_ok = furi_hal_spi_bus_end_txrx(handle, timeout_ms);
 
     furi_check(furi_semaphore_release(spi_dma_lock) == FuriStatusOk);
 
-    return ret;
+    return ret && end_ok;
 }

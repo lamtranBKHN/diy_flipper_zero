@@ -80,6 +80,7 @@ static const SHCI_C2_Ble_Init_Cmd_Packet_t ble_init_cmd_packet = {
 bool ble_app_init(void) {
     SHCI_CmdStatus_t status;
     ble_app = malloc(sizeof(BleApp));
+    furi_check(ble_app);
     // Allocate semafore and mutex for ble command buffer access
     ble_app->hci_mtx = furi_mutex_alloc(FuriMutexTypeNormal);
     ble_app->hci_sem = furi_semaphore_alloc(1, 0);

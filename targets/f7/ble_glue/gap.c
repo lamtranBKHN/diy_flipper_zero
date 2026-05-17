@@ -542,6 +542,7 @@ bool gap_init(
     furi_check(gap == NULL);
 
     gap = malloc(sizeof(Gap));
+    furi_check(gap);
     gap->config = config;
     // Create advertising timer
     gap->advertise_timer = furi_timer_alloc(gap_advetise_timer_callback, FuriTimerTypeOnce, NULL);

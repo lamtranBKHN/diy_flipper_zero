@@ -56,6 +56,7 @@ static bool flipper_update_init(void) {
     }
 
     pfs = malloc(sizeof(FATFS));
+    furi_check(pfs);
 
     return flipper_update_mount_sd();
 }
@@ -78,6 +79,10 @@ static bool flipper_update_load_stage(const FuriString* work_dir, UpdateManifest
     furi_string_free(loader_img_path);
 
     void* img = malloc(stat.fsize);
+    if(!img) {
+        f_close(&file);
+        return false;
+    }
     uint32_t read_total = 0;
     uint16_t read_current = 0;
     const uint16_t MAX_READ = 0xFFFF;
@@ -151,6 +156,10 @@ static UpdateManifest* flipper_update_process_manifest(const FuriString* manifes
     CHECK_FRESULT(f_open(&file, furi_string_get_cstr(manifest_path), FA_OPEN_EXISTING | FA_READ));
 
     uint8_t* manifest_data = malloc(stat.fsize);
+    if(!manifest_data) {
+        f_close(&file);
+        return NULL;
+    }
     uint32_t bytes_read = 0;
     const uint16_t MAX_READ = 0xFFFF;
 

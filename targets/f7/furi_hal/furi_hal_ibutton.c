@@ -36,6 +36,7 @@ static void furi_hal_ibutton_emulate_isr(void* context) {
 
 void furi_hal_ibutton_init(void) {
     furi_hal_ibutton = malloc(sizeof(FuriHalIbutton));
+    furi_check(furi_hal_ibutton);
     furi_hal_ibutton->state = FuriHalIbuttonStateIdle;
 
     FURI_LOG_I(TAG, "Init OK");

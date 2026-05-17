@@ -20,6 +20,7 @@
 #include <m-list.h>
 
 #define TAG "LoaderMenu"
+#define LOADER_MENU_STACK_SIZE 2048
 
 typedef enum {
     LoaderMenuViewPrimary,
@@ -63,7 +64,7 @@ static void loader_pubsub_callback(const void* message, void* context) {
         }
     } else if(event->type == LoaderEventTypeNoMoreAppsInQueue) {
         if(!loader_menu->thread) {
-            loader_menu->thread = furi_thread_alloc_ex(TAG, 2048, loader_menu_thread, loader_menu);
+            loader_menu->thread = furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
             furi_thread_start(loader_menu->thread);
         }
     }
@@ -95,7 +96,7 @@ LoaderMenu* loader_menu_alloc(void (*closed_cb)(void*), void* context, bool sett
     loader_menu->subscription = furi_pubsub_subscribe(
         loader_get_pubsub(loader_menu->loader), loader_pubsub_callback, loader_menu);
 
-    loader_menu->thread = furi_thread_alloc_ex(TAG, 2048, loader_menu_thread, loader_menu);
+    loader_menu->thread = furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
     furi_thread_start(loader_menu->thread);
     return loader_menu;
 }
