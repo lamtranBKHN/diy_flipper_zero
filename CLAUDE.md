@@ -227,6 +227,23 @@ Uses U8G2 graphics library for SSD1306 OLED:
 
 ---
 
+## Bug Status (2026-05-17)
+
+### Fixed, Unstaged (8 bugs — 13 files, +217/-59 lines)
+See AGENTS.md "Bugs Fixed (2026-05-17)" for details. These are implemented but not committed.
+
+### Found, Not Fixed (23 bugs)
+See `BUGS.md` for full report. Summary:
+- **CRITICAL (3):** SPI timeout deadlock, iso15693 boomerang memcpy, 17 missing malloc NULL checks
+- **HIGH (8):** malloc magic numbers, dup linker dep, stack magic numbers, PCF8574 timeout magic, no CI tests, NFC dict attack lag, ISO14443-4 chaining, sub-GHz RX overflow
+- **MEDIUM (7):** CI label, no-op API check, FAP cache, dead RF DMA, TX write check, file leak, double-start
+- **LOW (5):** Schrader, FAAC bypass, NTAG4xx, DFU sig check, mjs NaN
+
+### Fix Plan
+See `BUG_FIX_PLAN.md` for step-by-step fix order with rationale.
+
+---
+
 ## Goal
 
 Fix MIFARE 1K/4K cards showing as "unknown type" in NFC reader. Only UID extracted, data sectors not read. Device crashes while exiting NFC tool.

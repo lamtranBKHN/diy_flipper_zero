@@ -29,6 +29,15 @@
 ## Bug History
 - **6 bugs fixed (2026-05-11)**: mutex race in wrappers (P1), PN532 missing mutex (P2), scanner filtered to A only (P3), listener col_res_data ST25 access (P4), low_power_mode missing furi_check (P5), 270-byte read inefficiency (P6).
 - **55 NFC bugs fixed (2026-05-13)**: 4 critical (uint8 overflow, memcpy byte-count, div-by-zero, double-free), 1 linker, 12 high, 18 medium, 20 low. See CLAUDE.md for full list.
+- **8 bugs fixed (2026-05-17)**: sizeof pointer truncation, PCF8574 cooldown, PN532 ACK reinit, InCommunicateThru timeout, I-block PCB toggle, I2C3 crash guard, SSD1306/1309 guard, menu cache. **UNSTAGED**.
+- **23 bugs found (2026-05-17)**: 3 critical (SPI timeout deadlock, 17 malloc NULL checks, iso15693 boomerang memcpy), 8 high (malloc magic, dup dep, stack magic, PCF8574 timeout magic, no CI tests, dict attack lag FL-3926, ISO14443-4 chaining, sub-GHz RX overflow FL-3555), 7 medium, 5 low. See `BUGS.md`.
+
+## Open NFC Issues
+- **FL-3926**: Dict attack lag + backdoor re-entry (`nfc_scene_mf_classic_dict_attack.c:8-9`)
+- **iso15693_3**: Boomerang memcpy in `iso15693_3_load_security_legacy()` (`iso15693_3.c:97-114`) — CRITICAL
+- **ISO14443-4**: Block chaining and R-block handling incomplete (`iso14443_4_layer.c:193,250,281,303`)
+- **NTAG4xx**: Undocumented behavior (`ntag4xx.c:142`)
+- **malloc NULL checks**: `mf_classic_poller.c:34,1115,1636` — CRITICAL
 
 ## Mutex Discipline
 - `furi_hal_nfc_acquire()`/`furi_hal_nfc_release()` wraps PN532 HAL ops.

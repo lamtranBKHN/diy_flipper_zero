@@ -78,6 +78,41 @@
 5. **low_power_mode_stop missing furi_check** (`furi_hal_nfc.c`): called `acquire()` without `furi_check(instance)`. Fixed: added `furi_check(instance)`.
 6. **270-byte read inefficiency** (`furi_hal_nfc_pn532.c`): I2C read always requests full buffer. Diagnosed, minor perf impact only.
 
+### Bugs Fixed (2026-05-17)
+
+8 bugs/issues identified and fixed across NFC, I/O expander, I2C config, display config, and loader:
+
+1. **`sizeof(pointer)` truncates RX buffer** (`furi_hal_nfc_pn532.c` lines 783/796): `rx_payload` is a `uint8_t*` so `sizeof(rx_payload)` == 4, not 192. All `InDataExchange` non-ISO-DEP responses silently overflowed. Fixed: replaced with `PN532_MAX_FRAME_SIZE`.
+2. **PCF8574 triggers 800ms I2C scan on any glitch** (`furi_hal_pcf8574.c`): `read()`/`write()` called full 16-address `init()` probe on every call when not ready, blocking I2C bus for up to 800ms. Fixed: added `PCF8574_REINIT_COOLDOWN_MS = 500` guard; always update `last_error_tick` on failure.
+3. **ACK failure forces cold PN532 reinit** (`furi_hal_pn532.c`): any `pn532_read_ack()` failure set `pn532_ready = false`, causing the next command to run full SAM config + 100ms delays mid-session. Fixed: re-probe chip after ACK fail; only set absent if probe also fails.
+4. **`InCommunicateThru` used 250ms command timeout** (`furi_hal_pn532.c`): MIFARE Classic auth via `InCommunicateThru` needs up to 1s but used `PN532_TIMEOUT_CMD_MS`. Fixed: changed to `PN532_TIMEOUT_EXCHANGE_MS` (1000ms).
+5. **Listener I-block PCB byte never toggled** (`furi_hal_nfc_pn532.c`): hardcoded `0x02` caused reader retransmit loops per ISO14443-4. Fixed: now uses `iso_dep_block_num` field with XOR toggle, same as poller path.
+6. **I2C3 dead code would silently corrupt SPI** (`furi_hal_i2c_config.c`): `Activate` event enabled I2C3 (PA7 == SPI_MOSI). Fixed: replaced with `furi_crash()` to catch accidental future use.
+7. **SSD1306 and SSD1309 not mutually exclusive** (`furi_hal_resources.h`): both defines could be 1 simultaneously. Fixed: added `#if … #error` compile-time guard.
+8. **Menu cache scaffolded but never used** (`loader_menu.c`): `cached_menu_content` struct fields existed but were never populated. Fixed: implemented 30s TTL cache; slurp on first open, replay from memory on subsequent opens. Also fixed 3 bugs in the cache implementation itself (unused allocation, O(N) header copy, slow character-by-character line scan).
+
+### Bugs Found (2026-05-17 Audit) — NOT YET FIXED
+
+23 bugs found across memory safety, deadlock risk, logic, config, and code quality. See `BUGS.md` for full report.
+
+**CRITICAL (3):**
+1. **SPI timeout ignored** (`furi_hal_spi.c:94`): `UNUSED(timeout)` → infinite busy-wait. SPI1 hang = permanent system freeze. Fix: tick-based timeout loops.
+2. **iso15693_3 boomerang memcpy** (`iso15693_3.c:97-114`): malloc'd buffer populated then freed unused. memcpy direction copies FROM existing data INTO temp buffer that is discarded. Fix: remove dead code or reverse direction.
+3. **Missing NULL checks after malloc (17 instances)**: `loader_menu.c:79,269,452`, `mf_classic_poller.c:34,1115,1636`, `update.c:58,80,153`, HAL init funcs. Fix: `furi_check(ptr)` or return error.
+
+**HIGH (8):**
+4. **malloc(100) magic numbers** (`nfc_worker.c:291,346,398`): no bounds checking. Fix: named constant.
+5. **Duplicate linker dep** (`target.json:22,52`): `flipper7` listed twice. Harmless but sloppy.
+6. **Thread stack magic numbers** (`loader_menu.c:66`=2048, `nfc_worker.c:582`=8192). Fix: named constants.
+7. **PCF8574 timeout magic** (`furi_hal_pcf8574.c:36,59,85,105`): `50` × 4. Fix: `#define`.
+8. **Unit tests never in CI** (`.github/workflows/build.yml`): zero automated test coverage.
+9. **NFC dict attack lag** (`nfc_scene_mf_classic_dict_attack.c:8-9`, FL-3926): lag + backdoor re-entry.
+10. **ISO14443-4 chaining incomplete** (`iso14443_4_layer.c:193,250,281,303`): R-block handling missing.
+11. **Sub-GHz RX overflow risk** (`subghz_tx_rx_worker.c:192`, FL-3555).
+
+**MEDIUM (7):** CI label, no-op API check, FAP cache, dead RF DMA code, TX write check, file leak, double-start.
+**LOW (5):** Schrader bug, FAAC bypass, NTAG4xx unknown, DFU sig check, mjs NaN endianness.
+
 ## Gotchas
 
 - `./fbt` auto-updates git submodules on first run (set `FBT_NO_SYNC=1` to skip)
@@ -85,16 +120,19 @@
 - `fbt` aliases defined in `SConstruct`, not separate scripts
 - API consistency checked in CI: `targets/f7/api_symbols.csv` must match OFW release channel
 - **Unit tests build** (`FIRMWARE_APP_SET=unit_tests`) had pre-existing link errors for JS symbols (`js_thread_run`, `js_thread_stop`, `js_value_buffer_size`, `js_value_parse`). Fixed by removing JS entries from `unit_test_api_table_i.h` — JS app is compiled as FAP plugin, not linked into firmware ELF, so API table references were never resolvable. Build now passes cleanly.
+- **I2C3 is permanently disabled** — `furi_hal_i2c_handle_external` Activate now calls `furi_crash()`. Do not use it.
+- **`sizeof(pointer)` anti-pattern** — when passing a heap/scratch buffer pointer to a PN532 exchange, always use the named constant (`PN532_MAX_FRAME_SIZE`, `PN532_MAX_RX_FRAME`) not `sizeof(ptr)`.
 
 ## Performance Notes
 
 - Animation cache (LRU, 2 slots) in `animation_storage.c` avoids re-reading SD frames on each animation switch
-- ViewPort lockup warnings at `view_port.c:208` are expected on DIY board due to SPI1 bus sharing (display + CC1101 + SD)
+- **Main menu file cached** (`loader_menu.c`): `.mainmenu_apps.txt` is read from SD once and cached in memory for 30 seconds (`MENU_CACHE_TTL_MS`). Subsequent menu opens use the in-memory string — no SD I/O.
+- ViewPort lockup warnings at `view_port.c:208` are expected on DIY board due to SPI1 bus sharing (display + CC1101 + SD) — reduced by menu cache
 - Excessive debug logs (`log trace`) will spam console - use `log level info` to reduce output
 
 ## Storage Optimization TODOs
 
-- **`.mainmenu_apps.txt` cache** - Currently re-read from SD every menu open (`loader_menu.c:308`). Add timestamp-based cache to avoid re-parsing.
+- ~~**`.mainmenu_apps.txt` cache**~~ — **DONE** (2026-05-17): 30s TTL in-memory cache implemented in `loader_menu.c`.
 - **FAP metadata cache** - Each `.fap` file is opened during browser listing (`archive_browser.c:448-470`). Cache name/icon lookups.
 - **SPI contention** - SPI1 shared by display (PB6), CC1101 (PA15), SD (PA10). ViewPort lockups occur when SPI mutex held too long. Consider:
   - Shorter SPI transactions

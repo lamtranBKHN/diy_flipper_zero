@@ -40,6 +40,11 @@
 - Excessive debug logs (`log trace`) spam console. Use `log level info`.
 
 ## Storage Optimization TODOs
-- `.mainmenu_apps.txt` re-read every menu open (`loader_menu.c:308`).
-- FAP metadata re-read on every browser listing (`archive_browser.c:448-470`).
-- SPI contention: shorter transactions, release bus fast after CC1101/SD.
+- ~~`.mainmenu_apps.txt` re-read every menu open~~ — **DONE** (2026-05-17): 30s TTL cache in `loader_menu.c`
+- FAP metadata re-read on every browser listing (`archive_browser.c:448-470`) — NOT YET FIXED
+- SPI contention: shorter transactions, release bus fast after CC1101/SD
+
+## Bug Status (2026-05-17)
+- 8 bugs fixed but unstaged (sizeof pointer, PCF8574 cooldown, PN532 ACK, InCommunicateThru timeout, I-block PCB, I2C3 crash, SSD1306 guard, menu cache)
+- 23 new bugs found, not fixed. See `BUGS.md` for full report and `BUG_FIX_PLAN.md` for fix order.
+- Critical: SPI timeout deadlock (`furi_hal_spi.c:94`), 17 missing malloc NULL checks, iso15693 boomerang memcpy
