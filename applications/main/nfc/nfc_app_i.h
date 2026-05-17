@@ -112,7 +112,7 @@ typedef struct {
     uint16_t nested_target_key;
     uint16_t msb_count;
     bool enhanced_dict;
-    bool saved_backdoor_valid;
+    // Cached backdoor state for phase transitions (FL-3926)
     MfClassicNestedPhase saved_nested_phase;
     MfClassicPrngType saved_prng_type;
     MfClassicBackdoor saved_backdoor;

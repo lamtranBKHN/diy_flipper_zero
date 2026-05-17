@@ -378,13 +378,7 @@ bool nfc_scene_mf_classic_dict_attack_on_event(void* context, SceneManagerEvent 
 void nfc_scene_mf_classic_dict_attack_on_exit(void* context) {
     NfcApp* instance = context;
 
-    uint32_t deadline = furi_get_tick() + NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS;
-    nfc_poller_stop(instance->poller);
-    while(furi_get_tick() < deadline) {
-        furi_thread_yield();
-    }
-    nfc_poller_free(instance->poller);
-    instance->poller = NULL;
+    nfc_scene_mf_classic_dict_attack_stop_poller_bounded(instance);
 
     dict_attack_reset(instance->dict_attack);
     scene_manager_set_scene_state(
@@ -404,6 +398,9 @@ void nfc_scene_mf_classic_dict_attack_on_exit(void* context) {
     instance->nfc_dict_context.nested_phase = MfClassicNestedPhaseNone;
     instance->nfc_dict_context.prng_type = MfClassicPrngTypeUnknown;
     instance->nfc_dict_context.backdoor = MfClassicBackdoorUnknown;
+    instance->nfc_dict_context.saved_nested_phase = MfClassicNestedPhaseNone;
+    instance->nfc_dict_context.saved_prng_type = MfClassicPrngTypeUnknown;
+    instance->nfc_dict_context.saved_backdoor = MfClassicBackdoorUnknown;
     instance->nfc_dict_context.nested_target_key = 0;
     instance->nfc_dict_context.msb_count = 0;
     instance->nfc_dict_context.enhanced_dict = false;
