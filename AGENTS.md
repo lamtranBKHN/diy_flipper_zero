@@ -109,6 +109,22 @@
 
 See `BUGS.md` for full report and `BUG_FIX_PLAN.md` for pending fix plan.
 
+### Remaining 16 Bug Fix Steps (from BUG_FIX_PLAN.md)
+
+Fix order with rationale:
+
+1. **H5 (CI tests)** — easy, catch regressions before other fixes
+2. **H6 (NFC dict lag FL-3926)** — high user impact, ~90min (deferred exit + cache backdoor results)
+3. **H8+M5 (Sub-GHz buffer checks FL-3554/3555)** — simple return-value checks in subghz_tx_rx_worker.c
+4. **H7 (ISO14443-4 chaining)** — complex protocol work, low risk for non-chaining cards
+5. **M1+M2 (CI cosmetics)** — 1-line fixes each
+6. **M3 (FAP metadata cache)** — medium effort, reduces SD I/O on archive listing
+7. **M4 (dead RF DMA)** — optional cleanup
+8. **M5-M7 (docs only)** — investigate, likely no code change
+9. **L1-L5 (cleanup)** — 1-line fixes or comment updates
+
+Each step detailed in BUG_FIX_PLAN.md with exact code changes, risk assessment, and build verification.
+
 ## Gotchas
 
 - `./fbt` auto-updates git submodules on first run (set `FBT_NO_SYNC=1` to skip)
