@@ -78,7 +78,21 @@ static Iso15693_3Error iso15693_3_listener_inventory_handler(
         }
 
         if(mask_len != 0) {
-            // TODO FL-3633: Take mask_len and mask_value into account (if present)
+            // FL-3633: Compare mask against UID (LSB-first byte order)
+            const uint8_t* uid = instance->data->uid;
+            uint8_t mask_bytes = (mask_len + 7) / 8;
+            uint8_t remaining_bits = mask_len % 8;
+            bool match = true;
+            for(uint8_t i = 0; i < mask_bytes && i < ISO15693_3_UID_SIZE && match; i++) {
+                uint8_t compare_bits =
+                    (i == mask_bytes - 1 && remaining_bits != 0) ? remaining_bits : 8;
+                uint8_t mask = (uint8_t)(0xFF << (8 - compare_bits));
+                // UID transmitted LSB-first: uid[0] is first on air
+                if((uid[i] & mask) != (data[i] & mask)) {
+                    match = false;
+                }
+            }
+            if(!match) break;
         }
 
         error = iso15693_3_listener_extension_handler(instance, ISO15693_3_CMD_INVENTORY);

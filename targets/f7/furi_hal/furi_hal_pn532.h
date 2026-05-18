@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-#define PN532_I2C_ADDR_7BIT (0x24 << 1) // 8-bit addr 0x48 (7-bit 0x24 shifted for STM32 I2C HAL)
+#define PN532_I2C_ADDR_7BIT 0x48 // 8-bit addr 0x90 (7-bit 0x48 shifted for STM32 I2C HAL)
 
 typedef enum {
     FuriHalPn532ErrorNone = 0,
@@ -37,6 +37,17 @@ typedef struct {
 bool furi_hal_pn532_init(void);
 bool furi_hal_pn532_is_ready(void);
 bool furi_hal_pn532_read_status(void);
+
+/** Start the software-IRQ I2C polling thread.
+ *  Called automatically by furi_hal_pn532_init() after a successful init.
+ *  Safe to call again if already running (no-op). */
+void furi_hal_pn532_irq_start(void);
+
+/** Stop the software-IRQ I2C polling thread.
+ *  Must be called during NFC session teardown / HAL deinit.
+ *  Safe to call even if the thread was never started (no-op). */
+void furi_hal_pn532_irq_stop(void);
+
 bool furi_hal_pn532_poll_iso14443a(FuriHalPn532Target* target);
 bool furi_hal_pn532_poll_iso14443a_timeout(FuriHalPn532Target* target, uint32_t timeout_ms);
 const char* furi_hal_pn532_strerror(uint8_t status_code);
@@ -59,6 +70,14 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
     uint8_t* rx_data,
     size_t rx_size,
     size_t* rx_len);
+
+FuriHalPn532Error furi_hal_pn532_in_communicate_thru_timeout(
+    const uint8_t* tx_data,
+    size_t tx_len,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_len,
+    uint32_t timeout_ms);
 FuriHalPn532Error furi_hal_pn532_send_command(const uint8_t* cmd, size_t cmd_len);
 
 FuriHalPn532Error furi_hal_pn532_read_response(

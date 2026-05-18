@@ -32,12 +32,6 @@ FuriHalNfcError furi_hal_nfc_pn532_trx_short_frame(FuriHalNfcaShortFrame frame);
 FuriHalNfcError furi_hal_nfc_pn532_tx(const uint8_t* tx_data, size_t tx_bits);
 FuriHalNfcError furi_hal_nfc_pn532_tx_custom_parity(const uint8_t* tx_data, size_t tx_bits);
 FuriHalNfcError furi_hal_nfc_pn532_rx(uint8_t* rx_data, size_t rx_data_size, size_t* rx_bits);
-FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
-    uint8_t block_num,
-    const uint8_t* key,
-    uint8_t key_type,
-    const uint8_t* uid,
-    uint8_t uid_len);
 
 // Listener (target) mode functions
 FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms);
@@ -56,6 +50,18 @@ const char* furi_hal_nfc_pn532_last_result_str(void);
 
 // Store MIFARE Classic auth key for hardware auth interception
 void furi_hal_nfc_pn532_mf_key_store(const uint8_t* key, uint8_t key_type);
+
+// PN532 native MIFARE Classic auth (InDataExchange)
+FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
+    uint8_t block_num,
+    const uint8_t* key,
+    uint8_t key_type,
+    const uint8_t* uid,
+    uint8_t uid_len);
+bool furi_hal_nfc_pn532_mf_is_authed(void);
+void furi_hal_nfc_pn532_mf_deauth(void);
+FuriHalNfcError furi_hal_nfc_pn532_mf_read_block(uint8_t block_num, uint8_t* data, size_t data_size);
+FuriHalNfcError furi_hal_nfc_pn532_mf_write_block(uint8_t block_num, const uint8_t* data, size_t data_size);
 
 // Access cached target data (used by scanner for SAK-based child optimization)
 uint8_t furi_hal_nfc_pn532_get_sak(void);

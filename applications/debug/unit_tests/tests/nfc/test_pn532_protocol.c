@@ -11,10 +11,11 @@ static_assert(
     "PN532_MAX_RX_FRAME too small for PN532_MAX_TX_PAYLOAD + frame overhead");
 
 MU_TEST(nfc_buffer_sizes) {
-    mu_assert(PN532_MAX_RX_FRAME >= PN532_MAX_TX_PAYLOAD + 7,
+    mu_assert(
+        PN532_MAX_RX_FRAME >= PN532_MAX_TX_PAYLOAD + 7,
         "RX frame must accommodate TX payload + 7 bytes overhead");
-    mu_assert(PN532_MAX_FRAME_SIZE <= PN532_MAX_RX_FRAME,
-        "MAX_FRAME_SIZE must not exceed MAX_RX_FRAME");
+    mu_assert(
+        PN532_MAX_FRAME_SIZE <= PN532_MAX_RX_FRAME, "MAX_FRAME_SIZE must not exceed MAX_RX_FRAME");
 }
 
 static bool verify_crc_a(const uint8_t* data, size_t len, uint16_t expected_crc) {
@@ -29,12 +30,9 @@ static bool verify_crc_a(const uint8_t* data, size_t len, uint16_t expected_crc)
 }
 
 MU_TEST(nfc_crc_a_known_values) {
-    mu_assert(verify_crc_a((const uint8_t[]){0x00}, 1, 0xE3E3),
-        "CRC-A of {0x00} failed");
-    mu_assert(verify_crc_a((const uint8_t[]){0xFF}, 1, 0x1C1C),
-        "CRC-A of {0xFF} failed");
-    mu_assert(verify_crc_a((const uint8_t[]){0x93, 0x20}, 2, 0x3C6F),
-        "CRC-A of SDD CL1 failed");
+    mu_assert(verify_crc_a((const uint8_t[]){0x00}, 1, 0xE3E3), "CRC-A of {0x00} failed");
+    mu_assert(verify_crc_a((const uint8_t[]){0xFF}, 1, 0x1C1C), "CRC-A of {0xFF} failed");
+    mu_assert(verify_crc_a((const uint8_t[]){0x93, 0x20}, 2, 0x3C6F), "CRC-A of SDD CL1 failed");
 }
 
 MU_TEST(nfc_frame_encode_decode) {
@@ -51,10 +49,12 @@ MU_TEST(nfc_frame_encode_decode) {
     memcpy(frame_with_crc, frame, len);
     frame_with_crc[len] = (uint8_t)(crc_val & 0xFF);
     frame_with_crc[len + 1] = (uint8_t)(crc_val >> 8);
-    mu_assert(verify_crc_a(frame_with_crc, len + 2, crc_val),
+    mu_assert(
+        verify_crc_a(frame_with_crc, len + 2, crc_val),
         "CRC should verify when appended correctly");
     frame_with_crc[len] ^= 1;
-    mu_assert(!verify_crc_a(frame_with_crc, len + 2, crc_val),
+    mu_assert(
+        !verify_crc_a(frame_with_crc, len + 2, crc_val),
         "CRC should fail when payload is corrupted");
 }
 
@@ -71,8 +71,12 @@ MU_TEST(nfc_error_enum_completeness) {
 MU_TEST(nfc_pn532_result_enum_completeness) {
     mu_assert(FuriHalNfcPn532ResultDetected == 0, "FuriHalNfcPn532ResultDetected != 0");
     mu_assert(FuriHalNfcPn532ResultNotPresent == 1, "FuriHalNfcPn532ResultNotPresent != 1");
-    mu_assert(FuriHalNfcPn532ResultUnsupportedByPn532 == 2, "FuriHalNfcPn532ResultUnsupportedByPn532 != 2");
-    mu_assert(FuriHalNfcPn532ResultCommunicationError == 3, "FuriHalNfcPn532ResultCommunicationError != 3");
+    mu_assert(
+        FuriHalNfcPn532ResultUnsupportedByPn532 == 2,
+        "FuriHalNfcPn532ResultUnsupportedByPn532 != 2");
+    mu_assert(
+        FuriHalNfcPn532ResultCommunicationError == 3,
+        "FuriHalNfcPn532ResultCommunicationError != 3");
     mu_assert(FuriHalNfcPn532ResultParseError == 4, "FuriHalNfcPn532ResultParseError != 4");
 }
 
@@ -83,7 +87,8 @@ MU_TEST(nfc_furi_hal_error_enum_completeness) {
     mu_assert(FuriHalNfcErrorCommunication == 3, "FuriHalNfcErrorCommunication != 3");
     mu_assert(FuriHalNfcErrorIncompleteFrame == 4, "FuriHalNfcErrorIncompleteFrame != 4");
     mu_assert(FuriHalNfcErrorDataFormat == 5, "FuriHalNfcErrorDataFormat != 5");
-    mu_assert(FuriHalNfcErrorCommunicationTimeout == 6, "FuriHalNfcErrorCommunicationTimeout != 6");
+    mu_assert(
+        FuriHalNfcErrorCommunicationTimeout == 6, "FuriHalNfcErrorCommunicationTimeout != 6");
     mu_assert(FuriHalNfcErrorBufferOverflow == 7, "FuriHalNfcErrorBufferOverflow != 7");
 }
 

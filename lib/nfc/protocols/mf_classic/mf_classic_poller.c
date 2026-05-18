@@ -80,6 +80,7 @@ MfClassicPoller* mf_classic_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) 
         return NULL;
     }
     instance->card_state = MfClassicCardStateLost;
+    instance->pn532_mf_authed = false;
 
     instance->mfc_event.data = &instance->mfc_event_data;
 
@@ -1462,6 +1463,12 @@ NfcCommand mf_classic_poller_handler_nested_collect_nt_enc(MfClassicPoller* inst
         //     at a known distance (confirmed by parity bits) telling us the nt_enc plain.
         for(uint8_t collection_cycle = 0; collection_cycle < (nt_enc_per_collection - 1);
             collection_cycle++) {
+            // Check for abort signal from NFC worker
+            if(furi_thread_flags_get() & (1U << 0)) {
+                command = NfcCommandStop;
+                break;
+            }
+
             // This loop must match the calibrated loop
             error = mf_classic_poller_auth_nested(
                 instance,
@@ -1521,7 +1528,14 @@ NfcCommand mf_classic_poller_handler_nested_collect_nt_enc(MfClassicPoller* inst
             found_nt = 0;
             uint8_t found_nt_cnt = 0;
             uint16_t current_dist = dict_attack_ctx->d_min;
+            uint32_t dist_iter = 0;
             while(current_dist <= dict_attack_ctx->d_max) {
+                if((dist_iter++ & 0x3FF) == 0) {
+                    if(furi_thread_flags_get() & (1U << 0)) {
+                        command = NfcCommandStop;
+                        break;
+                    }
+                }
                 uint32_t nth_successor = crypto1_prng_successor(decrypted_nt_prev, current_dist);
                 if(crypto1_nonce_matches_encrypted_parity_bits(
                        nth_successor, nth_successor ^ nt_enc, parity)) {
@@ -1534,6 +1548,7 @@ NfcCommand mf_classic_poller_handler_nested_collect_nt_enc(MfClassicPoller* inst
                 }
                 current_dist++;
             }
+            if(command == NfcCommandStop) break;
             if(found_nt_cnt != 1) {
                 break;
             }
@@ -1604,11 +1619,17 @@ static MfClassicKey* search_dicts_for_nonce_key(
     KeysDict* dicts[] = {user_dict, system_dict};
     bool is_resumed = dict_attack_ctx->nested_phase == MfClassicNestedPhaseDictAttackResume;
     bool found_resume_point = false;
+    uint32_t dict_iter = 0;
 
     for(int i = 0; i < 2; i++) {
         if(!dicts[i]) continue;
         keys_dict_rewind(dicts[i]);
         while(keys_dict_get_next_key(dicts[i], stack_key.data, sizeof(MfClassicKey))) {
+            if((dict_iter++ & 0x3FF) == 0) {
+                if(furi_thread_flags_get() & (1U << 0)) {
+                    return NULL;
+                }
+            }
             if(is_resumed && !found_resume_point) {
                 found_resume_point =
                     (memcmp(
@@ -2288,6 +2309,7 @@ NfcCommand mf_classic_poller_run(NfcGenericEvent event, void* context) {
             instance->card_state = MfClassicCardStateLost;
             instance->state = MfClassicPollerStateDetectType;
             instance->auth_state = MfClassicAuthStateIdle;
+            instance->pn532_mf_authed = false;
             instance->mfc_event.type = MfClassicPollerEventTypeCardLost;
             command = instance->callback(instance->general_event, instance->context);
         }

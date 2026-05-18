@@ -63,8 +63,8 @@ int16_t snep_receive(uint8_t* buf, uint16_t len, uint16_t timeout_ms) {
         return -4;
     }
 
-    uint32_t ndef_length =
-        ((uint32_t)buf[2] << 24) | ((uint32_t)buf[3] << 16) | ((uint32_t)buf[4] << 8) | buf[5];
+    uint32_t ndef_length = ((uint32_t)buf[2] << 24) | ((uint32_t)buf[3] << 16) |
+                           ((uint32_t)buf[4] << 8) | buf[5];
     if(ndef_length > (uint32_t)(read_len - 6)) {
         llcp_disconnect(&llcp, timeout_ms);
         return -4;

@@ -1,9 +1,6 @@
 #include "srix_render.h"
 
-void nfc_render_srix_info(
-    const SrixData* data,
-    NfcProtocolFormatType format_type,
-    FuriString* str) {
+void nfc_render_srix_info(const SrixData* data, NfcProtocolFormatType format_type, FuriString* str) {
     furi_string_cat_printf(str, "UID:");
     for(size_t i = 0; i < SRIX_UID_SIZE; i++) {
         furi_string_cat_printf(str, " %02X", data->uid[i]);

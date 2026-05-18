@@ -4,7 +4,4 @@
 
 #include <nfc/protocols/srix/srix.h>
 
-void nfc_render_srix_info(
-    const SrixData* data,
-    NfcProtocolFormatType format_type,
-    FuriString* str);
+void nfc_render_srix_info(const SrixData* data, NfcProtocolFormatType format_type, FuriString* str);

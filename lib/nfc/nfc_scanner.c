@@ -8,7 +8,7 @@
 
 #define TAG                               "NfcScanner"
 #define NFC_SCANNER_IDLE_DELAY_MS         300
-#define NFC_SCANNER_IDLE_DELAY_REDUCED_MS 150
+#define NFC_SCANNER_IDLE_DELAY_REDUCED_MS 50
 #define NFC_SCANNER_IDLE_REDUCE_THRESHOLD 3
 #define NFC_SCANNER_MAX_EMPTY_ROUNDS      3
 
@@ -94,9 +94,9 @@ void nfc_scanner_state_handler_idle(NfcScanner* instance) {
             NfcProtocolIso14443_3a,
             NfcProtocolIso14443_3b,
             NfcProtocolFelica,
-            NfcProtocolSrix,
-            NfcProtocolIso15693_3,
-            NfcProtocolSt25tb,
+            // SRIX and ST25TB omitted — PN532 has no native support,
+            // they always fail with timeout, wasting ~400ms per round.
+            // NfcProtocolIso15693_3 omitted for PN532 (unsupported, causes I2C deadlock)
         };
 
         size_t write_idx = 0;
@@ -137,10 +137,8 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
      * all 4 base protocols (~1200ms).  Once a card is detected, this
      * check passes and the normal per-protocol detection runs. */
     if(furi_hal_nfc_pn532_is_active() && instance->base_protocols_idx == 0 &&
-       instance->consecutive_empty_scans > 0 &&
-       instance->consecutive_empty_scans < 2 &&
-       instance->detected_base_protocols_num == 0 &&
-       !furi_hal_nfc_quick_poll()) {
+       instance->consecutive_empty_scans > 0 && instance->consecutive_empty_scans < 2 &&
+       instance->detected_base_protocols_num == 0 && !furi_hal_nfc_quick_poll()) {
         instance->type_a_no_target = false;
         uint32_t delay_ms;
         if(instance->consecutive_empty_scans < NFC_SCANNER_IDLE_REDUCE_THRESHOLD) {
@@ -246,8 +244,7 @@ void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
                 continue;
             }
             /* Skip 4A children on non-ISO-DEP cards (SAK bit 5 = 0) */
-            if(!sak_has_iso_dep &&
-               nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
+            if(!sak_has_iso_dep && nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
                 continue;
             }
             instance->children_protocols[instance->children_protocols_num] = i;

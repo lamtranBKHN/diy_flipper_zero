@@ -76,7 +76,12 @@ void furi_hal_spi_release(const FuriHalSpiBusHandle* handle) {
 
     uint32_t elapsed = furi_get_tick() - spi_acquire_tick;
     if(elapsed > FURI_HAL_SPI_MAX_TRANSACTION_MS) {
-        FURI_LOG_W(TAG, "SPI held for %lums (>%dms limit, caller=%p)", elapsed, FURI_HAL_SPI_MAX_TRANSACTION_MS, (void*)spi_acquire_caller);
+        FURI_LOG_W(
+            TAG,
+            "SPI held for %lums (>%dms limit, caller=%p)",
+            elapsed,
+            FURI_HAL_SPI_MAX_TRANSACTION_MS,
+            (void*)spi_acquire_caller);
     }
 
     // Handle event and unset handle

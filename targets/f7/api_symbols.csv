@@ -1627,7 +1627,11 @@ Function,+,furi_hal_nfc_pn532_listener_wait_event,FuriHalNfcEvent,uint32_t
 Function,+,furi_hal_nfc_pn532_low_power_mode_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_low_power_mode_stop,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_mf_auth,FuriHalNfcError,"uint8_t, const uint8_t*, uint8_t, const uint8_t*, uint8_t"
+Function,+,furi_hal_nfc_pn532_mf_deauth,void,
+Function,+,furi_hal_nfc_pn532_mf_is_authed,_Bool,
 Function,+,furi_hal_nfc_pn532_mf_key_store,void,"const uint8_t*, uint8_t"
+Function,+,furi_hal_nfc_pn532_mf_read_block,FuriHalNfcError,"uint8_t, uint8_t*, size_t"
+Function,+,furi_hal_nfc_pn532_mf_write_block,FuriHalNfcError,"uint8_t, const uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_poller_field_on,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_reset,void,
 Function,+,furi_hal_nfc_pn532_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
@@ -1666,8 +1670,11 @@ Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
 Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
 Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_pn532_in_communicate_thru,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_pn532_in_communicate_thru_timeout,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_in_data_exchange,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*"
 Function,+,furi_hal_pn532_init,_Bool,
+Function,+,furi_hal_pn532_irq_start,void,
+Function,+,furi_hal_pn532_irq_stop,void,
 Function,+,furi_hal_pn532_is_ready,_Bool,
 Function,+,furi_hal_pn532_mf_auth,FuriHalPn532Error,"uint8_t, uint8_t, const uint8_t*, uint8_t, const uint8_t*, uint8_t"
 Function,+,furi_hal_pn532_mf_backdoor_auth,_Bool,"uint8_t, uint8_t, const uint8_t*, uint8_t"

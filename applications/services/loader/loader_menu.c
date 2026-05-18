@@ -19,7 +19,7 @@
 #include <gui/icon_i.h>
 #include <m-list.h>
 
-#define TAG "LoaderMenu"
+#define TAG                    "LoaderMenu"
 #define LOADER_MENU_STACK_SIZE 2048
 
 typedef enum {
@@ -64,7 +64,8 @@ static void loader_pubsub_callback(const void* message, void* context) {
         }
     } else if(event->type == LoaderEventTypeNoMoreAppsInQueue) {
         if(!loader_menu->thread) {
-            loader_menu->thread = furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
+            loader_menu->thread =
+                furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
             furi_thread_start(loader_menu->thread);
         }
     }
@@ -96,7 +97,8 @@ LoaderMenu* loader_menu_alloc(void (*closed_cb)(void*), void* context, bool sett
     loader_menu->subscription = furi_pubsub_subscribe(
         loader_get_pubsub(loader_menu->loader), loader_pubsub_callback, loader_menu);
 
-    loader_menu->thread = furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
+    loader_menu->thread =
+        furi_thread_alloc_ex(TAG, LOADER_MENU_STACK_SIZE, loader_menu_thread, loader_menu);
     furi_thread_start(loader_menu->thread);
     return loader_menu;
 }
@@ -357,8 +359,8 @@ static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
         furi_record_close(RECORD_STORAGE);
     } else {
         file_content = menu->cached_menu_content;
-        FURI_LOG_D(TAG, "Using cached menu content (age=%lums)",
-                   furi_get_tick() - menu->cache_timestamp);
+        FURI_LOG_D(
+            TAG, "Using cached menu content (age=%lums)", furi_get_tick() - menu->cache_timestamp);
     }
 
     if(file_content && !furi_string_empty(file_content)) {
@@ -378,8 +380,8 @@ static void loader_menu_build_menu(LoaderMenuApp* app, LoaderMenu* menu) {
             char hdr_buf[64];
             memcpy(hdr_buf, cstr, hdr_len);
             hdr_buf[hdr_len] = '\0';
-            version_ok = (sscanf(hdr_buf, "MenuAppList Version %lu", &version) == 1 &&
-                          version <= 1);
+            version_ok =
+                (sscanf(hdr_buf, "MenuAppList Version %lu", &version) == 1 && version <= 1);
         }
 
         if(version_ok) {

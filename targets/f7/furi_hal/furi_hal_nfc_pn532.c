@@ -7,6 +7,12 @@
 
 #define TAG "FuriHalNfcPn532"
 
+/* MIFARE Classic auth timeout via InCommunicateThru.
+ * Card responds to auth (NT) in ~5ms.  PN532 internal auth timeout is ~65ms.
+ * 80ms gives 15ms margin over PN532's internal processing.  Lower values
+ * cause PN532 wait_ready timeout crash (30ms was too aggressive). */
+#define PN532_TIMEOUT_MF_AUTH_MS 80
+
 #define PN532_NFCA_CT              0x88
 #define PN532_EVENT_QUEUE_CAPACITY 8
 #define PN532_MAX_FRAME_SIZE       192
@@ -38,6 +44,7 @@ typedef struct {
     bool iso_dep_mode;
     bool needs_relist;
     uint8_t iso_dep_block_num; /**< Block number toggle for I-block responses */
+    bool mf_authed; /**< PN532 native MIFARE Classic auth active */
 } FuriHalNfcPn532State;
 
 static FuriHalNfcPn532State furi_hal_nfc_pn532 = {0};
@@ -48,9 +55,8 @@ static void furi_hal_nfc_pn532_set_result(FuriHalNfcPn532Result result) {
     furi_hal_nfc_pn532.last_result = result;
 }
 
-static FuriHalNfcPn532Result furi_hal_nfc_pn532_result_from_error(
-    FuriHalPn532Error err,
-    bool response_ready) {
+static FuriHalNfcPn532Result
+    furi_hal_nfc_pn532_result_from_error(FuriHalPn532Error err, bool response_ready) {
     if(response_ready) return FuriHalNfcPn532ResultDetected;
 
     switch(err) {
@@ -259,8 +265,7 @@ static bool furi_hal_nfc_pn532_build_cascade_response(
 static FuriHalNfcError
     furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532Error err, bool response_ready) {
     furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
-    furi_hal_nfc_pn532_set_result(
-        furi_hal_nfc_pn532_result_from_error(err, response_ready));
+    furi_hal_nfc_pn532_set_result(furi_hal_nfc_pn532_result_from_error(err, response_ready));
     if(err != FuriHalPn532ErrorNone) {
         furi_hal_nfc_pn532.last_error = err;
         furi_hal_nfc_pn532.last_error_tick = furi_get_tick();
@@ -308,7 +313,11 @@ static void pn532_send_inrelease(void) {
 void furi_hal_nfc_pn532_reset(void) {
     // Release PN532 target handle to avoid stale state between protocol detects
     pn532_send_inrelease();
+    /* Stop the background I2C poller thread to avoid I2C bus traffic
+     * and RTOS thread overhead when the NFC app is idle/closing. */
+    furi_hal_pn532_irq_stop();
     furi_hal_nfc_pn532.target_valid = false;
+    furi_hal_nfc_pn532.mf_authed = false;
     furi_hal_nfc_pn532.listener_active = false;
     furi_hal_nfc_pn532.mode = FuriHalNfcModeNum;
     furi_hal_nfc_pn532.tech = FuriHalNfcTechInvalid;
@@ -343,6 +352,7 @@ FuriHalNfcError furi_hal_nfc_pn532_set_mode(FuriHalNfcMode mode, FuriHalNfcTech 
     if(mode == furi_hal_nfc_pn532.mode && tech == furi_hal_nfc_pn532.tech) {
         pn532_send_inrelease();
         furi_hal_nfc_pn532.target_valid = false;
+        furi_hal_nfc_pn532.mf_authed = false;
         furi_hal_nfc_pn532.target_tick = 0;
         furi_hal_nfc_pn532.rx_bits = 0;
         memset(&furi_hal_nfc_pn532.target, 0, sizeof(furi_hal_nfc_pn532.target));
@@ -445,14 +455,16 @@ FuriHalNfcError furi_hal_nfc_pn532_trx_short_frame(FuriHalNfcaShortFrame frame) 
     if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
 
     bool use_cached = false;
-    if(furi_hal_nfc_pn532.target_valid &&
-       furi_hal_nfc_pn532.tech == FuriHalNfcTechIso14443a) {
+    if(furi_hal_nfc_pn532.target_valid && furi_hal_nfc_pn532.tech == FuriHalNfcTechIso14443a) {
         int32_t age = (int32_t)(furi_get_tick() - furi_hal_nfc_pn532.target_tick);
         use_cached = (age >= 0 && age < (int32_t)PN532_TARGET_FRESHNESS_TIMEOUT_MS);
     }
 
     if(use_cached) {
-        FURI_LOG_D(TAG, "trx_short_frame: using cached target (age=%ldms)", (int32_t)(furi_get_tick() - furi_hal_nfc_pn532.target_tick));
+        FURI_LOG_D(
+            TAG,
+            "trx_short_frame: using cached target (age=%ldms)",
+            (int32_t)(furi_get_tick() - furi_hal_nfc_pn532.target_tick));
     } else {
         FuriHalPn532Target target = {0};
         const bool found = furi_hal_pn532_poll_iso14443a(&target);
@@ -481,10 +493,7 @@ FuriHalNfcError furi_hal_nfc_pn532_trx_short_frame(FuriHalNfcaShortFrame frame) 
     furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
     if(furi_hal_nfc_pn532.target_valid &&
        furi_hal_nfc_pn532_prepare_rx(
-           furi_hal_nfc_pn532.target.atqa,
-           sizeof(furi_hal_nfc_pn532.target.atqa),
-           false,
-           false)) {
+           furi_hal_nfc_pn532.target.atqa, sizeof(furi_hal_nfc_pn532.target.atqa), false, false)) {
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventRxStart);
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventRxEnd);
     }
@@ -551,8 +560,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             detected = furi_hal_pn532_poll_felica(&target);
             break;
         default:
-            return furi_hal_nfc_pn532_finalize_exchange(
-                FuriHalPn532ErrorUnsupported, false);
+            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorUnsupported, false);
         }
 
         if(!detected) {
@@ -592,8 +600,9 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         if(furi_hal_nfc_pn532.target_valid) {
             if(furi_hal_nfc_pn532.needs_relist) {
                 FuriHalPn532Target target;
-                if(!furi_hal_pn532_poll_iso14443a_timeout(&target, 50)) {
+                if(!furi_hal_pn532_poll_iso14443a_timeout(&target, 20)) {
                     furi_hal_nfc_pn532.target_valid = false;
+                    furi_hal_nfc_pn532.mf_authed = false;
                     furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
                     return FuriHalNfcErrorCommunication;
                 }
@@ -704,22 +713,35 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
     if(send_len >= 2U && (tx_bytes[0] == 0x60U || tx_bytes[0] == 0x61U || tx_bytes[0] == 0x64U ||
                           tx_bytes[0] == 0x65U)) {
         if(tx_bytes[0] == 0x64U || tx_bytes[0] == 0x65U) {
-            // Backdoor auth: build full 9-byte frame with stored key
-            // Format: [cmd, block, key_type, key(6)]
-            uint8_t backdoor_cmd[9] = {0};
+            // Backdoor auth: build full 9-byte frame with stored key + CRC-A
+            // Format: [cmd, block, key_type, key(6), CRC(2)]
+            uint8_t backdoor_cmd[11] = {0};
             backdoor_cmd[0] = tx_bytes[0]; // 0x64 or 0x65
             backdoor_cmd[1] = tx_bytes[1]; // block number
             backdoor_cmd[2] = furi_hal_nfc_pn532.mf_auth_key_type;
             memcpy(&backdoor_cmd[3], furi_hal_nfc_pn532.mf_auth_key, 6);
+            const uint16_t crc_bd = furi_hal_nfc_pn532_crc_a(backdoor_cmd, 9);
+            backdoor_cmd[9] = (uint8_t)(crc_bd & 0xFFU);
+            backdoor_cmd[10] = (uint8_t)(crc_bd >> 8U);
 
-            err = furi_hal_pn532_in_communicate_thru(
-                backdoor_cmd, sizeof(backdoor_cmd), rx_payload, PN532_MAX_FRAME_SIZE, &rx_len);
+            err = furi_hal_pn532_in_communicate_thru_timeout(
+                backdoor_cmd,
+                sizeof(backdoor_cmd),
+                rx_payload,
+                PN532_MAX_FRAME_SIZE,
+                &rx_len,
+                PN532_TIMEOUT_MF_AUTH_MS);
         } else {
-            // Standard auth: send complete frame [cmd, block, CRC] via InCommunicateThru
+            // Standard auth: send complete frame [cmd, block, CRC] via InCommunicateThru.
             // tx_bytes includes CRC-A appended by iso14443_3a_poller layer;
             // InCommunicateThru sends raw bytes without modification by PN532.
-            err = furi_hal_pn532_in_communicate_thru(
-                tx_bytes, tx_len, rx_payload, PN532_MAX_FRAME_SIZE, &rx_len);
+            err = furi_hal_pn532_in_communicate_thru_timeout(
+                tx_bytes,
+                tx_len,
+                rx_payload,
+                PN532_MAX_FRAME_SIZE,
+                &rx_len,
+                PN532_TIMEOUT_MF_AUTH_MS);
         }
         if(err == FuriHalPn532ErrorNone) {
             // NT (standard auth) or ACK (backdoor auth) — no CRC append
@@ -729,7 +751,6 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         // Auth InCommunicateThru failed — likely wrong key, tag enters HALT state.
         // We set needs_relist so the next WUPA command physically wakes it up.
         // Do NOT set target_valid = false, allowing poller retry logic to proceed!
-        furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
         furi_hal_nfc_pn532.rx_bits = 0;
         furi_hal_nfc_pn532.needs_relist = true;
         furi_hal_nfc_pn532.iso_dep_mode = false;
@@ -773,7 +794,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
                 furi_hal_nfc_pn532.scratch[iob_len] = (uint8_t)(crc & 0xFFU);
                 furi_hal_nfc_pn532.scratch[iob_len + 1] = (uint8_t)(crc >> 8U);
 
-                furi_hal_nfc_pn532_prepare_rx(furi_hal_nfc_pn532.scratch, iob_len + 2, false, false);
+                furi_hal_nfc_pn532_prepare_rx(
+                    furi_hal_nfc_pn532.scratch, iob_len + 2, false, false);
                 return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
             }
             // Fall through to error handling if InDataExchange fails
@@ -831,6 +853,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         if(!(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort)) {
             FURI_LOG_W("PN532Nfc", "Target communication failed (err=%d), marking invalid", err);
             furi_hal_nfc_pn532.target_valid = false;
+            furi_hal_nfc_pn532.mf_authed = false;
             furi_hal_nfc_pn532.iso_dep_mode = false;
         }
     }
@@ -840,21 +863,6 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         furi_hal_nfc_pn532_prepare_rx(rx_payload, rx_len, !add_parity_to_rx, add_parity_to_rx);
 
     return furi_hal_nfc_pn532_finalize_exchange(err, response_ready);
-}
-
-FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
-    uint8_t block_num,
-    const uint8_t* key,
-    uint8_t key_type,
-    const uint8_t* uid,
-    uint8_t uid_len) {
-    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
-    if(!furi_hal_nfc_pn532.target_valid) return FuriHalNfcErrorCommunication;
-
-    const FuriHalPn532Error err = furi_hal_pn532_mf_auth(
-        furi_hal_nfc_pn532.target.target_number, block_num, key, key_type, uid, uid_len);
-
-    return (err == FuriHalPn532ErrorNone) ? FuriHalNfcErrorNone : FuriHalNfcErrorCommunication;
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_tx(const uint8_t* tx_data, size_t tx_bits) {
@@ -928,7 +936,8 @@ FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms) {
             uint8_t* const buf = furi_hal_nfc_pn532.scratch;
             size_t len = 0;
 
-            FuriHalPn532Error err = furi_hal_pn532_tg_get_data(buf, PN532_MAX_FRAME_SIZE, &len, slice_ms);
+            FuriHalPn532Error err =
+                furi_hal_pn532_tg_get_data(buf, PN532_MAX_FRAME_SIZE, &len, slice_ms);
 
             if(err == FuriHalPn532ErrorNone && len > 0) {
                 if(furi_hal_nfc_pn532.tech == FuriHalNfcTechFelica) {
@@ -972,7 +981,8 @@ FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms) {
                         furi_hal_nfc_pn532.scratch[0] =
                             (uint8_t)(0x02U | (furi_hal_nfc_pn532.iso_dep_block_num & 1U));
                         furi_hal_nfc_pn532.iso_dep_block_num ^= 1U;
-                        const uint16_t crc = furi_hal_nfc_pn532_crc_a(furi_hal_nfc_pn532.scratch, len + 1);
+                        const uint16_t crc =
+                            furi_hal_nfc_pn532_crc_a(furi_hal_nfc_pn532.scratch, len + 1);
                         furi_hal_nfc_pn532.scratch[len + 1] = (uint8_t)(crc & 0xFFU);
                         furi_hal_nfc_pn532.scratch[len + 2] = (uint8_t)(crc >> 8U);
                         const size_t i_block_len = len + 3U;
@@ -1149,6 +1159,111 @@ void furi_hal_nfc_pn532_mf_key_store(const uint8_t* key, uint8_t key_type) {
     } else {
         furi_hal_nfc_pn532.mf_auth_key_valid = false;
     }
+}
+
+FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
+    uint8_t block_num,
+    const uint8_t* key,
+    uint8_t key_type,
+    const uint8_t* uid,
+    uint8_t uid_len) {
+    FuriHalPn532Error err =
+        furi_hal_pn532_mf_auth(furi_hal_nfc_pn532.target.target_number, block_num, key, key_type, uid, uid_len);
+    if(err == FuriHalPn532ErrorNone) {
+        furi_hal_nfc_pn532.mf_authed = true;
+        FURI_LOG_D(TAG, "PN532 native auth OK: block=%d key_type=%d", block_num, key_type);
+        return FuriHalNfcErrorNone;
+    }
+    furi_hal_nfc_pn532.mf_authed = false;
+    FURI_LOG_D(TAG, "PN532 native auth failed: block=%d err=%d", block_num, err);
+    return FuriHalNfcErrorCommunication;
+}
+
+bool furi_hal_nfc_pn532_mf_is_authed(void) {
+    return furi_hal_nfc_pn532.mf_authed;
+}
+
+void furi_hal_nfc_pn532_mf_deauth(void) {
+    furi_hal_nfc_pn532.mf_authed = false;
+}
+
+FuriHalNfcError furi_hal_nfc_pn532_mf_read_block(
+    uint8_t block_num,
+    uint8_t* data,
+    size_t data_size) {
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    if(!furi_hal_nfc_pn532.mf_authed) return FuriHalNfcErrorCommunication;
+    if(data_size < 16U) return FuriHalNfcErrorBufferOverflow;
+
+    uint8_t cmd[2] = {0x30, block_num}; // MIFARE READ command
+    uint8_t resp[18]; // 16 data + 2 CRC
+    size_t resp_len = sizeof(resp);
+
+    FuriHalPn532Error err = furi_hal_pn532_in_data_exchange(
+        furi_hal_nfc_pn532.target.target_number, cmd, sizeof(cmd), resp, sizeof(resp), &resp_len);
+
+    if(err != FuriHalPn532ErrorNone) {
+        furi_hal_nfc_pn532.mf_authed = false;
+        return FuriHalNfcErrorCommunication;
+    }
+    if(resp_len < 16U) {
+        return FuriHalNfcErrorIncompleteFrame;
+    }
+
+    memcpy(data, resp, 16U);
+    return FuriHalNfcErrorNone;
+}
+
+FuriHalNfcError furi_hal_nfc_pn532_mf_write_block(
+    uint8_t block_num,
+    const uint8_t* data,
+    size_t data_size) {
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    if(!furi_hal_nfc_pn532.mf_authed) return FuriHalNfcErrorCommunication;
+    if(data_size < 16U) return FuriHalNfcErrorDataFormat;
+
+    // Phase 1: Send WRITE command
+    uint8_t cmd1[2] = {0xA0, block_num}; // MIFARE WRITE command
+    uint8_t resp1[2];
+    size_t resp1_len = sizeof(resp1);
+
+    FuriHalPn532Error err = furi_hal_pn532_in_data_exchange(
+        furi_hal_nfc_pn532.target.target_number,
+        cmd1,
+        sizeof(cmd1),
+        resp1,
+        sizeof(resp1),
+        &resp1_len);
+
+    if(err != FuriHalPn532ErrorNone) {
+        furi_hal_nfc_pn532.mf_authed = false;
+        return FuriHalNfcErrorCommunication;
+    }
+    if(resp1_len < 1U || resp1[0] != 0x0A) { // ACK = 0x0A
+        return FuriHalNfcErrorIncompleteFrame;
+    }
+
+    // Phase 2: Send 16 bytes of data
+    uint8_t resp2[2];
+    size_t resp2_len = sizeof(resp2);
+
+    err = furi_hal_pn532_in_data_exchange(
+        furi_hal_nfc_pn532.target.target_number,
+        data,
+        16U,
+        resp2,
+        sizeof(resp2),
+        &resp2_len);
+
+    if(err != FuriHalPn532ErrorNone) {
+        furi_hal_nfc_pn532.mf_authed = false;
+        return FuriHalNfcErrorCommunication;
+    }
+    if(resp2_len < 1U || resp2[0] != 0x0A) { // ACK = 0x0A
+        return FuriHalNfcErrorIncompleteFrame;
+    }
+
+    return FuriHalNfcErrorNone;
 }
 
 uint8_t furi_hal_nfc_pn532_get_sak(void) {

@@ -9,8 +9,8 @@ static uint8_t pcf8574_state = 0xFF;
 static bool pcf8574_ready = false;
 static uint8_t pcf8574_addr = PCF8574_I2C_ADDR;
 static uint32_t pcf8574_last_error_tick = 0;
-#define PCF8574_REINIT_COOLDOWN_MS 500U /* Minimum ms between full I2C address scans */
-#define PCF8574_I2C_TIMEOUT_MS 50
+#define PCF8574_REINIT_COOLDOWN_MS 5000U /* Minimum ms between full I2C address scans */
+#define PCF8574_I2C_TIMEOUT_MS     50
 static GpioExtiCallback pcf8574_int_cb = NULL;
 static void* pcf8574_int_ctx = NULL;
 static const uint8_t pcf8574_output_mask = (1u << PCF8574_PIN_VIBRO) | (1u << PCF8574_PIN_BUZZER);
@@ -34,7 +34,8 @@ bool furi_hal_pcf8574_init(void) {
 
     for(size_t i = 0; i < cidx; i++) {
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, candidates[i], &probe, 1, PCF8574_I2C_TIMEOUT_MS);
+        ok = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, candidates[i], &probe, 1, PCF8574_I2C_TIMEOUT_MS);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         if(ok) {
             detected_addr = candidates[i];
@@ -57,7 +58,8 @@ bool furi_hal_pcf8574_init(void) {
     uint8_t frame =
         (uint8_t)((~pcf8574_output_mask) | (pcf8574_output_state & pcf8574_output_mask));
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool wr_ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, PCF8574_I2C_TIMEOUT_MS);
+    bool wr_ok = furi_hal_i2c_tx(
+        &furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, PCF8574_I2C_TIMEOUT_MS);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
     if(wr_ok) {
         pcf8574_state = frame;
@@ -83,7 +85,8 @@ bool furi_hal_pcf8574_read(uint8_t* data) {
 
     uint8_t value = 0xFF;
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pcf8574_addr, &value, 1, PCF8574_I2C_TIMEOUT_MS);
+    bool ok = furi_hal_i2c_rx(
+        &furi_hal_i2c_handle_power, pcf8574_addr, &value, 1, PCF8574_I2C_TIMEOUT_MS);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
     if(ok) pcf8574_state = value;
@@ -103,7 +106,8 @@ bool furi_hal_pcf8574_write(uint8_t data) {
     uint8_t frame = (uint8_t)((~pcf8574_output_mask) | pcf8574_output_state);
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_tx(&furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, PCF8574_I2C_TIMEOUT_MS);
+    bool ok = furi_hal_i2c_tx(
+        &furi_hal_i2c_handle_power, pcf8574_addr, &frame, 1, PCF8574_I2C_TIMEOUT_MS);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
 
     if(ok) pcf8574_state = frame;

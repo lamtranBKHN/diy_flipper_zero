@@ -38,37 +38,75 @@
 #define PN532_MAX_RX_FRAME   270
 
 /* Timeout constants for PN532 operations */
-#define PN532_TIMEOUT_ACK_MS         150 /* ACK frame response timeout     */
+#define PN532_TIMEOUT_ACK_MS         50  /* ACK frame response timeout     */
 #define PN532_TIMEOUT_CMD_MS         250 /* FW version / SAM config       */
 #define PN532_TIMEOUT_POLL_MS        300 /* InListPassiveTarget poll      */
 #define PN532_TIMEOUT_EXCHANGE_MS    1000 /* InDataExchange (1s default)   */
 #define PN532_TIMEOUT_EXCHANGE_4K_MS 1500 /* InDataExchange (MIFARE 4K)  */
 #define PN532_TIMEOUT_PRESENCE_MS    100 /* Fast presence re-poll         */
+#define PN532_TIMEOUT_MF_AUTH_MS     80  /* MIFARE Classic auth via       */
+                                         /* InCommunicateThru — PN532     */
+                                         /* internal timeout ~65ms;       */
+                                         /* 80ms gives 15ms margin.       */
 
 /* Retry backoff tables */
-static const uint16_t pn532_write_backoff_ms[PN532_I2C_RETRIES] = {50, 100, 200};
-static const uint16_t pn532_read_backoff_ms[PN532_I2C_RETRIES] = {5, 10, 20};
+static const uint16_t pn532_write_backoff_ms[PN532_I2C_RETRIES] = {20, 40, 80};
+static const uint16_t pn532_read_backoff_ms[PN532_I2C_RETRIES] = {3, 6, 12};
 
 static const uint8_t pn532_ack_frame[6] = {0x00, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 static bool pn532_ready = false;
 #define PN532_I2C_ADDR PN532_I2C_ADDR_7BIT
+static uint8_t pn532_i2c_addr = PN532_I2C_ADDR;
 
-/* Drain any stale data from the PN532 output buffer before a new write.
- * PN532 I2C slave NACKs writes while it has pending output data.
- * A 1-byte probe detects readiness; if ready, read the full 270-byte
- * buffer to flush stale frames (e.g. unread responses from a prior
- * aborted or partially-failed exchange). */
+/* Software-IRQ: a background thread polls the PN532 status byte over I2C and
+ * signals pn532_irq_event when the chip has data ready (status=0x01 READY).
+ * This replaces the blocking poll loop in pn532_wait_ready_ms(), freeing the
+ * RTOS scheduler and the I2C bus between 10ms poll intervals.
+ *
+ * Safety: a 1-byte I2C read only reads the status byte; the PN532 re-presents
+ * the full response frame on the next complete read, so the poller thread
+ * cannot accidentally consume ACK or response data. */
+#define PN532_IRQ_FLAG_READY (1u << 0) /* PN532 status=0x01 detected */
+#define PN532_IRQ_FLAG_STOP  (1u << 1) /* request thread shutdown   */
+static FuriEventFlag* pn532_irq_event  = NULL;
+static FuriThread*    pn532_irq_thread = NULL;
+
+/* Drain ALL stale frames from the PN532 output buffer before a new write.
+ * The PN532 I2C slave NACKs writes while it has pending output data (status=0x01).
+ *
+ * Bug that this fixes: if the PN532 queued TWO responses (e.g. a failed MfClassic
+ * auth error frame followed by an abort-ACK frame), the old single-frame drain
+ * left the second frame in place.  The PN532 kept status=0x01, causing NACK on
+ * all subsequent writes → infinite TX retry storm → "Don't move" freeze.
+ *
+ * Fix: loop up to 4 times, draining one 270-byte frame per iteration, until
+ * the status byte reads 0x00 (PN532 idle and ready to accept a new command).
+ * A 5ms inter-frame settle delay lets the PN532 clear its ready latch before
+ * the next status probe. */
 static void pn532_drain_output(void) {
-    furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    uint8_t status = 0;
-    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR, &status, 1, 5);
-    furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-    if(ok && status == PN532_I2C_READY) {
-        uint8_t drain[PN532_MAX_RX_FRAME];
+    uint8_t drain[PN532_MAX_RX_FRAME];
+    uint8_t frames_drained = 0;
+
+    for(uint8_t i = 0; i < 4; i++) {
+        uint8_t status = 0;
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR, drain, sizeof(drain), 20);
+        bool ok = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, pn532_i2c_addr, &status, 1, 5);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-        FURI_LOG_D(TAG, "drained %zu bytes of stale PN532 output", sizeof(drain));
+
+        if(!ok || status != PN532_I2C_READY) break; /* PN532 idle — nothing more to drain */
+
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, pn532_i2c_addr, drain, sizeof(drain), 20);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+
+        frames_drained++;
+        furi_delay_ms(5); /* let PN532 clear ready latch before next status probe */
+    }
+
+    if(frames_drained > 0) {
+        FURI_LOG_D(TAG, "drained %u stale PN532 frame(s)", frames_drained);
     }
 }
 
@@ -78,19 +116,40 @@ static void pn532_drain_output(void) {
  * there is no way to recover once desynced. PN532 errors are treated as
  * transient timeouts and resolved by retrying the operation directly. */
 
-static uint8_t pn532_i2c_addr = PN532_I2C_ADDR;
-
 static bool pn532_wait_ready_ms(uint32_t timeout_ms) {
-    /* NOTE: Do NOT check the abort flag on the very first attempt.
-     * The FWT timer fires at ~5ms while InListPassiveTarget needs up to 150ms.
-     * However, once we know the PN532 is still busy (at least one NACK seen),
-     * we can exit early on abort to avoid a full timeout stall at shutdown.
-     * pn532_ready is only set false on genuine hardware timeout, not on abort. */
+    if(pn532_irq_event) {
+        /* Software-IRQ path: wait for the poller thread to detect status=0x01.
+         * The event flag is set by pn532_irq_poller_run() every time it reads
+         * a READY byte from the PN532.  We wait here with a timeout so that
+         * abort signals and hardware timeouts are still honoured. */
+        uint32_t result = furi_event_flag_wait(
+            pn532_irq_event,
+            PN532_IRQ_FLAG_READY,
+            FuriFlagWaitAny | FuriFlagNoClear,
+            timeout_ms);
+        if((result & PN532_IRQ_FLAG_READY) == 0) {
+            /* Timeout or spurious wake — check for clean abort */
+            if(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort) {
+                FURI_LOG_D(TAG, "PN532 wait ready: abort (irq path)");
+            } else {
+                FURI_LOG_E(TAG, "PN532 wait ready: timeout (irq path)");
+                pn532_ready = false;
+            }
+            return false;
+        }
+        /* Consume the flag — the next caller must wait for the next READY signal */
+        furi_event_flag_clear(pn532_irq_event, PN532_IRQ_FLAG_READY);
+        return true;
+    }
+
+    /* Blocking-poll fallback — used during furi_hal_pn532_init() before the
+     * IRQ thread is started, and as a safety net if the thread is stopped. */
     uint32_t start = furi_get_tick();
     for(uint8_t attempt = 0;; attempt++) {
         uint8_t status = 0;
         furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, pn532_i2c_addr, &status, 1, 10);
+        bool ok = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, pn532_i2c_addr, &status, 1, 10);
         furi_hal_i2c_release(&furi_hal_i2c_handle_power);
         if(ok && status == PN532_I2C_READY) {
             FURI_LOG_D(TAG, "PN532 ready after %d retries", attempt);
@@ -98,7 +157,6 @@ static bool pn532_wait_ready_ms(uint32_t timeout_ms) {
         }
         if((furi_get_tick() - start) >= timeout_ms) {
             if(furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort) {
-                /* Timeout during a clean abort — PN532 hardware is fine */
                 FURI_LOG_D(TAG, "PN532 wait ready timeout (abort pending, not a hw error)");
             } else {
                 FURI_LOG_E(TAG, "PN532 wait ready timeout");
@@ -106,27 +164,64 @@ static bool pn532_wait_ready_ms(uint32_t timeout_ms) {
             }
             return false;
         }
-        /* Early exit on abort after first polling attempt to avoid full timeout stall */
         if(attempt > 0 && (furi_thread_flags_get() & FuriHalNfcEventInternalTypeAbort)) {
             FURI_LOG_D(TAG, "PN532 wait ready: abort early exit after %d attempts", attempt);
             return false;
         }
-        furi_delay_ms(
-            20); // 20ms poll interval — reduced from 50ms for faster response; 1-byte I2C read at 100kHz is ~100µs so bus load is negligible
+        furi_delay_ms(20);
     }
 }
 
+/* Software-IRQ polling thread.
+ * Runs at FuriThreadPriorityNormal+1 during NFC sessions.  Every 10ms it does
+ * a 1-byte I2C read (the PN532 status byte).  When status=0x01 (READY) it sets
+ * PN532_IRQ_FLAG_READY on pn532_irq_event so pn532_wait_ready_ms() can unblock.
+ *
+ * The 1-byte read is safe: the PN532 presents a fresh READY+frame sequence on
+ * every new I2C transaction, so the single-byte status check does NOT consume
+ * ACK or response frame data that pn532_read_ack()/pn532_read_response() need. */
+static int32_t pn532_irq_poller_run(void* ctx) {
+    UNUSED(ctx);
+    FURI_LOG_D(TAG, "PN532 IRQ poller thread started");
+    while(true) {
+        /* Check for shutdown request */
+        uint32_t tflags = furi_thread_flags_get();
+        if(tflags & PN532_IRQ_FLAG_STOP) break;
+
+        uint8_t status = 0;
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        bool ok = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, pn532_i2c_addr, &status, 1, 5);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+
+        if(ok && status == PN532_I2C_READY) {
+            furi_event_flag_set(pn532_irq_event, PN532_IRQ_FLAG_READY);
+        }
+
+        furi_delay_ms(10); /* 100 Hz poll — ~1µs I2C bus load per cycle at 100 kHz */
+    }
+    FURI_LOG_D(TAG, "PN532 IRQ poller thread stopped");
+    return 0;
+}
+
 static bool pn532_probe_address(void) {
+    /* PN532 I2C address is fixed by hardware pin strapping (A0=1, A1=0)
+     * → 7-bit 0x48 (8-bit write 0x90).  Do a single-address ping instead
+     * of scanning all 127 addresses, which takes up to 6s and corrupts
+     * pn532_i2c_addr with the wrong 8-bit shifted value. */
     uint8_t status = 0;
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    bool ok = furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR, &status, 1, 10);
+    bool found =
+        furi_hal_i2c_rx(&furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, &status, 1, 50);
     furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-    if(ok) {
-        pn532_i2c_addr = PN532_I2C_ADDR;
-        FURI_LOG_I(TAG, "PN532 I2C addr detected: 0x%02X", pn532_i2c_addr);
-        return true;
+
+    if(found) {
+        pn532_i2c_addr = PN532_I2C_ADDR_7BIT;
+        FURI_LOG_I(TAG, "PN532 found at 0x%02X", pn532_i2c_addr);
+    } else {
+        FURI_LOG_W(TAG, "PN532 not responding at 0x%02X", PN532_I2C_ADDR_7BIT);
     }
-    return false;
+    return found;
 }
 
 static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
@@ -183,6 +278,10 @@ static bool pn532_write_frame(const uint8_t* cmd, size_t cmd_len) {
         furi_delay_ms(pn532_write_backoff_ms[attempt]);
     }
     FURI_LOG_E(TAG, "TX frame failed after %u retries", PN532_I2C_RETRIES);
+    /* Mark PN532 as needing reinit.  The next pn532_exchange() call will invoke
+     * furi_hal_pn532_init() (SAM config) before attempting any further commands.
+     * Without this, the caller keeps retrying writes to a stuck chip. */
+    pn532_ready = false;
     return false;
 }
 
@@ -241,7 +340,8 @@ static bool pn532_read_ack(void) {
     return match;
 }
 
-static FuriHalPn532Error pn532_read_raw_response(uint8_t* rx, size_t rx_size, uint32_t timeout_ms) {
+static FuriHalPn532Error
+    pn532_read_raw_response(uint8_t* rx, size_t rx_size, uint32_t timeout_ms) {
     if(!rx || rx_size < 8) return FuriHalPn532ErrorInvalidFrame;
     if(!pn532_wait_ready_ms(timeout_ms)) return FuriHalPn532ErrorTimeout;
 
@@ -250,7 +350,7 @@ static FuriHalPn532Error pn532_read_raw_response(uint8_t* rx, size_t rx_size, ui
     bool ok = false;
 
     furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-    
+
     // Read the maximum possible frame in a single transaction.
     // PN532 I2C requires reading the entire frame in one go, as every new read transaction
     // starts with a READY byte, and incomplete reads will cause desync.
@@ -310,10 +410,7 @@ static FuriHalPn532Error pn532_parse_response_frame(
     const size_t required_frame_size = 7U + len;
     if(required_frame_size > frame_size) {
         FURI_LOG_E(
-            TAG,
-            "pn532_read_response: short frame (%zu < %zu)",
-            frame_size,
-            required_frame_size);
+            TAG, "pn532_read_response: short frame (%zu < %zu)", frame_size, required_frame_size);
         return FuriHalPn532ErrorInvalidFrame;
     }
 
@@ -400,6 +497,11 @@ static bool pn532_write_register(uint16_t reg, uint8_t value) {
 }
 
 bool furi_hal_pn532_init(void) {
+    /* Stop the IRQ poller thread if it is still running from a previous
+     * session.  It must not be polling while we reset pn532_ready and
+     * take the I2C bus for SAM configuration. */
+    furi_hal_pn532_irq_stop();
+
     pn532_ready = false;
     /* Clear any stale abort flag left from a previous NFC session */
     furi_thread_flags_clear(FuriHalNfcEventInternalTypeAbort);
@@ -489,7 +591,35 @@ bool furi_hal_pn532_init(void) {
 
     pn532_ready = true;
     FURI_LOG_I(TAG, "PN532 initialized over I2C");
+
+    /* Start the software-IRQ polling thread now that the PN532 is ready.
+     * From this point, pn532_wait_ready_ms() will use the event-flag path
+     * instead of the blocking poll loop. */
+    furi_hal_pn532_irq_start();
+
     return true;
+}
+
+void furi_hal_pn532_irq_start(void) {
+    if(pn532_irq_thread) return; /* already running */
+    furi_check(!pn532_irq_event);
+    pn532_irq_event = furi_event_flag_alloc();
+    pn532_irq_thread =
+        furi_thread_alloc_ex("Pn532IrqPoll", 768, pn532_irq_poller_run, NULL);
+    furi_thread_set_priority(pn532_irq_thread, FuriThreadPriorityNormal + 1);
+    furi_thread_start(pn532_irq_thread);
+    FURI_LOG_D(TAG, "PN532 IRQ poller started");
+}
+
+void furi_hal_pn532_irq_stop(void) {
+    if(!pn532_irq_thread) return;
+    furi_thread_flags_set(furi_thread_get_id(pn532_irq_thread), PN532_IRQ_FLAG_STOP);
+    furi_thread_join(pn532_irq_thread);
+    furi_thread_free(pn532_irq_thread);
+    pn532_irq_thread = NULL;
+    furi_event_flag_free(pn532_irq_event);
+    pn532_irq_event = NULL;
+    FURI_LOG_D(TAG, "PN532 IRQ poller stopped");
 }
 
 bool furi_hal_pn532_is_ready(void) {
@@ -571,15 +701,17 @@ static FuriHalPn532Error pn532_exchange(
 
     if(!pn532_read_ack()) {
         FURI_LOG_W(TAG, "pn532_exchange: ACK failed");
-        /* RISK-3: Only mark the chip absent if a quick re-probe confirms it is
-         * gone.  Transient I2C glitches produce ACK failures but the PN532 is
-         * still alive; setting pn532_ready=false here causes every subsequent
-         * call to trigger a full cold reinit (SAM + 100ms delays) mid-session.
-         * Re-probe with a 10ms timeout — if the chip ACKs we keep pn532_ready
-         * true and let the caller retry; if the probe fails the chip is gone. */
-        if(!pn532_probe_address()) {
+        /* Transient I2C glitches produce ACK failures while the PN532 is still
+         * alive.  Do a single quick ping to 0x48 (10ms) rather than a full bus
+         * scan.  Only mark the chip absent if the ping also fails. */
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        uint8_t ping_status = 0;
+        bool chip_alive = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, &ping_status, 1, 10);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+        if(!chip_alive) {
             pn532_ready = false;
-            FURI_LOG_E(TAG, "pn532_exchange: ACK failed and probe failed — marking PN532 absent");
+            FURI_LOG_E(TAG, "pn532_exchange: ACK failed and ping failed — marking PN532 absent");
         }
         return FuriHalPn532ErrorComm;
     }
@@ -701,8 +833,8 @@ bool furi_hal_pn532_srix_detect(uint8_t* chip_id) {
     uint8_t response[16] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru(
+        cmd, sizeof(cmd), response, sizeof(response), &response_len);
     if(error != FuriHalPn532ErrorNone || response_len < 2) return false;
 
     if(response[0] != 0x00) return false;
@@ -719,8 +851,8 @@ bool furi_hal_pn532_srix_select(uint8_t chip_id) {
     uint8_t response[8] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru(
+        cmd, sizeof(cmd), response, sizeof(response), &response_len);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 1) return false;
 
@@ -734,8 +866,8 @@ bool furi_hal_pn532_srix_get_uid(uint8_t* uid, size_t* uid_len) {
     uint8_t response[16] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru(
+        cmd, sizeof(cmd), response, sizeof(response), &response_len);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 2 || response[0] != 0x00) return false;
 
@@ -754,8 +886,8 @@ bool furi_hal_pn532_srix_read_block(uint8_t block_num, uint8_t* data) {
     uint8_t response[16] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru(
+        cmd, sizeof(cmd), response, sizeof(response), &response_len);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 5 || response[0] != 0x00) return false;
 
@@ -770,8 +902,8 @@ bool furi_hal_pn532_srix_write_block(uint8_t block_num, const uint8_t* data) {
     uint8_t response[8] = {0};
     size_t response_len = 0;
 
-    FuriHalPn532Error error =
-        furi_hal_pn532_in_communicate_thru(cmd, sizeof(cmd), response, sizeof(response), &response_len);
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru(
+        cmd, sizeof(cmd), response, sizeof(response), &response_len);
     if(error != FuriHalPn532ErrorNone) return false;
     if(response_len < 1) return false;
 
@@ -908,12 +1040,13 @@ FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     return FuriHalPn532ErrorNone;
 }
 
-FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
+static FuriHalPn532Error furi_hal_pn532_in_communicate_thru_impl(
     const uint8_t* tx_data,
     size_t tx_len,
     uint8_t* rx_data,
     size_t rx_size,
-    size_t* rx_len) {
+    size_t* rx_len,
+    uint32_t timeout_ms) {
     if(tx_len > PN532_MAX_TX_PAYLOAD - 2) return FuriHalPn532ErrorComm;
 
     uint8_t cmd[PN532_MAX_TX_PAYLOAD + 2] = {0};
@@ -923,7 +1056,13 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
     uint8_t response[PN532_MAX_RX_FRAME] = {0};
     size_t response_len = 0;
     FuriHalPn532Error error = pn532_exchange(
-        cmd, tx_len + 1, 0x43, response, sizeof(response), &response_len, PN532_TIMEOUT_EXCHANGE_MS);
+        cmd,
+        tx_len + 1,
+        0x43,
+        response,
+        sizeof(response),
+        &response_len,
+        timeout_ms);
     if(error != FuriHalPn532ErrorNone) return error;
     if(response_len < 2) return FuriHalPn532ErrorInvalidFrame;
     if(response[1] != 0x00) {
@@ -941,6 +1080,27 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
     if(payload_len) memcpy(rx_data, &response[2], payload_len);
     if(rx_len) *rx_len = payload_len;
     return FuriHalPn532ErrorNone;
+}
+
+FuriHalPn532Error furi_hal_pn532_in_communicate_thru(
+    const uint8_t* tx_data,
+    size_t tx_len,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_len) {
+    return furi_hal_pn532_in_communicate_thru_impl(
+        tx_data, tx_len, rx_data, rx_size, rx_len, PN532_TIMEOUT_EXCHANGE_MS);
+}
+
+FuriHalPn532Error furi_hal_pn532_in_communicate_thru_timeout(
+    const uint8_t* tx_data,
+    size_t tx_len,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_len,
+    uint32_t timeout_ms) {
+    return furi_hal_pn532_in_communicate_thru_impl(
+        tx_data, tx_len, rx_data, rx_size, rx_len, timeout_ms);
 }
 
 FuriHalPn532Error furi_hal_pn532_mf_auth(

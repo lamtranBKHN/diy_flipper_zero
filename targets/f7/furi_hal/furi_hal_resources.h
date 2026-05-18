@@ -154,19 +154,20 @@ extern const GpioPin gpio_usb_dp;
 /* IMP-7: Exactly one display controller must be selected.
  * Enabling both causes double-init and conflicting SPI command sequences. */
 #if DISPLAY_CONTROLLER_SSD1306 && DISPLAY_CONTROLLER_SSD1309
-#error "Cannot enable both DISPLAY_CONTROLLER_SSD1306 and DISPLAY_CONTROLLER_SSD1309 simultaneously. Set exactly one to 1."
+#error \
+    "Cannot enable both DISPLAY_CONTROLLER_SSD1306 and DISPLAY_CONTROLLER_SSD1309 simultaneously. Set exactly one to 1."
 #endif
 // SSD1306 init variant: 0 = noname, 1 = vcomh0, 2 = alt0
-#define DISPLAY_SSD1306_VARIANT    1
+#define DISPLAY_SSD1306_VARIANT 1
 // SSD1309 init variant: 0 = noname0 (x_offset=0), 1 = noname2 (x_offset=2)
 // With A1 segment remap, x_offset=2 shifts LEFT — use 0 for 1.54" Waveshare
-#define DISPLAY_SSD1309_VARIANT    0
+#define DISPLAY_SSD1309_VARIANT 0
 // SPI mode for OLED: 0 = mode0 (CPOL=0, CPHA=0), 3 = mode3 (CPOL=1, CPHA=1)
-#define DISPLAY_SPI_MODE           0
+#define DISPLAY_SPI_MODE        0
 // Optional signal inversions for troubleshooting
-#define DISPLAY_CS_INVERT          0
-#define DISPLAY_DC_INVERT          0
-#define DISPLAY_RST_INVERT         0
+#define DISPLAY_CS_INVERT       0
+#define DISPLAY_DC_INVERT       0
+#define DISPLAY_RST_INVERT      0
 /* HW SPI (0) uses the SPI1 peripheral with furi_hal_spi_acquire/release mutex,
  * guaranteeing exclusive bus ownership during every display byte.  SW SPI (1)
  * bit-bangs PA5/PA7 but those pins are also owned by the SPI1 peripheral; the
@@ -174,7 +175,7 @@ extern const GpioPin gpio_usb_dp;
  * whenever a SubGHz or SD-card transfer preempts the display mid-byte.
  * SW SPI is fundamentally unreliable on a shared bus — keep this 0.
  */
-#define DISPLAY_USE_SW_SPI         0
+#define DISPLAY_USE_SW_SPI      0
 
 #define IR_RX_GPIO_Port GPIOA
 #define IR_RX_Pin       LL_GPIO_PIN_0

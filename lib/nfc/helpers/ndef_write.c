@@ -30,13 +30,15 @@ static MfUltralightError ndef_write_ultralight_pages(
         memset(page.data, 0, sizeof(page.data));
         memcpy(page.data, tlv_data + offset, chunk_len);
 
-        MfUltralightError err = mf_ultralight_poller_sync_write_page(nfc, start_page + (uint8_t)i, &page);
+        MfUltralightError err =
+            mf_ultralight_poller_sync_write_page(nfc, start_page + (uint8_t)i, &page);
         if(err != MfUltralightErrorNone) return err;
     }
     return MfUltralightErrorNone;
 }
 
-static bool ndef_build_tlv(const uint8_t* payload, size_t payload_len, uint8_t* tlv_buf, size_t* tlv_len) {
+static bool
+    ndef_build_tlv(const uint8_t* payload, size_t payload_len, uint8_t* tlv_buf, size_t* tlv_len) {
     if(payload_len + 5 > *tlv_len) return false;
     size_t pos = 0;
     tlv_buf[pos++] = 0x03; // NDEF Message TLV
@@ -101,11 +103,13 @@ MfUltralightError ndef_write_ultralight(Nfc* nfc, const NdefWriteContext* ctx) {
     uint8_t tlv_buf[NDEF_TLV_MAX_SIZE];
     MfUltralightVersion version;
     MfUltralightError err = mf_ultralight_poller_sync_read_version(nfc, &version);
-    
+
     const uint8_t* cc = ntag213_cc;
     if(err == MfUltralightErrorNone) {
-        if(version.storage_size == 0x11) cc = ntag215_cc;
-        else if(version.storage_size == 0x13) cc = ntag216_cc;
+        if(version.storage_size == 0x11)
+            cc = ntag215_cc;
+        else if(version.storage_size == 0x13)
+            cc = ntag216_cc;
     }
 
     MfUltralightPage cc_page;
@@ -157,12 +161,14 @@ MfClassicError ndef_write_classic(
     }
 
     MfClassicBlock mad_block;
-    MfClassicError err = mf_classic_poller_sync_read_block(nfc, 1, (MfClassicKey*)ndef_mad_key, MfClassicKeyTypeA, &mad_block);
+    MfClassicError err = mf_classic_poller_sync_read_block(
+        nfc, 1, (MfClassicKey*)ndef_mad_key, MfClassicKeyTypeA, &mad_block);
     if(err == MfClassicErrorNone) {
         if(mad_block.data[2] != ndef_aid[0] || mad_block.data[3] != ndef_aid[1]) {
             mad_block.data[2] = ndef_aid[0];
             mad_block.data[3] = ndef_aid[1];
-            err = mf_classic_poller_sync_write_block(nfc, 1, (MfClassicKey*)ndef_mad_key, MfClassicKeyTypeA, &mad_block);
+            err = mf_classic_poller_sync_write_block(
+                nfc, 1, (MfClassicKey*)ndef_mad_key, MfClassicKeyTypeA, &mad_block);
             if(err != MfClassicErrorNone) return err;
         }
     }
@@ -178,7 +184,8 @@ MfClassicError ndef_write_classic(
         memset(block.data, 0, sizeof(block.data));
         memcpy(block.data, tlv_buf + offset, chunk_len);
 
-        err = mf_classic_poller_sync_write_block(nfc, 4 + (uint8_t)i, (MfClassicKey*)key, key_type, &block);
+        err = mf_classic_poller_sync_write_block(
+            nfc, 4 + (uint8_t)i, (MfClassicKey*)key, key_type, &block);
         if(err != MfClassicErrorNone) return err;
     }
 

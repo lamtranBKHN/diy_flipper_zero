@@ -231,6 +231,7 @@ void iso15693_3_set_block_locked(Iso15693_3Data* data, uint8_t block_index, bool
     furi_assert(data);
     furi_assert(block_index < data->system_info.block_count);
 
+    if(simple_array_get_count(data->block_security) == 0) return;
     *(uint8_t*)simple_array_get(data->block_security, block_index) = locked ? 1 : 0;
 }
 
@@ -252,6 +253,10 @@ void iso15693_3_append_block_security(
     const Iso15693_3Data* data,
     uint8_t block_num,
     BitBuffer* buf) {
+    if(simple_array_get_count(data->block_security) == 0) {
+        bit_buffer_append_byte(buf, 0);
+        return;
+    }
     bit_buffer_append_byte(buf, *(uint8_t*)simple_array_cget(data->block_security, block_num));
 }
 

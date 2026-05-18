@@ -5,7 +5,14 @@
 
 #define TAG "NfcMfClassicDictAttack"
 
-#define NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS 100
+#define NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS 20
+
+/* Bail out of dict attack after this many keys with zero success.
+ * With 80ms auth timeout: 20 keys × 2 (A+B) × ~150ms = ~6s.
+ * If no key found in 20 attempts, card likely uses non-dict keys.
+ * Most MIFARE Classic cards with dictionary keys match within the
+ * first 10-15 common keys (FFFFFFFFFFFF, A0A1A2A3A4A5, etc.). */
+#define NFC_DICT_ATTACK_BAIL_OUT_KEYS 20
 
 typedef enum {
     DictAttackStateCUIDDictInProgress,
@@ -46,8 +53,19 @@ NfcCommand nfc_dict_attack_worker_callback(NfcGenericEvent event, void* context)
             instance->view_dispatcher, NfcCustomEventDictAttackDataUpdate);
     } else if(mfc_event->type == MfClassicPollerEventTypeRequestKey) {
         MfClassicKey key = {};
-        if(keys_dict_get_next_key(
-               instance->nfc_dict_context.dict, key.data, sizeof(MfClassicKey))) {
+        /* Bail out early if many keys tried with zero success — card likely
+         * uses non-dict keys.  Avoids wasting minutes on timeout-heavy dicts. */
+        if(instance->nfc_dict_context.keys_found == 0 &&
+           instance->nfc_dict_context.dict_keys_current >= NFC_DICT_ATTACK_BAIL_OUT_KEYS) {
+            FURI_LOG_I(
+                TAG,
+                "Dict bail-out: %zu keys tried, 0 found",
+                instance->nfc_dict_context.dict_keys_current);
+            mfc_event->data->key_request_data.key_provided = false;
+        } else if(keys_dict_get_next_key(
+                      instance->nfc_dict_context.dict,
+                      key.data,
+                      sizeof(MfClassicKey))) {
             mfc_event->data->key_request_data.key = key;
             mfc_event->data->key_request_data.key_provided = true;
             instance->nfc_dict_context.dict_keys_current++;
@@ -139,7 +157,9 @@ static void nfc_scene_mf_classic_dict_attack_restore_backdoor_state(NfcApp* inst
     }
 }
 
-static void nfc_scene_mf_classic_dict_attack_transition_phase(NfcApp* instance, DictAttackState next_state) {
+static void nfc_scene_mf_classic_dict_attack_transition_phase(
+    NfcApp* instance,
+    DictAttackState next_state) {
     nfc_scene_mf_classic_dict_attack_save_backdoor_state(instance);
 
     nfc_scene_mf_classic_dict_attack_stop_poller_bounded(instance);

@@ -3,14 +3,21 @@
 #include "../plugins/supported_cards/nfc_supported_card_plugin.h"
 
 #include <flipper_application/flipper_application.h>
+
+#define TAG "NfcSupportedCards"
+
+/** After this many consecutive plugin verify failures, bail out.
+ *  Each verify allocates a full NFC poller, does card detection + auth,
+ *  and frees the poller.  On PN532 (no HW IRQ), auth always times out
+ *  for unsupported cards — running all 40 plugins causes I2C bus stress,
+ *  PN532 lockup, and eventually a crash. */
+#define NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS 3
 #include <flipper_application/plugins/plugin_manager.h>
 #include <loader/firmware_api/firmware_api.h>
 
 #include <furi.h>
 #include <path.h>
 #include <m-array.h>
-
-#define TAG "NfcSupportedCards"
 
 #define NFC_SUPPORTED_CARDS_PLUGINS_PATH  APP_DATA_PATH("plugins")
 #define NFC_SUPPORTED_CARDS_PLUGIN_SUFFIX "_parser.fal"
@@ -224,6 +231,7 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
 
         instance->load_context = nfc_supported_cards_load_context_alloc();
 
+        size_t consecutive_verify_fails = 0;
         NfcSupportedCardsPluginCache_it_t iter;
         for(NfcSupportedCardsPluginCache_it(iter, instance->plugins_cache_arr);
             !NfcSupportedCardsPluginCache_end_p(iter);
@@ -239,14 +247,41 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
             if(plugin == NULL) continue;
 
             if(plugin->verify) {
-                if(!plugin->verify(nfc)) continue;
+                if(!plugin->verify(nfc)) {
+                    if(++consecutive_verify_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
+                        FURI_LOG_I(
+                            TAG,
+                            "Plugin bail-out: %zu consecutive verify failures, skipping remaining",
+                            consecutive_verify_fails);
+                        break;
+                    }
+                    continue;
+                }
             }
 
             if(plugin->read) {
                 if(plugin->read(nfc, device)) {
                     card_read = true;
                     break;
+                } else {
+                    /* read() failed — count as failure for bail-out.
+                     * Many plugins verify by UID (always true for any card
+                     * of the right protocol) but read() tries auth which
+                     * fails on unsupported cards. Without counting read()
+                     * failures, the counter resets on every verify() success,
+                     * defeating bail-out. */
+                    if(++consecutive_verify_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
+                        FURI_LOG_I(
+                            TAG,
+                            "Plugin bail-out: %zu consecutive read failures, skipping remaining",
+                            consecutive_verify_fails);
+                        break;
+                    }
                 }
+            } else {
+                /* Plugin has verify but no read — do NOT reset counter.
+                 * These plugins pass verify() by UID but have no auth to fail.
+                 * Resetting here defeats bail-out when auth always times out. */
             }
         }
 

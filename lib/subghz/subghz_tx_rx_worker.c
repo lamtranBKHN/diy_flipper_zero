@@ -194,7 +194,9 @@ static int32_t subghz_tx_rx_worker_thread(void* context) {
                         callback_rx = false;
                     }
                 } else {
-                    FURI_LOG_W(TAG, "RX buffer overflow: need %d bytes, available %zu",
+                    FURI_LOG_W(
+                        TAG,
+                        "RX buffer overflow: need %d bytes, available %zu",
                         size_rx[0],
                         furi_stream_buffer_spaces_available(instance->stream_rx));
                 }

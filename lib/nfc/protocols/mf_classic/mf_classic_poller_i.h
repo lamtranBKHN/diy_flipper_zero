@@ -193,6 +193,8 @@ struct MfClassicPoller {
     MfClassicPollerEventData mfc_event_data;
     NfcGenericCallback callback;
     void* context;
+
+    bool pn532_mf_authed; /**< PN532 native MIFARE Classic auth active (InDataExchange) */
 };
 
 typedef struct {

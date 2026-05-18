@@ -215,7 +215,7 @@ bool nfc_worker_poller_ready_handler(Nfc* instance) {
 
 bool nfc_worker_poller_reset_handler(Nfc* instance) {
     furi_hal_nfc_low_power_mode_start();
-    furi_delay_ms(100);
+    furi_delay_ms(10);
     furi_hal_nfc_low_power_mode_stop();
     instance->poller_state = NfcPollerStateStart;
 

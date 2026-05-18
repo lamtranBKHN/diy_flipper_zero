@@ -82,8 +82,8 @@ static SrixError srix_poller_cmd_execute_raw(Nfc* nfc, SrixPollerSyncContext* po
 
     NfcPoller* poller = nfc_poller_alloc(nfc, NfcProtocolSrix);
     nfc_poller_start(poller, srix_poller_cmd_callback, poller_ctx);
-    uint32_t flags = furi_thread_flags_wait(
-        SRIX_POLLER_FLAG_COMMAND_COMPLETE, FuriFlagWaitAny, 5000);
+    uint32_t flags =
+        furi_thread_flags_wait(SRIX_POLLER_FLAG_COMMAND_COMPLETE, FuriFlagWaitAny, 5000);
     if(!(flags & SRIX_POLLER_FLAG_COMMAND_COMPLETE)) {
         nfc_poller_stop(poller);
         nfc_poller_free(poller);
