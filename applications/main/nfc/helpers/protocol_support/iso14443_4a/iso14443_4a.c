@@ -65,6 +65,7 @@ static void nfc_scene_saved_menu_on_enter_iso14443_4a(NfcApp* instance) {
     UNUSED(instance);
 }
 
+#ifndef PN532_ENABLED
 NfcCommand nfc_scene_emulate_listener_callback_iso14443_4a(NfcGenericEvent event, void* context) {
     furi_assert(context);
     furi_assert(event.protocol == NfcProtocolIso14443_4a);
@@ -91,14 +92,19 @@ NfcCommand nfc_scene_emulate_listener_callback_iso14443_4a(NfcGenericEvent event
 
     return NfcCommandContinue;
 }
+#endif
 
 static void nfc_scene_emulate_on_enter_iso14443_4a(NfcApp* instance) {
+#ifndef PN532_ENABLED
     const Iso14443_4aData* data =
         nfc_device_get_data(instance->nfc_device, NfcProtocolIso14443_4a);
 
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolIso14443_4a, data);
     nfc_listener_start(
         instance->listener, nfc_scene_emulate_listener_callback_iso14443_4a, instance);
+#else
+    UNUSED(instance);
+#endif
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_iso14443_4a = {

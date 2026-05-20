@@ -204,9 +204,13 @@ static void nfc_scene_saved_menu_on_enter_mf_classic(NfcApp* instance) {
 }
 
 static void nfc_scene_emulate_on_enter_mf_classic(NfcApp* instance) {
+#ifndef PN532_ENABLED
     const MfClassicData* data = nfc_device_get_data(instance->nfc_device, NfcProtocolMfClassic);
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolMfClassic, data);
     nfc_listener_start(instance->listener, NULL, NULL);
+#else
+    UNUSED(instance);
+#endif
 }
 
 static bool nfc_scene_read_menu_on_event_mf_classic(NfcApp* instance, SceneManagerEvent event) {
