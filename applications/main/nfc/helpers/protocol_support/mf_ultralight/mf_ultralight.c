@@ -265,10 +265,14 @@ static void nfc_scene_read_success_on_enter_mf_ultralight(NfcApp* instance) {
 }
 
 static void nfc_scene_emulate_on_enter_mf_ultralight(NfcApp* instance) {
+#ifndef PN532_ENABLED
     const MfUltralightData* data =
         nfc_device_get_data(instance->nfc_device, NfcProtocolMfUltralight);
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolMfUltralight, data);
     nfc_listener_start(instance->listener, NULL, NULL);
+#else
+    UNUSED(instance);
+#endif
 }
 
 static bool nfc_scene_read_and_saved_menu_on_event_mf_ultralight(
