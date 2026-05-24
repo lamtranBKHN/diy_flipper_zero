@@ -14,6 +14,9 @@
  * first 10-15 common keys (FFFFFFFFFFFF, A0A1A2A3A4A5, etc.). */
 #define NFC_DICT_ATTACK_BAIL_OUT_KEYS 20
 
+static void nfc_scene_mf_classic_dict_attack_update_view(NfcApp* instance);
+static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance);
+
 typedef enum {
     DictAttackStateCUIDDictInProgress,
     DictAttackStateUserDictInProgress,

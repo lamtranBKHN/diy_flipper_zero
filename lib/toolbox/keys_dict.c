@@ -13,7 +13,11 @@ struct KeysDict {
     size_t key_size;
     size_t key_size_symbols;
     size_t total_keys;
+    uint8_t* cached_keys;
+    size_t current_key_idx;
 };
+
+static void keys_dict_str_to_int(KeysDict* instance, FuriString* key_str, uint8_t* key_out);
 
 static inline void keys_dict_add_ending_new_line(KeysDict* instance) {
     if(stream_seek(instance->stream, -1, StreamOffsetFromEnd)) {
@@ -81,6 +85,8 @@ KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) 
     instance->key_size_symbols = key_size * 2 + 1;
 
     instance->total_keys = 0;
+    instance->cached_keys = NULL;
+    instance->current_key_idx = 0;
 
     bool file_exists =
         buffered_file_stream_open(instance->stream, path, FSAM_READ_WRITE, open_mode);
@@ -97,7 +103,6 @@ KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) 
     bool is_endfile = false;
 
     // In this loop we only count the entries in the file
-    // We prefer not to load the whole file in memory for space reasons
     while(file_exists && !is_endfile) {
         bool read_key = keys_dict_read_key_line(instance, line, &is_endfile);
         if(read_key) {
@@ -105,6 +110,29 @@ KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) 
         }
     }
     stream_rewind(instance->stream);
+
+    if(instance->total_keys > 0) {
+        instance->cached_keys = malloc(instance->total_keys * instance->key_size);
+        if(instance->cached_keys != NULL) {
+            is_endfile = false;
+            size_t cached_count = 0;
+            while(file_exists && !is_endfile && cached_count < instance->total_keys) {
+                bool read_key = keys_dict_read_key_line(instance, line, &is_endfile);
+                if(read_key) {
+                    keys_dict_str_to_int(
+                        instance,
+                        line,
+                        &instance->cached_keys[cached_count * instance->key_size]);
+                    cached_count++;
+                }
+            }
+            stream_rewind(instance->stream);
+            FURI_LOG_D(TAG, "Cached %zu keys in RAM", cached_count);
+        } else {
+            FURI_LOG_E(TAG, "Failed to allocate memory to cache %zu keys", instance->total_keys);
+        }
+    }
+
     FURI_LOG_I(TAG, "Loaded dictionary with %zu keys", instance->total_keys);
 
     furi_string_free(line);
@@ -116,6 +144,9 @@ void keys_dict_free(KeysDict* instance) {
     furi_check(instance);
     furi_check(instance->stream);
 
+    if(instance->cached_keys) {
+        free(instance->cached_keys);
+    }
     buffered_file_stream_close(instance->stream);
     stream_free(instance->stream);
     free(instance);
@@ -162,6 +193,7 @@ bool keys_dict_rewind(KeysDict* instance) {
     furi_check(instance);
     furi_check(instance->stream);
 
+    instance->current_key_idx = 0;
     return stream_rewind(instance->stream);
 }
 
@@ -186,6 +218,15 @@ bool keys_dict_get_next_key(KeysDict* instance, uint8_t* key, size_t key_size) {
     furi_check(instance->stream);
     furi_check(instance->key_size == key_size);
     furi_check(key);
+
+    if(instance->cached_keys != NULL) {
+        if(instance->current_key_idx < instance->total_keys) {
+            memcpy(key, &instance->cached_keys[instance->current_key_idx * key_size], key_size);
+            instance->current_key_idx++;
+            return true;
+        }
+        return false;
+    }
 
     FuriString* temp_key = furi_string_alloc();
 
@@ -230,6 +271,15 @@ bool keys_dict_is_key_present(KeysDict* instance, const uint8_t* key, size_t key
     furi_check(instance->stream);
     furi_check(instance->key_size == key_size);
     furi_check(key);
+
+    if(instance->cached_keys != NULL) {
+        for(size_t i = 0; i < instance->total_keys; i++) {
+            if(memcmp(&instance->cached_keys[i * key_size], key, key_size) == 0) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     FuriString* temp_key = furi_string_alloc();
 
@@ -277,6 +327,20 @@ bool keys_dict_add_key(KeysDict* instance, const uint8_t* key, size_t key_size) 
 
     furi_string_free(temp_key);
 
+    if(key_added && instance->cached_keys) {
+        uint8_t* new_cache = realloc(instance->cached_keys, instance->total_keys * instance->key_size);
+        if(new_cache) {
+            instance->cached_keys = new_cache;
+            memcpy(
+                &instance->cached_keys[(instance->total_keys - 1) * instance->key_size],
+                key,
+                instance->key_size);
+        } else {
+            free(instance->cached_keys);
+            instance->cached_keys = NULL;
+        }
+    }
+
     return key_added;
 }
 
@@ -292,10 +356,16 @@ bool keys_dict_delete_key(KeysDict* instance, const uint8_t* key, size_t key_siz
 
     stream_rewind(instance->stream);
 
+    /* Use stream-based loop for deletion to ensure it's removed from file first */
     while(!key_removed) {
-        if(!keys_dict_get_next_key(instance, temp_key, key_size)) {
+        FuriString* temp_key_str = furi_string_alloc();
+        bool key_read = keys_dict_get_next_key_str(instance, temp_key_str);
+        if(!key_read) {
+            furi_string_free(temp_key_str);
             break;
         }
+        keys_dict_str_to_int(instance, temp_key_str, temp_key);
+        furi_string_free(temp_key_str);
 
         if(memcmp(temp_key, key, key_size) == 0) {
             stream_seek(instance->stream, -instance->key_size_symbols, StreamOffsetFromCurrent);
@@ -317,6 +387,34 @@ bool keys_dict_delete_key(KeysDict* instance, const uint8_t* key, size_t key_siz
 
     stream_rewind(instance->stream);
     free(temp_key);
+
+    if(key_removed) {
+        if(instance->cached_keys) {
+            free(instance->cached_keys);
+            instance->cached_keys = NULL;
+        }
+        if(instance->total_keys > 0) {
+            instance->cached_keys = malloc(instance->total_keys * instance->key_size);
+            if(instance->cached_keys != NULL) {
+                uint32_t saved_pos = stream_tell(instance->stream);
+                stream_rewind(instance->stream);
+                FuriString* temp_line = furi_string_alloc();
+                bool is_end = false;
+                size_t idx = 0;
+                while(!is_end && idx < instance->total_keys) {
+                    if(keys_dict_read_key_line(instance, temp_line, &is_end)) {
+                        keys_dict_str_to_int(
+                            instance,
+                            temp_line,
+                            &instance->cached_keys[idx * instance->key_size]);
+                        idx++;
+                    }
+                }
+                furi_string_free(temp_line);
+                stream_seek(instance->stream, saved_pos, StreamOffsetFromStart);
+            }
+        }
+    }
 
     return key_removed;
 }

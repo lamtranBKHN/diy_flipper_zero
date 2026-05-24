@@ -154,6 +154,11 @@ MfClassicError mf_classic_poller_auth_common(
             }
             FURI_LOG_D(TAG, "PN532 hybrid auth failed, fallback to Crypto1");
             instance->pn532_mf_authed = false;
+            /* Clear HAL auth flag so exchange_internal() doesn't treat
+             * the next re-poll as stale and skip InListPassiveTarget.
+             * Without this, mf_authed=true in the HAL would force target_fresh=true
+             * on the Crypto1 path even though we just de-authenticated. */
+            furi_hal_nfc_pn532_mf_deauth();
         }
 
         MfClassicNt nt = {};
@@ -247,8 +252,26 @@ MfClassicError mf_classic_poller_auth_nested(
 MfClassicError mf_classic_poller_halt(MfClassicPoller* instance) {
     furi_check(instance);
 
-    /* PN532 path: just clear auth state */
+    /* PN532 path: clear HAL auth state.
+     * The card is properly deselected by InRelease sent from
+     * pn532_send_inrelease() inside furi_hal_nfc_pn532_set_mode() at the
+     * start of every new poller allocation.  No explicit HALT is needed here,
+     * and calling iso14443_3a_poller_halt() after clearing mf_authed would
+     * trigger an unwanted InListPassiveTarget that corrupts PN532 state. */
     if(instance->pn532_mf_authed) {
+        /* PN532 native auth path: clear HAL auth state only.
+         *
+         * Do NOT call iso14443_3a_poller_halt() here.  After PN532 native
+         * InDataExchange auth, calling iso14443_3a_poller_halt() goes through
+         * exchange_internal() which — because mf_authed was just cleared —
+         * may trigger InListPassiveTarget before sending the HALT frame.
+         * InListPassiveTarget resets the PN532's internal Crypto1 session and
+         * can leave the PN532 in an inconsistent state, causing the next
+         * InListPassiveTarget (dict attack first poll) to hang/crash.
+         *
+         * The card is properly deselected by InRelease, which is sent by
+         * pn532_send_inrelease() inside furi_hal_nfc_pn532_set_mode() at the
+         * start of every new poller allocation.  No explicit HALT is needed. */
         furi_hal_nfc_pn532_mf_deauth();
         instance->pn532_mf_authed = false;
         instance->auth_state = MfClassicAuthStateIdle;

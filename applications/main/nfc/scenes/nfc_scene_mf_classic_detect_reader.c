@@ -20,7 +20,6 @@ void nfc_scene_mf_classic_detect_reader_view_callback(void* context) {
     view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventViewExit);
 }
 
-#ifndef PN532_ENABLED
 NfcCommand nfc_scene_mf_classic_detect_listener_callback(NfcGenericEvent event, void* context) {
     furi_assert(context);
     furi_assert(event.event_data);
@@ -37,7 +36,6 @@ NfcCommand nfc_scene_mf_classic_detect_listener_callback(NfcGenericEvent event, 
 
     return NfcCommandContinue;
 }
-#endif
 
 void nfc_scene_mf_classic_timer_callback(void* context) {
     NfcApp* instance = context;
@@ -80,14 +78,12 @@ void nfc_scene_mf_classic_detect_reader_on_enter(void* context) {
 
     notification_message(instance->notifications, &sequence_detect_reader);
 
-#ifndef PN532_ENABLED
     instance->listener = nfc_listener_alloc(
         instance->nfc,
         NfcProtocolMfClassic,
         nfc_device_get_data(instance->nfc_device, NfcProtocolMfClassic));
     nfc_listener_start(
         instance->listener, nfc_scene_mf_classic_detect_listener_callback, instance);
-#endif
 
     view_dispatcher_switch_to_view(instance->view_dispatcher, NfcViewDetectReader);
 }

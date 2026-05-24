@@ -163,6 +163,7 @@ typedef struct {
     MfClassicKeyType key_type;
     MfClassicKey key;
     bool auth_passed;
+    KeysDict* dict;
 } MfClassicPollerReadContext;
 
 typedef union {
