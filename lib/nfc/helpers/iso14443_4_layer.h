@@ -62,6 +62,20 @@ void iso14443_4_layer_set_cid(Iso14443_4Layer* instance, uint8_t cid);
 
 void iso14443_4_layer_set_nad_supported(Iso14443_4Layer* instance, bool nad);
 
+/** Returns true if the layer is currently accumulating a chained response from the card. */
+bool iso14443_4_layer_is_chaining(const Iso14443_4Layer* instance);
+
+/** Encode an R(ACK) block acknowledging receipt of a chained I-block fragment.
+ *
+ * @param      instance    ISO14443-4 layer instance.
+ * @param      rx_pcb      PCB byte from the received I-block (used to extract sequence bit).
+ * @param[out] block_data  Buffer to write the R(ACK) block into (1 byte).
+ */
+void iso14443_4_layer_encode_r_ack(
+    Iso14443_4Layer* instance,
+    uint8_t rx_pcb,
+    BitBuffer* block_data);
+
 #ifdef __cplusplus
 }
 #endif
