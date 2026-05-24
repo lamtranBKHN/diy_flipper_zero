@@ -137,7 +137,6 @@ static void nfc_scene_read_success_on_enter_type_4_tag(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
-#ifndef PN532_ENABLED
 static NfcCommand
     nfc_scene_emulate_listener_callback_type_4_tag(NfcGenericEvent event, void* context) {
     furi_assert(event.protocol == NfcProtocolType4Tag);
@@ -162,18 +161,13 @@ static NfcCommand
 
     return NfcCommandContinue;
 }
-#endif
 
 static void nfc_scene_emulate_on_enter_type_4_tag(NfcApp* instance) {
-#ifndef PN532_ENABLED
     const Type4TagData* data = nfc_device_get_data(instance->nfc_device, NfcProtocolType4Tag);
 
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolType4Tag, data);
     nfc_listener_start(
         instance->listener, nfc_scene_emulate_listener_callback_type_4_tag, instance);
-#else
-    UNUSED(instance);
-#endif
 }
 
 static NfcCommand

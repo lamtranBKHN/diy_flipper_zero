@@ -53,6 +53,9 @@ static FuriHalNfcError furi_hal_nfc_iso14443a_listener_deinit(const FuriHalSpiBu
 }
 
 static FuriHalNfcEvent furi_hal_nfc_iso14443_3a_listener_wait_event(uint32_t timeout_ms) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_listener_wait_event(timeout_ms);
+    }
     UNUSED(timeout_ms);
     return FuriHalNfcEventTimeout;
 }
@@ -102,11 +105,7 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_set_col_res_data(
     uint8_t* atqa,
     uint8_t sak) {
     if(furi_hal_nfc_pn532_is_active()) {
-        UNUSED(uid);
-        UNUSED(uid_len);
-        UNUSED(atqa);
-        UNUSED(sak);
-        return FuriHalNfcErrorNone;
+        return furi_hal_nfc_pn532_listener_set_col_res_data(uid, uid_len, atqa, sak);
     }
     return FuriHalNfcErrorNone;
 }
@@ -116,6 +115,12 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_tx(
     const uint8_t* tx_data,
     size_t tx_bits) {
     UNUSED(handle);
+    if(furi_hal_nfc_pn532_is_active()) {
+        /* Raw byte stream from nfc_listener_tx — tx_bits is in raw bits,
+         * NOT 9-bit parity-encoded. Forward directly to PN532 backend
+         * which handles the raw/parity detection internally. */
+        return furi_hal_nfc_pn532_listener_tx(tx_data, tx_bits);
+    }
     UNUSED(tx_data);
     UNUSED(tx_bits);
     return FuriHalNfcErrorCommunication;
@@ -134,11 +139,17 @@ FuriHalNfcError furi_hal_nfc_iso14443a_listener_tx_custom_parity(
 
 FuriHalNfcError furi_hal_nfc_iso14443_3a_listener_sleep(const FuriHalSpiBusHandle* handle) {
     UNUSED(handle);
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_listener_sleep();
+    }
     return FuriHalNfcErrorNone;
 }
 
 FuriHalNfcError furi_hal_nfc_iso14443_3a_listener_idle(const FuriHalSpiBusHandle* handle) {
     UNUSED(handle);
+    if(furi_hal_nfc_pn532_is_active()) {
+        return furi_hal_nfc_pn532_listener_idle();
+    }
     return FuriHalNfcErrorNone;
 }
 

@@ -74,7 +74,6 @@ static void nfc_scene_read_success_on_enter_iso15693_3(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
-#ifndef PN532_ENABLED
 static NfcCommand
     nfc_scene_emulate_listener_callback_iso15693_3(NfcGenericEvent event, void* context) {
     furi_assert(context);
@@ -101,18 +100,13 @@ static NfcCommand
 
     return NfcCommandContinue;
 }
-#endif
 
 static void nfc_scene_emulate_on_enter_iso15693_3(NfcApp* instance) {
-#ifndef PN532_ENABLED
     const Iso15693_3Data* data = nfc_device_get_data(instance->nfc_device, NfcProtocolIso15693_3);
 
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolIso15693_3, data);
     nfc_listener_start(
         instance->listener, nfc_scene_emulate_listener_callback_iso15693_3, instance);
-#else
-    UNUSED(instance);
-#endif
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_iso15693_3 = {

@@ -76,7 +76,6 @@ static void nfc_cli_emulate_execute(PipeSide* pipe, NfcCliActionContext* context
         }
 
         const NfcDeviceData* data = nfc_device_get_data(instance->nfc_device, protocol);
-#ifndef PN532_ENABLED
         NfcListener* listener = nfc_listener_alloc(instance->nfc, protocol, data);
 
         nfc_listener_start(listener, NULL, NULL);
@@ -91,10 +90,6 @@ static void nfc_cli_emulate_execute(PipeSide* pipe, NfcCliActionContext* context
         }
         nfc_listener_stop(listener);
         nfc_listener_free(listener);
-#else
-        UNUSED(data);
-        printf(ANSI_FG_RED "Emulation not supported on PN532\r\n" ANSI_RESET);
-#endif
     } while(false);
 }
 
