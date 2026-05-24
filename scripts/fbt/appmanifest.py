@@ -347,6 +347,7 @@ class AppBuildset:
                 global_lookup
                 and not (self._skip_external and apptype is FlipperAppType.EXTERNAL),
             )
+            if app.is_default_deployable
         ]
         extapps.extend(map(self.appmgr.get, self._extra_ext_appnames))
 

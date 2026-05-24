@@ -1,5 +1,8 @@
 Import("env")
 
+# PN532-only NFC: exclude unsupported protocols
+env.Append(CPPDEFINES=["FURI_HAL_NFC_PN532_ONLY"])
+
 env.Append(
     CPPPATH=[
         "#/lib/nfc",
@@ -72,6 +75,7 @@ env.Append(
         File("helpers/crypto1.h"),
         File("helpers/ndef.h"),
         File("helpers/ndef_write.h"),
+        File("helpers/nfc_t4t_emulation.h"),
         # P2P
         File("p2p/llcp.h"),
         File("p2p/snep.h"),
@@ -83,6 +87,19 @@ libenv = env.Clone(FW_LIB_NAME="nfc")
 libenv.ApplyLibFlags()
 
 sources = libenv.GlobRecursive("*.c*")
+
+# Exclude PN532-unsupported protocol sources to save flash
+cppdefs = env.get("CPPDEFINES", [])
+if "FURI_HAL_NFC_PN532_ONLY" in cppdefs:
+    excluded_dirs = [
+        "protocols/st25tb",
+        "protocols/srix",
+        "protocols/emv",
+    ]
+    sources = [
+        s for s in sources
+        if not any(excl in str(s).replace("\\", "/") for excl in excluded_dirs)
+    ]
 
 lib = libenv.StaticLibrary("${FW_LIB_NAME}", sources)
 libenv.Install("${LIB_DIST_DIR}", lib)

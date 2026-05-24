@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,87.5,,
+Version,+,87.6,,
 Header,+,applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h,,
 Header,+,applications/main/archive/helpers/archive_helpers_ext.h,,
 Header,+,applications/main/subghz/subghz_fap.h,,
@@ -54,8 +54,8 @@ Header,+,lib/digital_signal/digital_sequence.h,,
 Header,+,lib/digital_signal/digital_signal.h,,
 Header,+,lib/drivers/cc1101_regs.h,,
 Header,+,lib/drivers/rgb_backlight.h,,
-Header,+,lib/drivers/st25r3916.h,,
-Header,+,lib/drivers/st25r3916_reg.h,,
+Header,-,lib/drivers/st25r3916.h,,
+Header,-,lib/drivers/st25r3916_reg.h,,
 Header,+,lib/flipper_application/api_hashtable/api_hashtable.h,,
 Header,+,lib/flipper_application/api_hashtable/compilesort.hpp,,
 Header,+,lib/flipper_application/flipper_application.h,,
@@ -142,6 +142,7 @@ Header,+,lib/nfc/helpers/iso14443_crc.h,,
 Header,+,lib/nfc/helpers/ndef.h,,
 Header,+,lib/nfc/helpers/ndef_write.h,,
 Header,+,lib/nfc/helpers/nfc_data_generator.h,,
+Header,+,lib/nfc/helpers/nfc_t4t_emulation.h,,
 Header,+,lib/nfc/helpers/nfc_util.h,,
 Header,+,lib/nfc/nfc.h,,
 Header,+,lib/nfc/nfc_device.h,,
@@ -151,8 +152,8 @@ Header,+,lib/nfc/nfc_scanner.h,,
 Header,+,lib/nfc/p2p/llcp.h,,
 Header,+,lib/nfc/p2p/p2p.h,,
 Header,+,lib/nfc/p2p/snep.h,,
-Header,+,lib/nfc/protocols/emv/emv.h,,
-Header,+,lib/nfc/protocols/emv/emv_poller.h,,
+Header,-,lib/nfc/protocols/emv/emv.h,,
+Header,-,lib/nfc/protocols/emv/emv_poller.h,,
 Header,+,lib/nfc/protocols/felica/felica.h,,
 Header,+,lib/nfc/protocols/felica/felica_listener.h,,
 Header,+,lib/nfc/protocols/felica/felica_poller.h,,
@@ -188,11 +189,11 @@ Header,+,lib/nfc/protocols/ntag4xx/ntag4xx_poller.h,,
 Header,+,lib/nfc/protocols/slix/slix.h,,
 Header,+,lib/nfc/protocols/slix/slix_listener.h,,
 Header,+,lib/nfc/protocols/slix/slix_poller.h,,
-Header,+,lib/nfc/protocols/srix/srix.h,,
-Header,+,lib/nfc/protocols/srix/srix_poller_sync.h,,
-Header,+,lib/nfc/protocols/st25tb/st25tb.h,,
-Header,+,lib/nfc/protocols/st25tb/st25tb_poller.h,,
-Header,+,lib/nfc/protocols/st25tb/st25tb_poller_sync.h,,
+Header,-,lib/nfc/protocols/srix/srix.h,,
+Header,-,lib/nfc/protocols/srix/srix_poller_sync.h,,
+Header,-,lib/nfc/protocols/st25tb/st25tb.h,,
+Header,-,lib/nfc/protocols/st25tb/st25tb_poller.h,,
+Header,-,lib/nfc/protocols/st25tb/st25tb_poller_sync.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag_listener.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag_poller.h,,
@@ -1075,26 +1076,26 @@ Function,+,em4305_write,void,LFRFIDEM4305*
 Function,+,empty_screen_alloc,EmptyScreen*,
 Function,+,empty_screen_free,void,EmptyScreen*
 Function,+,empty_screen_get_view,View*,EmptyScreen*
-Function,+,emv_alloc,EmvData*,
-Function,+,emv_copy,void,"EmvData*, const EmvData*"
-Function,+,emv_free,void,EmvData*
-Function,+,emv_get_base_data,Iso14443_4aData*,const EmvData*
-Function,+,emv_get_device_name,const char*,"const EmvData*, NfcDeviceNameType"
-Function,+,emv_get_uid,const uint8_t*,"const EmvData*, size_t*"
-Function,+,emv_is_equal,_Bool,"const EmvData*, const EmvData*"
-Function,+,emv_load,_Bool,"EmvData*, FlipperFormat*, uint32_t"
-Function,+,emv_poller_get_last_online_atc,EmvError,EmvPoller*
-Function,+,emv_poller_get_pin_try_counter,EmvError,EmvPoller*
-Function,+,emv_poller_get_processing_options,EmvError,EmvPoller*
-Function,+,emv_poller_read_afl,EmvError,"EmvPoller*, _Bool, uint16_t*"
-Function,+,emv_poller_read_log_entry,EmvError,EmvPoller*
-Function,+,emv_poller_read_sfi_record,EmvError,"EmvPoller*, uint8_t, uint8_t"
-Function,+,emv_poller_select_application,EmvError,EmvPoller*
-Function,+,emv_poller_select_ppse,EmvError,EmvPoller*
-Function,+,emv_reset,void,EmvData*
-Function,+,emv_save,_Bool,"const EmvData*, FlipperFormat*"
-Function,+,emv_set_uid,_Bool,"EmvData*, const uint8_t*, size_t"
-Function,+,emv_verify,_Bool,"EmvData*, const FuriString*"
+Function,-,emv_alloc,EmvData*,
+Function,-,emv_copy,void,"EmvData*, const EmvData*"
+Function,-,emv_free,void,EmvData*
+Function,-,emv_get_base_data,Iso14443_4aData*,const EmvData*
+Function,-,emv_get_device_name,const char*,"const EmvData*, NfcDeviceNameType"
+Function,-,emv_get_uid,const uint8_t*,"const EmvData*, size_t*"
+Function,-,emv_is_equal,_Bool,"const EmvData*, const EmvData*"
+Function,-,emv_load,_Bool,"EmvData*, FlipperFormat*, uint32_t"
+Function,-,emv_poller_get_last_online_atc,EmvError,EmvPoller*
+Function,-,emv_poller_get_pin_try_counter,EmvError,EmvPoller*
+Function,-,emv_poller_get_processing_options,EmvError,EmvPoller*
+Function,-,emv_poller_read_afl,EmvError,"EmvPoller*, _Bool, uint16_t*"
+Function,-,emv_poller_read_log_entry,EmvError,EmvPoller*
+Function,-,emv_poller_read_sfi_record,EmvError,"EmvPoller*, uint8_t, uint8_t"
+Function,-,emv_poller_select_application,EmvError,EmvPoller*
+Function,-,emv_poller_select_ppse,EmvError,EmvPoller*
+Function,-,emv_reset,void,EmvData*
+Function,-,emv_save,_Bool,"const EmvData*, FlipperFormat*"
+Function,-,emv_set_uid,_Bool,"EmvData*, const uint8_t*, size_t"
+Function,-,emv_verify,_Bool,"EmvData*, const FuriString*"
 Function,-,erand48,double,unsigned short[3]
 Function,-,erf,double,double
 Function,-,erfc,double,double
@@ -1621,6 +1622,7 @@ Function,+,furi_hal_nfc_pn532_last_result_str,const char*,
 Function,+,furi_hal_nfc_pn532_listener_enable_rx,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_idle,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
+Function,+,furi_hal_nfc_pn532_listener_set_col_res_data,FuriHalNfcError,"const uint8_t*, uint8_t, const uint8_t*, uint8_t"
 Function,+,furi_hal_nfc_pn532_listener_sleep,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_tx,FuriHalNfcError,"const uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_listener_wait_event,FuriHalNfcEvent,uint32_t
@@ -1632,6 +1634,7 @@ Function,+,furi_hal_nfc_pn532_mf_is_authed,_Bool,
 Function,+,furi_hal_nfc_pn532_mf_key_store,void,"const uint8_t*, uint8_t"
 Function,+,furi_hal_nfc_pn532_mf_read_block,FuriHalNfcError,"uint8_t, uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_mf_write_block,FuriHalNfcError,"uint8_t, const uint8_t*, size_t"
+Function,+,furi_hal_nfc_pn532_poll_jewel,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_nfc_pn532_poller_field_on,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_reset,void,
 Function,+,furi_hal_nfc_pn532_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
@@ -1670,8 +1673,10 @@ Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
 Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
 Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
 Function,+,furi_hal_pn532_in_communicate_thru,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_pn532_in_communicate_thru_bits,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_in_communicate_thru_timeout,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_in_data_exchange,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_pn532_in_release,void,
 Function,+,furi_hal_pn532_init,_Bool,
 Function,+,furi_hal_pn532_irq_start,void,
 Function,+,furi_hal_pn532_irq_stop,void,
@@ -1683,6 +1688,7 @@ Function,+,furi_hal_pn532_poll_felica,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_iso14443a,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_iso14443a_timeout,_Bool,"FuriHalPn532Target*, uint32_t"
 Function,+,furi_hal_pn532_poll_iso14443b,_Bool,FuriHalPn532Target*
+Function,+,furi_hal_pn532_poll_jewel,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_read_response,FuriHalPn532Error,"uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_read_status,_Bool,
 Function,+,furi_hal_pn532_send_command,FuriHalPn532Error,"const uint8_t*, size_t"
@@ -3130,6 +3136,11 @@ Function,+,nfc_set_guard_time_us,void,"Nfc*, uint32_t"
 Function,+,nfc_set_mask_receive_time_fc,void,"Nfc*, uint32_t"
 Function,+,nfc_start,void,"Nfc*, NfcEventCallback, void*"
 Function,+,nfc_stop,void,Nfc*
+Function,+,nfc_t4t_emulation_alloc,NfcT4tEmulation*,
+Function,+,nfc_t4t_emulation_free,void,NfcT4tEmulation*
+Function,+,nfc_t4t_emulation_process_apdu,_Bool,"NfcT4tEmulation*, const uint8_t*, size_t, uint8_t*, size_t*"
+Function,+,nfc_t4t_emulation_reset,void,NfcT4tEmulation*
+Function,+,nfc_t4t_emulation_set_ndef,_Bool,"NfcT4tEmulation*, const uint8_t*, size_t"
 Function,+,nfc_util_even_parity32,uint8_t,uint32_t
 Function,+,nfc_util_even_parity8,uint8_t,uint8_t
 Function,+,nfc_util_odd_parity,void,"const uint8_t*, uint8_t*, uint8_t"
@@ -3497,68 +3508,68 @@ Function,-,sqrtl,long double,long double
 Function,+,srand,void,unsigned
 Function,-,srand48,void,long
 Function,-,srandom,void,unsigned
-Function,+,srix_alloc,SrixData*,
-Function,+,srix_copy,void,"SrixData*, const SrixData*"
-Function,+,srix_free,void,SrixData*
-Function,+,srix_get_base_data,SrixData*,const SrixData*
-Function,+,srix_get_device_name,const char*,"const SrixData*, NfcDeviceNameType"
-Function,+,srix_get_uid,const uint8_t*,"const SrixData*, size_t*"
-Function,+,srix_is_equal,_Bool,"const SrixData*, const SrixData*"
-Function,+,srix_load,_Bool,"SrixData*, FlipperFormat*, uint32_t"
-Function,+,srix_poller_sync_read,SrixError,"Nfc*, SrixData*"
-Function,+,srix_reset,void,SrixData*
-Function,+,srix_save,_Bool,"const SrixData*, FlipperFormat*"
-Function,+,srix_set_uid,_Bool,"SrixData*, const uint8_t*, size_t"
-Function,+,srix_verify,_Bool,"SrixData*, const FuriString*"
+Function,-,srix_alloc,SrixData*,
+Function,-,srix_copy,void,"SrixData*, const SrixData*"
+Function,-,srix_free,void,SrixData*
+Function,-,srix_get_base_data,SrixData*,const SrixData*
+Function,-,srix_get_device_name,const char*,"const SrixData*, NfcDeviceNameType"
+Function,-,srix_get_uid,const uint8_t*,"const SrixData*, size_t*"
+Function,-,srix_is_equal,_Bool,"const SrixData*, const SrixData*"
+Function,-,srix_load,_Bool,"SrixData*, FlipperFormat*, uint32_t"
+Function,-,srix_poller_sync_read,SrixError,"Nfc*, SrixData*"
+Function,-,srix_reset,void,SrixData*
+Function,-,srix_save,_Bool,"const SrixData*, FlipperFormat*"
+Function,-,srix_set_uid,_Bool,"SrixData*, const uint8_t*, size_t"
+Function,-,srix_verify,_Bool,"SrixData*, const FuriString*"
 Function,+,sscanf,int,"const char*, const char*, ..."
-Function,+,st25r3916_change_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
-Function,+,st25r3916_change_test_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
-Function,+,st25r3916_check_reg,_Bool,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
-Function,+,st25r3916_clear_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
-Function,+,st25r3916_direct_cmd,void,"const FuriHalSpiBusHandle*, uint8_t"
-Function,+,st25r3916_get_irq,uint32_t,const FuriHalSpiBusHandle*
-Function,+,st25r3916_mask_irq,void,"const FuriHalSpiBusHandle*, uint32_t"
-Function,+,st25r3916_modify_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
-Function,+,st25r3916_read_burst_regs,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*, uint8_t"
-Function,+,st25r3916_read_fifo,_Bool,"const FuriHalSpiBusHandle*, uint8_t*, size_t, size_t*"
-Function,+,st25r3916_read_pta_mem,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
-Function,+,st25r3916_read_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*"
-Function,+,st25r3916_read_test_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*"
-Function,+,st25r3916_reg_read_fifo,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
-Function,+,st25r3916_reg_write_fifo,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
-Function,+,st25r3916_set_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
-Function,+,st25r3916_write_burst_regs,void,"const FuriHalSpiBusHandle*, uint8_t, const uint8_t*, uint8_t"
-Function,+,st25r3916_write_fifo,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
-Function,+,st25r3916_write_pta_mem,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
-Function,+,st25r3916_write_ptf_mem,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
-Function,+,st25r3916_write_pttsn_mem,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
-Function,+,st25r3916_write_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
-Function,+,st25r3916_write_test_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
-Function,+,st25tb_alloc,St25tbData*,
-Function,+,st25tb_copy,void,"St25tbData*, const St25tbData*"
-Function,+,st25tb_free,void,St25tbData*
-Function,+,st25tb_get_base_data,St25tbData*,const St25tbData*
-Function,+,st25tb_get_block_count,uint8_t,St25tbType
-Function,+,st25tb_get_device_name,const char*,"const St25tbData*, NfcDeviceNameType"
-Function,+,st25tb_get_type_from_uid,St25tbType,const uint8_t*
-Function,+,st25tb_get_uid,const uint8_t*,"const St25tbData*, size_t*"
-Function,+,st25tb_is_equal,_Bool,"const St25tbData*, const St25tbData*"
-Function,+,st25tb_load,_Bool,"St25tbData*, FlipperFormat*, uint32_t"
-Function,+,st25tb_poller_get_uid,St25tbError,"St25tbPoller*, uint8_t*"
-Function,+,st25tb_poller_halt,St25tbError,St25tbPoller*
-Function,+,st25tb_poller_initiate,St25tbError,"St25tbPoller*, uint8_t*"
-Function,+,st25tb_poller_read_block,St25tbError,"St25tbPoller*, uint32_t*, uint8_t"
-Function,+,st25tb_poller_select,St25tbError,"St25tbPoller*, uint8_t*"
-Function,+,st25tb_poller_send_frame,St25tbError,"St25tbPoller*, const BitBuffer*, BitBuffer*, uint32_t"
-Function,+,st25tb_poller_sync_detect_type,St25tbError,"Nfc*, St25tbType*"
-Function,+,st25tb_poller_sync_read,St25tbError,"Nfc*, St25tbData*"
-Function,+,st25tb_poller_sync_read_block,St25tbError,"Nfc*, uint8_t, uint32_t*"
-Function,+,st25tb_poller_sync_write_block,St25tbError,"Nfc*, uint8_t, uint32_t"
-Function,+,st25tb_poller_write_block,St25tbError,"St25tbPoller*, uint32_t, uint8_t"
-Function,+,st25tb_reset,void,St25tbData*
-Function,+,st25tb_save,_Bool,"const St25tbData*, FlipperFormat*"
-Function,+,st25tb_set_uid,_Bool,"St25tbData*, const uint8_t*, size_t"
-Function,+,st25tb_verify,_Bool,"St25tbData*, const FuriString*"
+Function,-,st25r3916_change_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
+Function,-,st25r3916_change_test_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
+Function,-,st25r3916_check_reg,_Bool,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
+Function,-,st25r3916_clear_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
+Function,-,st25r3916_direct_cmd,void,"const FuriHalSpiBusHandle*, uint8_t"
+Function,-,st25r3916_get_irq,uint32_t,const FuriHalSpiBusHandle*
+Function,-,st25r3916_mask_irq,void,"const FuriHalSpiBusHandle*, uint32_t"
+Function,-,st25r3916_modify_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t, uint8_t"
+Function,-,st25r3916_read_burst_regs,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*, uint8_t"
+Function,-,st25r3916_read_fifo,_Bool,"const FuriHalSpiBusHandle*, uint8_t*, size_t, size_t*"
+Function,-,st25r3916_read_pta_mem,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
+Function,-,st25r3916_read_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*"
+Function,-,st25r3916_read_test_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t*"
+Function,-,st25r3916_reg_read_fifo,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
+Function,-,st25r3916_reg_write_fifo,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
+Function,-,st25r3916_set_reg_bits,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
+Function,-,st25r3916_write_burst_regs,void,"const FuriHalSpiBusHandle*, uint8_t, const uint8_t*, uint8_t"
+Function,-,st25r3916_write_fifo,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
+Function,-,st25r3916_write_pta_mem,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
+Function,-,st25r3916_write_ptf_mem,void,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
+Function,-,st25r3916_write_pttsn_mem,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
+Function,-,st25r3916_write_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
+Function,-,st25r3916_write_test_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
+Function,-,st25tb_alloc,St25tbData*,
+Function,-,st25tb_copy,void,"St25tbData*, const St25tbData*"
+Function,-,st25tb_free,void,St25tbData*
+Function,-,st25tb_get_base_data,St25tbData*,const St25tbData*
+Function,-,st25tb_get_block_count,uint8_t,St25tbType
+Function,-,st25tb_get_device_name,const char*,"const St25tbData*, NfcDeviceNameType"
+Function,-,st25tb_get_type_from_uid,St25tbType,const uint8_t*
+Function,-,st25tb_get_uid,const uint8_t*,"const St25tbData*, size_t*"
+Function,-,st25tb_is_equal,_Bool,"const St25tbData*, const St25tbData*"
+Function,-,st25tb_load,_Bool,"St25tbData*, FlipperFormat*, uint32_t"
+Function,-,st25tb_poller_get_uid,St25tbError,"St25tbPoller*, uint8_t*"
+Function,-,st25tb_poller_halt,St25tbError,St25tbPoller*
+Function,-,st25tb_poller_initiate,St25tbError,"St25tbPoller*, uint8_t*"
+Function,-,st25tb_poller_read_block,St25tbError,"St25tbPoller*, uint32_t*, uint8_t"
+Function,-,st25tb_poller_select,St25tbError,"St25tbPoller*, uint8_t*"
+Function,-,st25tb_poller_send_frame,St25tbError,"St25tbPoller*, const BitBuffer*, BitBuffer*, uint32_t"
+Function,-,st25tb_poller_sync_detect_type,St25tbError,"Nfc*, St25tbType*"
+Function,-,st25tb_poller_sync_read,St25tbError,"Nfc*, St25tbData*"
+Function,-,st25tb_poller_sync_read_block,St25tbError,"Nfc*, uint8_t, uint32_t*"
+Function,-,st25tb_poller_sync_write_block,St25tbError,"Nfc*, uint8_t, uint32_t"
+Function,-,st25tb_poller_write_block,St25tbError,"St25tbPoller*, uint32_t, uint8_t"
+Function,-,st25tb_reset,void,St25tbData*
+Function,-,st25tb_save,_Bool,"const St25tbData*, FlipperFormat*"
+Function,-,st25tb_set_uid,_Bool,"St25tbData*, const uint8_t*, size_t"
+Function,-,st25tb_verify,_Bool,"St25tbData*, const FuriString*"
 Function,+,storage_common_copy,FS_Error,"Storage*, const char*, const char*"
 Function,+,storage_common_equivalent_path,_Bool,"Storage*, const char*, const char*"
 Function,+,storage_common_exists,_Bool,"Storage*, const char*"
@@ -4687,7 +4698,7 @@ Variable,-,nfc_device_mf_desfire,const NfcDeviceBase,
 Variable,-,nfc_device_mf_plus,const NfcDeviceBase,
 Variable,-,nfc_device_mf_ultralight,const NfcDeviceBase,
 Variable,-,nfc_device_ntag4xx,const NfcDeviceBase,
-Variable,+,nfc_device_srix,const NfcDeviceBase,
+Variable,-,nfc_device_srix,const NfcDeviceBase,
 Variable,-,nfc_device_st25tb,const NfcDeviceBase,
 Variable,-,nfc_device_type_4_tag,const NfcDeviceBase,
 Variable,+,sequence_audiovisual_alert,const NotificationSequence,

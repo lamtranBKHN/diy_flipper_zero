@@ -146,7 +146,7 @@ bool furi_log_level_from_string(const char* str, FuriLogLevel* level);
 
 /** Log methods
  *
- * @param      format  The raw format 
+ * @param      format  The raw format
  * @param      ...     VA Args
  */
 #define FURI_LOG_RAW_E(format, ...) \
