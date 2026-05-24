@@ -78,6 +78,15 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru_timeout(
     size_t rx_size,
     size_t* rx_len,
     uint32_t timeout_ms);
+
+FuriHalPn532Error furi_hal_pn532_in_communicate_thru_bits(
+    const uint8_t* tx_data,
+    size_t tx_bits,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_bits,
+    uint32_t timeout_ms);
+
 FuriHalPn532Error furi_hal_pn532_send_command(const uint8_t* cmd, size_t cmd_len);
 
 FuriHalPn532Error furi_hal_pn532_read_response(
@@ -86,9 +95,25 @@ FuriHalPn532Error furi_hal_pn532_read_response(
     size_t* data_len,
     uint32_t timeout_ms);
 
+/** Send InRelease (0x52) to release all in-listed targets.
+ * Best-effort: uses the two-strikes-out ACK mechanism so a single transient
+ * I2C glitch does NOT set pn532_ready=false and kill the NFC session. */
+void furi_hal_pn532_in_release(void);
+
 bool furi_hal_pn532_poll_felica(FuriHalPn532Target* target);
 
 bool furi_hal_pn532_poll_iso14443b(FuriHalPn532Target* target);
+
+/** Poll for Innovision Jewel / Topaz (NFC Type 1 Tag) cards.
+ *
+ * Uses InListPassiveTarget with BrTy=0x04 (Jewel/Topaz at 106 kbps).
+ * On success, target->uid contains the 4-byte RID response (HR0, HR1, UID0, UID1)
+ * and target->uid_len is set to 4.  target->atqa[0] is set to 0x0C (Jewel marker).
+ *
+ * @param[out] target  Pointer to target struct to fill, or NULL for presence-only check.
+ * @returns true if a Jewel/Topaz card was found, false otherwise.
+ */
+bool furi_hal_pn532_poll_jewel(FuriHalPn532Target* target);
 
 FuriHalPn532Error furi_hal_pn532_mf_auth(
     uint8_t target_number,

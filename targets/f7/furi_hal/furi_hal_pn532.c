@@ -30,6 +30,7 @@
 
 /* CIU_TxControl - enables RF output drivers (required for clone modules) */
 #define PN532_REG_CIU_TxControl 0x6330
+#define PN532_REG_CIU_BitFraming 0x633D
 #define PN532_TXCONTROL_ENABLE \
     0x82 /* TX1RFEn | InitialRFOn (RFOff=0: keep RF on between commands) */
 
@@ -38,7 +39,10 @@
 #define PN532_MAX_RX_FRAME   270
 
 /* Timeout constants for PN532 operations */
-#define PN532_TIMEOUT_ACK_MS         50  /* ACK frame response timeout     */
+#define PN532_TIMEOUT_ACK_MS         100 /* ACK frame response timeout —
+                                          * increased to 100ms for PN532
+                                          * clone modules at 3.3V which
+                                          * reply in ~65-70ms cold-start  */
 #define PN532_TIMEOUT_CMD_MS         250 /* FW version / SAM config       */
 #define PN532_TIMEOUT_POLL_MS        300 /* InListPassiveTarget poll      */
 #define PN532_TIMEOUT_EXCHANGE_MS    1000 /* InDataExchange (1s default)   */
@@ -82,7 +86,15 @@ static FuriThread*    pn532_irq_thread = NULL;
  * Fix: loop up to 4 times, draining one 270-byte frame per iteration, until
  * the status byte reads 0x00 (PN532 idle and ready to accept a new command).
  * A 5ms inter-frame settle delay lets the PN532 clear its ready latch before
- * the next status probe. */
+ * the next status probe.
+ *
+ * 2026-05-24: restored cap to 4.  Multiple plugin auth failures (e.g. 3
+ * NfcSupportedCards plugins x 2 auth attempts each on a HALTed MF Classic
+ * card) can queue up to ~6 stale frames; cap 2 left the PN532 in
+ * status=READY, NACKing the next write, forcing pn532_ready=false and a
+ * mid-session reinit cascade that crashed the dict attack.  4 iterations
+ * cover the worst case observed in logs without measurable display impact
+ * since each loop exits early once status reads idle. */
 static void pn532_drain_output(void) {
     uint8_t drain[PN532_MAX_RX_FRAME];
     uint8_t frames_drained = 0;
@@ -115,6 +127,64 @@ static void pn532_drain_output(void) {
  * causing permanent address NACK. With no hardware RST pin on this DIY board,
  * there is no way to recover once desynced. PN532 errors are treated as
  * transient timeouts and resolved by retrying the operation directly. */
+
+/* Two-strikes-out ACK failure tracking.
+ * A single ACK failure is almost always a transient I2C glitch (display
+ * preempts the bus mid-transaction, button press triggers PCF8574 read,
+ * etc).  Setting pn532_ready=false on a single failure causes downstream
+ * guards like furi_hal_nfc_pn532_is_active() to report the chip as absent,
+ * which can defeat MFC nested-attack guards and let the state machine spin.
+ *
+ * Rule: only mark the chip absent after two consecutive ACK failures
+ * within a 200ms window.  Single failures are logged and ignored. */
+#define PN532_ACK_STRIKES_WINDOW_MS 200
+static uint8_t  pn532_ack_strike_count = 0;
+static uint32_t pn532_ack_strike_tick  = 0;
+
+static void pn532_ack_strike_record(void) {
+    const uint32_t now = furi_get_tick();
+    if((now - pn532_ack_strike_tick) > PN532_ACK_STRIKES_WINDOW_MS) {
+        pn532_ack_strike_count = 1;
+    } else {
+        pn532_ack_strike_count++;
+    }
+    pn532_ack_strike_tick = now;
+}
+
+static void pn532_ack_strike_clear(void) {
+    pn532_ack_strike_count = 0;
+}
+
+static bool pn532_ack_strikes_exceeded(void) {
+    return pn532_ack_strike_count >= 2;
+}
+
+/* Two-strikes ACK failure handler.
+ * Replaces the one-line `pn532_ready = false` after `pn532_read_ack()`
+ * failure with the same transient-glitch-tolerant logic that
+ * pn532_exchange() uses: only mark the chip absent after two ACK
+ * failures in 200ms (verified by an I2C ping).  Single failures are
+ * logged and ignored so a transient bus glitch from the display or
+ * PCF8574 does not force a mid-session PN532 reinit cascade. */
+static void pn532_handle_ack_failure(const char* site) {
+    pn532_ack_strike_record();
+    if(pn532_ack_strikes_exceeded()) {
+        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
+        uint8_t ping_status = 0;
+        bool chip_alive = furi_hal_i2c_rx(
+            &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, &ping_status, 1, 10);
+        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
+        if(!chip_alive) {
+            pn532_ready = false;
+            FURI_LOG_E(TAG, "%s: 2 ACK fails + ping fail — marking PN532 absent", site);
+        } else {
+            FURI_LOG_W(TAG, "%s: 2 ACK fails but chip ping ok, keeping ready", site);
+        }
+        pn532_ack_strike_clear();
+    } else {
+        FURI_LOG_W(TAG, "%s: ACK failed (transient, keeping ready)", site);
+    }
+}
 
 static bool pn532_wait_ready_ms(uint32_t timeout_ms) {
     if(pn532_irq_event) {
@@ -198,7 +268,11 @@ static int32_t pn532_irq_poller_run(void* ctx) {
             furi_event_flag_set(pn532_irq_event, PN532_IRQ_FLAG_READY);
         }
 
-        furi_delay_ms(10); /* 100 Hz poll — ~1µs I2C bus load per cycle at 100 kHz */
+        /* 40 Hz poll (was 100 Hz).  The 1-byte I2C status read costs ~30µs
+         * per cycle but contends with foreground scanner and display I/O on
+         * the shared I2C1 bus.  25ms is well below the PN532's command
+         * round-trip times (>= 5ms) so we never miss a READY edge. */
+        furi_delay_ms(25);
     }
     FURI_LOG_D(TAG, "PN532 IRQ poller thread stopped");
     return 0;
@@ -602,7 +676,15 @@ bool furi_hal_pn532_init(void) {
 
 void furi_hal_pn532_irq_start(void) {
     if(pn532_irq_thread) return; /* already running */
-    furi_check(!pn532_irq_event);
+    /* BUG FIX (MF Classic retry crash): if pn532_irq_event is non-NULL but
+     * pn532_irq_thread is NULL (stale event from a previous session that was
+     * not fully cleaned up), the original furi_check(!pn532_irq_event) would
+     * crash.  Free the stale event defensively instead. */
+    if(pn532_irq_event) {
+        FURI_LOG_W(TAG, "irq_start: stale pn532_irq_event found, freeing before restart");
+        furi_event_flag_free(pn532_irq_event);
+        pn532_irq_event = NULL;
+    }
     pn532_irq_event = furi_event_flag_alloc();
     pn532_irq_thread =
         furi_thread_alloc_ex("Pn532IrqPoll", 768, pn532_irq_poller_run, NULL);
@@ -701,20 +783,15 @@ static FuriHalPn532Error pn532_exchange(
 
     if(!pn532_read_ack()) {
         FURI_LOG_W(TAG, "pn532_exchange: ACK failed");
-        /* Transient I2C glitches produce ACK failures while the PN532 is still
-         * alive.  Do a single quick ping to 0x48 (10ms) rather than a full bus
-         * scan.  Only mark the chip absent if the ping also fails. */
-        furi_hal_i2c_acquire(&furi_hal_i2c_handle_power);
-        uint8_t ping_status = 0;
-        bool chip_alive = furi_hal_i2c_rx(
-            &furi_hal_i2c_handle_power, PN532_I2C_ADDR_7BIT, &ping_status, 1, 10);
-        furi_hal_i2c_release(&furi_hal_i2c_handle_power);
-        if(!chip_alive) {
-            pn532_ready = false;
-            FURI_LOG_E(TAG, "pn532_exchange: ACK failed and ping failed — marking PN532 absent");
-        }
+        /* Two-strikes-out: a single ACK failure is almost always a transient
+         * I2C glitch (display/PCF8574 preempting the bus).  Only do the
+         * "chip alive" ping and mark absent if we've seen two failures within
+         * 200ms — that pattern indicates real chip trouble, not bus contention. */
+        pn532_handle_ack_failure("pn532_exchange");
         return FuriHalPn532ErrorComm;
     }
+    /* ACK succeeded — clear any prior strikes */
+    pn532_ack_strike_clear();
 
     size_t payload_len = 0;
     if(!pn532_read_response(rx_data, rx_size, &payload_len, timeout_ms)) {
@@ -990,6 +1067,70 @@ bool furi_hal_pn532_poll_iso14443b(FuriHalPn532Target* target) {
     return true;
 }
 
+bool furi_hal_pn532_poll_jewel(FuriHalPn532Target* target) {
+    if(target) memset(target, 0, sizeof(*target));
+
+    /* InListPassiveTarget: BrTy=0x04 (Jewel/Topaz at 106 kbps).
+     * The PN532 sends a 7-bit SENS_REQ (0x26) internally and returns the
+     * RID response: [ATQA(2)][RID(6)] = 8 bytes total in the target data.
+     * RID format: [HR0][HR1][UID0][UID1][UID2][UID3] — 6 bytes.
+     * ATQA for Jewel is always 0x000C (little-endian: 0x0C, 0x00). */
+    uint8_t cmd[] = {PN532_CMD_IN_LIST_PASSIVE, 0x01, 0x04};
+    uint8_t response[32] = {0};
+    size_t response_len = 0;
+
+    FuriHalPn532Error error = pn532_exchange(
+        cmd,
+        sizeof(cmd),
+        PN532_CMD_IN_LIST_PASSIVE + 1,
+        response,
+        sizeof(response),
+        &response_len,
+        PN532_TIMEOUT_POLL_MS);
+    if(error != FuriHalPn532ErrorNone) return false;
+    if(response_len < 2) return false;
+    if(response[1] == 0) {
+        FURI_LOG_D(TAG, "poll_jewel: no targets found");
+        return false;
+    }
+    /* Minimum response: [cmd+1][NbTg][Tg][ATQA(2)][RID(6)] = 11 bytes */
+    if(response_len < 11) {
+        FURI_LOG_W(TAG, "poll_jewel: response too short (%zu)", response_len);
+        return false;
+    }
+    if(!target) return true;
+
+    /* response layout (0-indexed):
+     * [0] = 0x4B (cmd+1)
+     * [1] = NbTg (number of targets, should be 1)
+     * [2] = Tg   (target number, 1-based)
+     * [3] = ATQA low byte  (0x0C for Jewel)
+     * [4] = ATQA high byte (0x00 for Jewel)
+     * [5..10] = RID: HR0, HR1, UID0, UID1, UID2, UID3 */
+    target->target_number = response[2];
+    target->atqa[0] = response[3]; /* ATQA low  = 0x0C */
+    target->atqa[1] = response[4]; /* ATQA high = 0x00 */
+    /* Store the 6-byte RID (HR0, HR1, UID0..UID3) as the UID */
+    target->uid_len = 6;
+    memcpy(target->uid, &response[5], 6);
+    target->sak = 0; /* Not applicable for Jewel */
+
+    FURI_LOG_D(
+        TAG,
+        "poll_jewel: Tg=%d ATQA=%02X%02X HR0=%02X HR1=%02X UID=%02X%02X%02X%02X",
+        target->target_number,
+        target->atqa[1],
+        target->atqa[0],
+        target->uid[0],
+        target->uid[1],
+        target->uid[2],
+        target->uid[3],
+        target->uid[4],
+        target->uid[5]);
+
+    return true;
+}
+
 FuriHalPn532Error furi_hal_pn532_in_data_exchange(
     uint8_t target_number,
     const uint8_t* tx_data,
@@ -1103,6 +1244,39 @@ FuriHalPn532Error furi_hal_pn532_in_communicate_thru_timeout(
         tx_data, tx_len, rx_data, rx_size, rx_len, timeout_ms);
 }
 
+FuriHalPn532Error furi_hal_pn532_in_communicate_thru_bits(
+    const uint8_t* tx_data,
+    size_t tx_bits,
+    uint8_t* rx_data,
+    size_t rx_size,
+    size_t* rx_bits,
+    uint32_t timeout_ms) {
+    if(!pn532_ready) return FuriHalPn532ErrorComm;
+
+    uint8_t tx_last_bits = tx_bits % 8U;
+    if(tx_last_bits != 0) {
+        if(!pn532_write_register(PN532_REG_CIU_BitFraming, tx_last_bits)) {
+            return FuriHalPn532ErrorComm;
+        }
+    }
+
+    size_t tx_bytes = (tx_bits + 7U) / 8U;
+    size_t rx_len = 0;
+    
+    FuriHalPn532Error error = furi_hal_pn532_in_communicate_thru_impl(
+        tx_data, tx_bytes, rx_data, rx_size, &rx_len, timeout_ms);
+
+    if(tx_last_bits != 0) {
+        pn532_write_register(PN532_REG_CIU_BitFraming, 0);
+    }
+
+    if(error == FuriHalPn532ErrorNone && rx_bits) {
+        *rx_bits = rx_len * 8U;
+    }
+
+    return error;
+}
+
 FuriHalPn532Error furi_hal_pn532_mf_auth(
     uint8_t target_number,
     uint8_t block_num,
@@ -1132,7 +1306,13 @@ FuriHalPn532Error furi_hal_pn532_mf_auth(
         resp,
         sizeof(resp),
         &resp_len,
-        PN532_TIMEOUT_POLL_MS);
+        /* MIFARE Classic InDataExchange auth: PN532 runs a full 3-pass
+         * handshake internally (anticoll-resume + AUTH + verify); on clone
+         * modules at 3.3 V this can exceed 300 ms.  Use the 1 s
+         * InDataExchange timeout — the same value every other
+         * InDataExchange site uses — to avoid host-side timeouts that
+         * leave a stale response in the PN532 output buffer. */
+        PN532_TIMEOUT_EXCHANGE_MS);
 
     if(err == FuriHalPn532ErrorNone && resp_len >= 2) {
         if(resp[1] == 0x00) {
@@ -1196,10 +1376,29 @@ FuriHalPn532Error furi_hal_pn532_send_command(const uint8_t* cmd, size_t cmd_len
 
     if(!pn532_write_frame(cmd, cmd_len)) return FuriHalPn532ErrorComm;
     if(!pn532_read_ack()) {
-        pn532_ready = false;
+        /* Two-strikes-out: same logic as pn532_exchange() — a single ACK
+         * miss is almost always a transient I2C glitch.  Marking
+         * pn532_ready=false here (as the old code did) defeats the
+         * strike fix and triggers a full PN532 reinit on the next call. */
+        pn532_handle_ack_failure("send_command");
         return FuriHalPn532ErrorInvalidAck;
     }
+    pn532_ack_strike_clear();
     return FuriHalPn532ErrorNone;
+}
+
+/** Send InRelease (0x52) to release all in-listed targets.
+ * Uses pn532_exchange() so a single transient ACK failure does NOT set
+ * pn532_ready=false.  InRelease is best-effort cleanup; if it fails the
+ * PN532 is still usable and the next InListPassiveTarget re-establishes
+ * a clean state. */
+void furi_hal_pn532_in_release(void) {
+    if(!pn532_ready) return;
+    const uint8_t cmd[] = {0x52, 0x00}; /* InRelease, release all targets */
+    uint8_t resp[4] = {0};
+    size_t resp_len = 0;
+    /* Ignore errors — InRelease is best-effort */
+    pn532_exchange(cmd, sizeof(cmd), 0x53, resp, sizeof(resp), &resp_len, 50);
 }
 
 FuriHalPn532Error furi_hal_pn532_read_response(
@@ -1258,9 +1457,12 @@ FuriHalPn532Error furi_hal_pn532_tg_get_data(
     // Use send_command + read_response for flexible-length response
     if(!pn532_write_frame(cmd, sizeof(cmd))) return FuriHalPn532ErrorComm;
     if(!pn532_read_ack()) {
-        pn532_ready = false;
+        /* Two-strikes-out: tolerate transient ACK glitches without
+         * forcing a full PN532 reinit on the next call. */
+        pn532_handle_ack_failure("tg_get_data");
         return FuriHalPn532ErrorInvalidAck;
     }
+    pn532_ack_strike_clear();
 
     // Response: [cmd+1][status][data...]
     uint8_t resp[PN532_MAX_RX_FRAME] = {0};

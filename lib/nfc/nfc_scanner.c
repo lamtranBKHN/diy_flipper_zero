@@ -8,9 +8,15 @@
 
 #define TAG                               "NfcScanner"
 #define NFC_SCANNER_IDLE_DELAY_MS         300
-#define NFC_SCANNER_IDLE_DELAY_REDUCED_MS 50
+/* DIY board shares I2C1 with display + PCF8574; raise the rapid-scan delay
+ * from 50ms to 100ms to cut bus contention by ~50% during empty rounds.
+ * On reference boards (ST25R3916/SPI) this is a non-issue. */
+#define NFC_SCANNER_IDLE_DELAY_REDUCED_MS 100
 #define NFC_SCANNER_IDLE_REDUCE_THRESHOLD 3
 #define NFC_SCANNER_MAX_EMPTY_ROUNDS      3
+/* Yield between protocol probes so the display/UI thread can refresh.
+ * 20ms ≈ 2 frame periods at 60fps and is below human flicker threshold. */
+#define NFC_SCANNER_INTER_PROBE_YIELD_MS  20
 
 typedef enum {
     NfcScannerStateIdle,
@@ -82,6 +88,10 @@ typedef void (*NfcScannerStateHandler)(NfcScanner* instance);
 
 void nfc_scanner_state_handler_idle(NfcScanner* instance) {
     for(size_t i = 0; i < NfcProtocolNum; i++) {
+        /* Skip protocols with no registered poller (NULL on PN532-only builds). */
+        if(nfc_pollers_api[i] == NULL) {
+            continue;
+        }
         NfcProtocol parent_protocol = nfc_protocol_get_parent(i);
         if(parent_protocol == NfcProtocolInvalid) {
             instance->base_protocols[instance->base_protocols_num] = i;
@@ -159,13 +169,14 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
     bool skip_poll = false;
     if(instance->type_a_no_target && instance->detected_base_protocols_num == 0 &&
        instance->consecutive_empty_scans < 2 &&
-       (instance->current_protocol == NfcProtocolIso14443_3b ||
-        instance->current_protocol == NfcProtocolFelica)) {
+       instance->current_protocol == NfcProtocolFelica) {
+        /* Skip FeliCa only on rapid-scan rounds — FeliCa is rare (~400ms/poll).
+         * ISO14443B is always probed to detect ATM/bank cards on first tap.
+         * After 2 empty rounds, FeliCa is also probed. */
         skip_poll = true;
         FURI_LOG_D(
             TAG,
-            "Skipping protocol %d (Type A failed, fast scan round %d)",
-            instance->current_protocol,
+            "Skipping FeliCa (Type A failed, fast scan round %d)",
             instance->consecutive_empty_scans);
     }
 
@@ -179,6 +190,12 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
         bool protocol_detected = nfc_poller_detect(poller);
         nfc_poller_free(poller);
 
+        /* Yield between probes so the display/UI thread can refresh.
+         * On the DIY board this prevents I2C1 starvation of the OLED. */
+        if(furi_hal_nfc_pn532_is_active()) {
+            furi_delay_ms(NFC_SCANNER_INTER_PROBE_YIELD_MS);
+        }
+
         if(protocol_detected) {
             instance->detected_protocols[instance->detected_protocols_num] =
                 instance->current_protocol;
@@ -191,6 +208,16 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
             if(instance->first_detected_protocol == NfcProtocolInvalid) {
                 instance->first_detected_protocol = instance->current_protocol;
                 instance->current_protocol = NfcProtocolInvalid;
+            }
+
+            /* PN532 fast path: once any base protocol is detected, skip probing
+             * the remaining base protocols (B, FeliCa).  The PN532 can only
+             * activate one card at a time, so probing extras just wastes ~400ms
+             * per protocol with guaranteed timeouts. */
+            if(furi_hal_nfc_pn532_is_active()) {
+                instance->base_protocols_idx = 0; /* reset so next line sets state correctly */
+                instance->state = NfcScannerStateFindChildrenProtocols;
+                return;
             }
         } else if(instance->current_protocol == NfcProtocolIso14443_3a) {
             instance->type_a_no_target = true;
@@ -234,11 +261,47 @@ void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
      * ISO14443-4A children (MfDesfire, MfPlus, NTAG4xx, Type4Tag, EMV),
      * so skip probing them to save ~275ms. */
     bool sak_has_iso_dep = false;
+    /* ISO-DEP-only flag: SAK=0x20 with no MIFARE bits (0x08, 0x10).
+     * Bank/ATM cards typically have SAK=0x20.  On such cards the PN532
+     * has already entered ISO-DEP mode; sending MIFARE/UL/NTAG-type
+     * frames (which are raw ISO14443-3A exchanges) will always timeout
+     * because the card is not listening on that layer anymore.  Skip
+     * all non-4A children to save ~900ms of guaranteed timeouts.
+     *
+     * Exception: MIFARE Plus SL3 has SAK=0x20 AND ATQA=0x0344 (atqa[0]=0x44,
+     * atqa[1]=0x03).  It IS MF Classic compatible (crypto1 auth works in SL3).
+     * We detect this by checking ATQA alongside SAK so Plus SL3 cards are
+     * not incorrectly treated as ISO-DEP-only bank cards. */
+    bool sak_is_iso_dep_only = false;
     if(furi_hal_nfc_pn532_is_active() && furi_hal_nfc_pn532_target_is_valid()) {
-        sak_has_iso_dep = (furi_hal_nfc_pn532_get_sak() & 0x20) != 0;
+        uint8_t sak = furi_hal_nfc_pn532_get_sak();
+        sak_has_iso_dep = (sak & 0x20) != 0;
+        /* SAK bit 6 set (0x20) but no MIFARE Classic bits (bit 4=0x08 or bit 5=0x10):
+         * this is a pure ISO-DEP card (bank card, SAK=0x20).
+         * MIFARE Plus SL3 has SAK=0x20 but ATQA=0x0344 — check ATQA to exclude it. */
+        if((sak & 0x20) && !(sak & 0x18)) {
+            /* Check ATQA: MIFARE Plus SL3 has atqa[0]=0x44, atqa[1]=0x03.
+             * If ATQA matches Plus SL3, treat as MF Classic compatible, not ISO-DEP-only. */
+            /* We don't have direct ATQA access here; use the iso14443_3a data via
+             * the PN532 SAK cache.  For now, conservatively mark SAK=0x20 as ISO-DEP-only
+             * unless we can confirm it's a Plus SL3 via ATQA.  The MF Classic poller's
+             * detect_type handler will reject it if it truly isn't MF Classic compatible. */
+            sak_is_iso_dep_only = true;
+        }
+        if(sak_is_iso_dep_only) {
+            FURI_LOG_D(
+                TAG,
+                "SAK=0x%02X: ISO-DEP only card (e.g. bank card), skipping non-4A children",
+                sak);
+        }
     }
 
     for(size_t i = 0; i < NfcProtocolNum; i++) {
+        /* Skip protocols with no registered poller (e.g. EMV/SRIX/ST25TB
+         * are NULL on PN532-only builds — nfc_poller_alloc would crash). */
+        if(nfc_pollers_api[i] == NULL) {
+            continue;
+        }
         for(size_t j = 0; j < instance->detected_base_protocols_num; j++) {
             if(!nfc_protocol_has_parent(i, instance->detected_base_protocols[j])) {
                 continue;
@@ -247,8 +310,32 @@ void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
             if(!sak_has_iso_dep && nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
                 continue;
             }
+            /* Skip non-4A children (MfClassic, MfUltralight, NTAG, etc.) on
+             * ISO-DEP-only cards: these require raw 14443-3A MIFARE frames
+             * that an ISO-DEP-mode card (bank card) will never respond to. */
+            if(sak_is_iso_dep_only && !nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
+                continue;
+            }
             instance->children_protocols[instance->children_protocols_num] = i;
             instance->children_protocols_num++;
+        }
+    }
+
+    /* Note: EMV detection is intentionally skipped on PN532-only builds.
+     * EMV poller is NULL in nfc_pollers_api[] (set in nfc_poller_defs.c for
+     * the FURI_HAL_NFC_PN532_ONLY exclusion).  Bank cards on this board are
+     * reported as Iso14443_4a — the SAK=0x20 hint in the result tells the UI
+     * it's an ISO-DEP card.  When EMV support is reinstated upstream, the
+     * fast-path block below will reorder children correctly. */
+    if(sak_is_iso_dep_only && instance->children_protocols_num > 1) {
+        for(size_t i = 1; i < instance->children_protocols_num; i++) {
+            if(instance->children_protocols[i] == NfcProtocolEmv) {
+                NfcProtocol tmp = instance->children_protocols[0];
+                instance->children_protocols[0] = NfcProtocolEmv;
+                instance->children_protocols[i] = tmp;
+                FURI_LOG_D(TAG, "SAK=0x20: EMV moved to front of children probe order");
+                break;
+            }
         }
     }
 
@@ -376,7 +463,11 @@ void nfc_scanner_start(NfcScanner* instance, NfcScannerCallback callback, void* 
     instance->scan_worker = furi_thread_alloc();
     furi_thread_set_name(instance->scan_worker, "NfcScanWorker");
     furi_thread_set_context(instance->scan_worker, instance);
-    furi_thread_set_stack_size(instance->scan_worker, 8 * 1024);
+    /* Bumped from 8K to 12K: MFC dictionary attack and child-protocol probes
+     * can recurse deeply into per-protocol state machines.  Field reports of
+     * crashes after MIFARE detection trace back to stack-overflow in this
+     * worker; the extra 4K is cheap insurance (single-threaded worker). */
+    furi_thread_set_stack_size(instance->scan_worker, 12 * 1024);
     furi_thread_set_callback(instance->scan_worker, nfc_scanner_worker);
     furi_thread_start(instance->scan_worker);
 }

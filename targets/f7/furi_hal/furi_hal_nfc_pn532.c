@@ -45,6 +45,13 @@ typedef struct {
     bool needs_relist;
     uint8_t iso_dep_block_num; /**< Block number toggle for I-block responses */
     bool mf_authed; /**< PN532 native MIFARE Classic auth active */
+
+    /* Listener (target) mode configuration — set via set_col_res_data */
+    uint8_t listener_uid[10];
+    uint8_t listener_uid_len;
+    uint8_t listener_atqa[2];
+    uint8_t listener_sak;
+    bool listener_configured; /**< true after set_col_res_data called */
 } FuriHalNfcPn532State;
 
 static FuriHalNfcPn532State furi_hal_nfc_pn532 = {0};
@@ -166,6 +173,19 @@ static bool furi_hal_nfc_pn532_prepare_rx(
     size_t data_len,
     bool append_crc,
     bool add_parity) {
+    /* BUG FIX (NTAG zero data): exchange_internal() passes rx_payload which IS
+     * furi_hal_nfc_pn532.scratch.  The original code did memset(scratch, 0)
+     * BEFORE copying data from scratch into scratch — zeroing the response data
+     * before it could be read.  Fix: if data overlaps scratch, copy to a local
+     * staging buffer first so the memset does not destroy the source. */
+    uint8_t staging[PN532_MAX_FRAME_SIZE];
+    if(data_len > 0 && data_len <= PN532_MAX_FRAME_SIZE &&
+       data >= furi_hal_nfc_pn532.scratch &&
+       data < furi_hal_nfc_pn532.scratch + sizeof(furi_hal_nfc_pn532.scratch)) {
+        memcpy(staging, data, data_len);
+        data = staging;
+    }
+
     memset(furi_hal_nfc_pn532.scratch, 0, sizeof(furi_hal_nfc_pn532.scratch));
     uint8_t* const frame = furi_hal_nfc_pn532.scratch;
     size_t frame_len = data_len;
@@ -300,14 +320,16 @@ bool furi_hal_nfc_pn532_is_active(void) {
 /* Send InRelease and consume the response so it does not linger in the
  * PN532 I2C output buffer and confuse the next operation.
  * The response is consumed unconditionally to guarantee no stale data
- * remains even if send_command encountered a transient I2C fault. */
+ * remains even if send_command encountered a transient I2C fault.
+ *
+ * InRelease is best-effort cleanup.  A transient ACK failure here does NOT
+ * mean the PN532 is dead — it usually means the chip had a stale response
+ * in its output buffer (from a previous InCommunicateThru timeout) that
+ * pn532_drain_output() already consumed.  We use furi_hal_pn532_in_release()
+ * which uses pn532_exchange() internally (two-strikes-out ACK mechanism)
+ * and will NOT set pn532_ready=false on a single transient failure. */
 static void pn532_send_inrelease(void) {
-    const uint8_t in_release[] = {0x52, 0x00};
-    uint8_t dummy[8];
-    size_t dummy_len = 0;
-    if(furi_hal_pn532_send_command(in_release, sizeof(in_release)) == FuriHalPn532ErrorNone) {
-        furi_hal_pn532_read_response(dummy, sizeof(dummy), &dummy_len, 50);
-    }
+    furi_hal_pn532_in_release();
 }
 
 void furi_hal_nfc_pn532_reset(void) {
@@ -319,6 +341,11 @@ void furi_hal_nfc_pn532_reset(void) {
     furi_hal_nfc_pn532.target_valid = false;
     furi_hal_nfc_pn532.mf_authed = false;
     furi_hal_nfc_pn532.listener_active = false;
+    furi_hal_nfc_pn532.listener_configured = false;
+    furi_hal_nfc_pn532.listener_uid_len = 0;
+    memset(furi_hal_nfc_pn532.listener_uid, 0, sizeof(furi_hal_nfc_pn532.listener_uid));
+    memset(furi_hal_nfc_pn532.listener_atqa, 0, sizeof(furi_hal_nfc_pn532.listener_atqa));
+    furi_hal_nfc_pn532.listener_sak = 0;
     furi_hal_nfc_pn532.mode = FuriHalNfcModeNum;
     furi_hal_nfc_pn532.tech = FuriHalNfcTechInvalid;
     furi_hal_nfc_pn532.target_tick = 0;
@@ -362,10 +389,35 @@ FuriHalNfcError furi_hal_nfc_pn532_set_mode(FuriHalNfcMode mode, FuriHalNfcTech 
         furi_hal_nfc_pn532.last_result = FuriHalNfcPn532ResultNotPresent;
         furi_hal_nfc_pn532.last_error_tick = 0;
         furi_hal_nfc_pn532.mf_auth_key_valid = false;
+        /* Clear remaining per-session volatile state.  Without this, a
+         * previous session's needs_relist / iso_dep_mode / iso_dep_block_num
+         * / cached_ats_len leak into the new session and cause the
+         * exchange path to take incorrect interception branches:
+         *  - stale cached_ats_len triggers spurious PPS synthesis,
+         *  - stale iso_dep_mode pushes plain frames into the I-block
+         *    stripping branch,
+         *  - stale needs_relist forces a 20ms WUPA on a freshly-listed
+         *    target. */
+        furi_hal_nfc_pn532.needs_relist = false;
+        furi_hal_nfc_pn532.iso_dep_mode = false;
+        furi_hal_nfc_pn532.iso_dep_block_num = 0;
+        furi_hal_nfc_pn532.cached_ats_len = 0;
+        /* Restart the IRQ poller thread if it was stopped by a previous
+         * furi_hal_nfc_pn532_reset() call (e.g. from a mode/tech change
+         * during supported-card plugin iteration).  Without this, the fast
+         * path leaves pn532_irq_event == NULL, forcing pn532_wait_ready_ms()
+         * into the blocking-poll fallback.  That fallback sets pn532_ready=false
+         * on any timeout, which triggers a full PN532 reinit mid-session and
+         * causes the dict-attack poller to crash/freeze. */
+        furi_hal_pn532_irq_start();
     } else {
         furi_hal_nfc_pn532_reset();
         furi_hal_nfc_pn532.mode = mode;
         furi_hal_nfc_pn532.tech = tech;
+        /* Restart the IRQ poller thread after a full reset so that
+         * pn532_wait_ready_ms() uses the event-flag path (not blocking poll)
+         * for all subsequent commands in this session. */
+        furi_hal_pn532_irq_start();
     }
     return FuriHalNfcErrorNone;
 }
@@ -454,6 +506,11 @@ FuriHalNfcError furi_hal_nfc_pn532_trx_short_frame(FuriHalNfcaShortFrame frame) 
     UNUSED(frame);
     if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
 
+    if(furi_hal_nfc_acquire() != FuriHalNfcErrorNone) {
+        return FuriHalNfcErrorBusy;
+    }
+
+    FuriHalNfcError ret = FuriHalNfcErrorNone;
     bool use_cached = false;
     if(furi_hal_nfc_pn532.target_valid && furi_hal_nfc_pn532.tech == FuriHalNfcTechIso14443a) {
         int32_t age = (int32_t)(furi_get_tick() - furi_hal_nfc_pn532.target_tick);
@@ -498,7 +555,8 @@ FuriHalNfcError furi_hal_nfc_pn532_trx_short_frame(FuriHalNfcaShortFrame frame) 
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventRxEnd);
     }
 
-    return FuriHalNfcErrorNone;
+    furi_hal_nfc_release();
+    return ret;
 }
 
 static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
@@ -509,6 +567,11 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
     if(!furi_hal_nfc_pn532_is_active()) {
         return FuriHalNfcErrorCommunication;
     }
+    if(furi_hal_nfc_acquire() != FuriHalNfcErrorNone) {
+        return FuriHalNfcErrorBusy;
+    }
+
+    FuriHalNfcError err_ret = FuriHalNfcErrorNone;
 
     memset(furi_hal_nfc_pn532.scratch, 0, sizeof(furi_hal_nfc_pn532.scratch));
     uint8_t* const rx_payload = furi_hal_nfc_pn532.scratch;
@@ -525,10 +588,19 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
 
     // Auto-detect target if not yet valid (Type B, FeliCa)
     // or force re-poll if target is stale (freshness timeout exceeded)
+    // IMPORTANT: Never re-poll while PN532 native MIFARE auth is active —
+    // InListPassiveTarget destroys the PN532's internal Crypto1 session,
+    // causing all subsequent block reads to fail with error 0x06.
     bool target_fresh = false;
     if(furi_hal_nfc_pn532.target_valid) {
         int32_t age = (int32_t)(furi_get_tick() - furi_hal_nfc_pn532.target_tick);
         target_fresh = (age >= 0 && age < (int32_t)PN532_TARGET_FRESHNESS_TIMEOUT_MS);
+    }
+    if(furi_hal_nfc_pn532.mf_authed) {
+        // While authenticated, treat target as always fresh — re-polling
+        // would send InListPassiveTarget which resets the PN532's Crypto1
+        // state machine, making all subsequent reads return error 0x06.
+        target_fresh = true;
     }
     if(!target_fresh) {
         // Log if we're re-polling due to stale target (diagnostic aid)
@@ -543,7 +615,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         // when there is genuinely no target. For stale targets, allow
         // short commands (e.g. 2-byte SDD frames) through to InDataExchange.
         if(!furi_hal_nfc_pn532.target_valid && effective_tx_len < 3) {
-            return FuriHalNfcErrorCommunication;
+            err_ret = FuriHalNfcErrorCommunication; goto release;
         }
 
         FuriHalPn532Target target = {0};
@@ -560,7 +632,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             detected = furi_hal_pn532_poll_felica(&target);
             break;
         default:
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorUnsupported, false);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorUnsupported, false);
+    goto release;
         }
 
         if(!detected) {
@@ -568,7 +641,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
             furi_hal_nfc_pn532.rx_bits = 0;
             furi_hal_nfc_pn532_set_result(FuriHalNfcPn532ResultNotPresent);
-            return FuriHalNfcErrorNone;
+            err_ret = FuriHalNfcErrorNone; goto release;
         }
 
         // Target found — store it
@@ -586,7 +659,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             memcpy(&atqb[5], target.app_data, 4);
             memcpy(&atqb[9], target.proto_info, 3);
             furi_hal_nfc_pn532_prepare_rx(atqb, sizeof(atqb), false, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
         }
 
         // FeliCa: the PN532 handles FeliCa commands natively through InDataExchange
@@ -604,7 +678,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
                     furi_hal_nfc_pn532.target_valid = false;
                     furi_hal_nfc_pn532.mf_authed = false;
                     furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
-                    return FuriHalNfcErrorCommunication;
+                    err_ret = FuriHalNfcErrorCommunication; goto release;
                 }
                 furi_hal_nfc_pn532.target = target;
                 furi_hal_nfc_pn532.needs_relist = false;
@@ -613,7 +687,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             atqa[0] = furi_hal_nfc_pn532.target.atqa[1];
             atqa[1] = furi_hal_nfc_pn532.target.atqa[0];
             furi_hal_nfc_pn532_prepare_rx(atqa, sizeof(atqa), false, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
         }
     }
 
@@ -621,7 +696,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
     if(effective_tx_len == 2U && tx_bytes[0] == 0x50U && tx_bytes[1] == 0x00U) {
         furi_hal_nfc_pn532.needs_relist = true;
         furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
-        return FuriHalNfcErrorNone;
+        err_ret = FuriHalNfcErrorNone; goto release;
     }
 
     if(tx_len >= 2U) {
@@ -634,13 +709,14 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             uint8_t sak = 0;
             const uint8_t cascade_level = (sel_cmd - 0x93U) / 2U;
             if(!furi_hal_nfc_pn532_build_cascade_response(cascade_level, nfcid, &sak)) {
-                return FuriHalNfcErrorCommunication;
+                err_ret = FuriHalNfcErrorCommunication; goto release;
             }
 
             const uint8_t bcc = nfcid[0] ^ nfcid[1] ^ nfcid[2] ^ nfcid[3];
             uint8_t response[5] = {nfcid[0], nfcid[1], nfcid[2], nfcid[3], bcc};
             furi_hal_nfc_pn532_prepare_rx(response, sizeof(response), false, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
         }
 
         // SELECT — synthesize SAK+CRC from stored target
@@ -650,12 +726,13 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             uint8_t sak = 0;
             const uint8_t cascade_level = (sel_cmd - 0x93U) / 2U;
             if(!furi_hal_nfc_pn532_build_cascade_response(cascade_level, nfcid, &sak)) {
-                return FuriHalNfcErrorCommunication;
+                err_ret = FuriHalNfcErrorCommunication; goto release;
             }
 
             const uint8_t response[1] = {sak};
             furi_hal_nfc_pn532_prepare_rx(response, sizeof(response), true, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
         }
     }
 
@@ -668,7 +745,7 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
             furi_hal_nfc_pn532_queue_push(FuriHalNfcEventTxEnd);
             furi_hal_nfc_pn532.rx_bits = 0;
             furi_hal_nfc_pn532_set_result(FuriHalNfcPn532ResultNotPresent);
-            return FuriHalNfcErrorCommunication;
+            err_ret = FuriHalNfcErrorCommunication; goto release;
         }
         FURI_LOG_D(
             TAG,
@@ -683,7 +760,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         ats_buf[ats_len] = (uint8_t)(crc & 0xFFU);
         ats_buf[ats_len + 1] = (uint8_t)(crc >> 8U);
         furi_hal_nfc_pn532_prepare_rx(ats_buf, ats_len + 2, false, false);
-        return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+        err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
     }
 
     // PPS (Protocol and Parameter Selection) interception — also synthetic
@@ -697,7 +775,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         pps_resp[1] = (uint8_t)(crc & 0xFFU);
         pps_resp[2] = (uint8_t)(crc >> 8U);
         furi_hal_nfc_pn532_prepare_rx(pps_resp, 3, false, false);
-        return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+        err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
     }
 
     // All other commands — forward to PN532 via InDataExchange or InCommunicateThru
@@ -746,7 +825,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         if(err == FuriHalPn532ErrorNone) {
             // NT (standard auth) or ACK (backdoor auth) — no CRC append
             furi_hal_nfc_pn532_prepare_rx(rx_payload, rx_len, false, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
         }
         // Auth InCommunicateThru failed — likely wrong key, tag enters HALT state.
         // We set needs_relist so the next WUPA command physically wakes it up.
@@ -754,7 +834,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         furi_hal_nfc_pn532.rx_bits = 0;
         furi_hal_nfc_pn532.needs_relist = true;
         furi_hal_nfc_pn532.iso_dep_mode = false;
-        return furi_hal_nfc_pn532_finalize_exchange(err, false);
+        err_ret = furi_hal_nfc_pn532_finalize_exchange(err, false);
+    goto release;
     } else if(furi_hal_nfc_pn532.iso_dep_mode) {
         // ISO-DEP mode: strip I-block/R-block/S-block headers before InDataExchange
         // The PN532 manages ISO-DEP framing internally once RATS completes.
@@ -796,21 +877,26 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
 
                 furi_hal_nfc_pn532_prepare_rx(
                     furi_hal_nfc_pn532.scratch, iob_len + 2, false, false);
-                return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+                err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
             }
             // Fall through to error handling if InDataExchange fails
 
         } else if(block_type == 0x80) {
-            // R-block (ACK/NAK) — PN532 handles retransmission internally
-            // Return synthetic R(ACK) response matching expected PCB
-            uint8_t r_ack = pcb ^ 0x80; // Toggle ACK/NAK bit
-            if(pcb & 0x10) r_ack ^= 0x10; // Mirror block number
+            /* R-block: ISO14443-4 §7.5.5.
+             * R(ACK) PCB = 0b10100010 | (block_num & 1) = 0xA2 | block_num_bit
+             * We toggle the sequence number to appease non-compliant readers (hybrid approach).
+             * The PN532 handles retransmission internally; we echo R(ACK) back
+             * to keep the Flipper ISO-DEP state machine in sync. */
+            furi_hal_nfc_pn532.iso_dep_block_num ^= 1U; // Toggle sequence number for hybrid compatibility
+            uint8_t r_ack = (uint8_t)(0xA2U | (furi_hal_nfc_pn532.iso_dep_block_num & 1U));
             uint8_t r_resp[3] = {r_ack, 0, 0};
             const uint16_t crc = furi_hal_nfc_pn532_crc_a(r_resp, 1);
             r_resp[1] = (uint8_t)(crc & 0xFFU);
             r_resp[2] = (uint8_t)(crc >> 8U);
             furi_hal_nfc_pn532_prepare_rx(r_resp, 3, false, false);
-            return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+            goto release;
 
         } else if(block_type == 0xC0) {
             // S-block (WTX or DESELECT)
@@ -821,7 +907,8 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
                 s_resp[2] = (uint8_t)(crc & 0xFFU);
                 s_resp[3] = (uint8_t)(crc >> 8U);
                 furi_hal_nfc_pn532_prepare_rx(s_resp, 4, false, false);
-                return furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+                err_ret = furi_hal_nfc_pn532_finalize_exchange(FuriHalPn532ErrorNone, true);
+    goto release;
             }
             // DESELECT — fall through to InDataExchange
             err = furi_hal_pn532_in_data_exchange(
@@ -862,7 +949,12 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
         (err == FuriHalPn532ErrorNone) && (rx_len > 0U) &&
         furi_hal_nfc_pn532_prepare_rx(rx_payload, rx_len, !add_parity_to_rx, add_parity_to_rx);
 
-    return furi_hal_nfc_pn532_finalize_exchange(err, response_ready);
+    err_ret = furi_hal_nfc_pn532_finalize_exchange(err, response_ready);
+    goto release;
+
+release:
+    furi_hal_nfc_release();
+    return err_ret;
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_tx(const uint8_t* tx_data, size_t tx_bits) {
@@ -871,8 +963,7 @@ FuriHalNfcError furi_hal_nfc_pn532_tx(const uint8_t* tx_data, size_t tx_bits) {
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_tx_custom_parity(const uint8_t* tx_data, size_t tx_bits) {
-    memset(furi_hal_nfc_pn532.scratch, 0, sizeof(furi_hal_nfc_pn532.scratch));
-    uint8_t* const tx_bytes = furi_hal_nfc_pn532.scratch;
+    uint8_t tx_bytes[PN532_MAX_FRAME_SIZE] = {0};
     const size_t tx_len =
         furi_hal_nfc_pn532_unpack_parity_frame(tx_data, tx_bits, tx_bytes, PN532_MAX_FRAME_SIZE);
     if(tx_len == 0U) return FuriHalNfcErrorDataFormat;
@@ -881,12 +972,35 @@ FuriHalNfcError furi_hal_nfc_pn532_tx_custom_parity(const uint8_t* tx_data, size
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_rx(uint8_t* rx_data, size_t rx_data_size, size_t* rx_bits) {
-    if(!rx_data || !rx_bits) return FuriHalNfcErrorDataFormat;
+    if(furi_hal_nfc_acquire() != FuriHalNfcErrorNone) return FuriHalNfcErrorBusy;
+    if(!rx_data || !rx_bits) { furi_hal_nfc_release(); return FuriHalNfcErrorDataFormat; }
     const size_t rx_bytes = (furi_hal_nfc_pn532.rx_bits + 7U) / 8U;
-    if(rx_bytes > rx_data_size) return FuriHalNfcErrorBufferOverflow;
+    if(rx_bytes > rx_data_size) { furi_hal_nfc_release(); return FuriHalNfcErrorBufferOverflow; }
 
     memcpy(rx_data, furi_hal_nfc_pn532.rx_buffer, rx_bytes);
     *rx_bits = furi_hal_nfc_pn532.rx_bits;
+    furi_hal_nfc_release();
+    return FuriHalNfcErrorNone;
+}
+
+// Listener (target) mode: configure UID/ATQA/SAK for emulation
+FuriHalNfcError furi_hal_nfc_pn532_listener_set_col_res_data(
+    const uint8_t* uid,
+    uint8_t uid_len,
+    const uint8_t* atqa,
+    uint8_t sak) {
+    if(!furi_hal_nfc_pn532_is_active()) return FuriHalNfcErrorCommunication;
+    if(!uid || uid_len == 0 || uid_len > 10) return FuriHalNfcErrorDataFormat;
+    if(!atqa) return FuriHalNfcErrorDataFormat;
+
+    furi_hal_nfc_pn532.listener_uid_len = uid_len;
+    memcpy(furi_hal_nfc_pn532.listener_uid, uid, uid_len);
+    memcpy(furi_hal_nfc_pn532.listener_atqa, atqa, 2);
+    furi_hal_nfc_pn532.listener_sak = sak;
+    furi_hal_nfc_pn532.listener_configured = true;
+    furi_hal_nfc_pn532.listener_active = false; /* force re-init on next wait_event */
+
+    FURI_LOG_D(TAG, "Listener configured: UID len=%u SAK=0x%02X", uid_len, sak);
     return FuriHalNfcErrorNone;
 }
 
@@ -917,12 +1031,40 @@ FuriHalNfcEvent furi_hal_nfc_pn532_listener_wait_event(uint32_t timeout_ms) {
                 uint8_t params[] = {0x02, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
                                     0x07, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00,
                                     0x00, 0x00, 0x00, 0x12, 0xFC, 0x00, 0x00};
+                if(furi_hal_nfc_pn532.listener_configured) {
+                    for(uint8_t i = 0; i < 8 && i < furi_hal_nfc_pn532.listener_uid_len; i++) {
+                        params[1 + i] = furi_hal_nfc_pn532.listener_uid[i];
+                    }
+                }
                 err = furi_hal_pn532_tg_init_as_target(params, sizeof(params), slice_ms);
             } else {
-                // ISO14443-4A target mode (mode=0x01 with 4-byte params)
-                uint8_t params[] = {5, 0x04, 0x00, 0x00, 0x00, 0x00, 0x20, 0, 0, 0, 0, 0,
-                                    0, 0,    0,    0,    0,    0,    0,    0, 0, 0, 0, 0,
-                                    0, 0,    0,    0,    0,    0,    0,    0, 0, 0, 0};
+                // ISO14443-4A target mode — use configured UID/ATQA/SAK if available
+                // Format: [mode(1)] [SENS_RES(2)] [NFCID1(3)] [SEL_RES(1)]
+                //         [FeliCa params(18)] [NFCID3t(10)] [Gt_len(1)] [Tk_len(1)] = 36 bytes
+                uint8_t params[36];
+                memset(params, 0, sizeof(params));
+                params[0] = 0x05; /* mode: passive 106kbps, PICC only */
+
+                if(furi_hal_nfc_pn532.listener_configured) {
+                    params[1] = furi_hal_nfc_pn532.listener_atqa[0];
+                    params[2] = furi_hal_nfc_pn532.listener_atqa[1];
+                    params[3] = (furi_hal_nfc_pn532.listener_uid_len >= 1) ?
+                                    furi_hal_nfc_pn532.listener_uid[0] : 0x00;
+                    params[4] = (furi_hal_nfc_pn532.listener_uid_len >= 2) ?
+                                    furi_hal_nfc_pn532.listener_uid[1] : 0x00;
+                    params[5] = (furi_hal_nfc_pn532.listener_uid_len >= 3) ?
+                                    furi_hal_nfc_pn532.listener_uid[2] : 0x00;
+                    params[6] = furi_hal_nfc_pn532.listener_sak;
+                } else {
+                    /* Defaults: generic ISO14443-4 tag */
+                    params[1] = 0x04; params[2] = 0x00; /* ATQA */
+                    params[3] = 0x08; params[4] = 0x00; params[5] = 0x00; /* NFCID1 */
+                    params[6] = 0x20; /* SAK: ISO-DEP capable */
+                }
+                /* NFCID3t: copy UID into bytes 25-34 */
+                for(uint8_t i = 0; i < furi_hal_nfc_pn532.listener_uid_len && i < 10; i++) {
+                    params[25 + i] = furi_hal_nfc_pn532.listener_uid[i];
+                }
                 err = furi_hal_pn532_tg_init_as_target(params, sizeof(params), slice_ms);
             }
 
@@ -1051,21 +1193,33 @@ FuriHalNfcError furi_hal_nfc_pn532_listener_tx(const uint8_t* tx_data, size_t tx
         return FuriHalNfcErrorCommunication;
     }
 
-    // Unpack parity-encoded data to raw bytes for TGSETDATA
-    memset(furi_hal_nfc_pn532.scratch, 0, sizeof(furi_hal_nfc_pn532.scratch));
-    uint8_t* const raw = furi_hal_nfc_pn532.scratch;
-    const size_t byte_count = tx_bits / 9U;
-    if(byte_count > PN532_MAX_FRAME_SIZE) return FuriHalNfcErrorBufferOverflow;
+    const uint8_t* raw = NULL;
+    size_t byte_count = 0;
 
-    size_t bit_index = 0;
-    for(size_t i = 0; i < byte_count; i++) {
-        const size_t byte_idx = bit_index / 8U;
-        const size_t bit_off = bit_index % 8U;
-        raw[i] = tx_data[byte_idx] >> bit_off;
-        if(bit_off != 0) {
-            raw[i] |= tx_data[byte_idx + 1] << (8U - bit_off);
+    if((tx_bits % 9U) == 0U && tx_bits > 0U) {
+        /* 9-bit parity-encoded stream (from listener_tx_custom_parity path).
+         * Each 9 bits = 8 data bits + 1 parity bit. Unpack to raw bytes. */
+        byte_count = tx_bits / 9U;
+        if(byte_count > PN532_MAX_FRAME_SIZE) return FuriHalNfcErrorBufferOverflow;
+
+        memset(furi_hal_nfc_pn532.scratch, 0, sizeof(furi_hal_nfc_pn532.scratch));
+        size_t bit_index = 0;
+        for(size_t i = 0; i < byte_count; i++) {
+            const size_t byte_idx = bit_index / 8U;
+            const size_t bit_off  = bit_index % 8U;
+            furi_hal_nfc_pn532.scratch[i] = tx_data[byte_idx] >> bit_off;
+            if(bit_off != 0U) {
+                furi_hal_nfc_pn532.scratch[i] |= tx_data[byte_idx + 1] << (8U - bit_off);
+            }
+            bit_index += 9U;
         }
-        bit_index += 9;
+        raw = furi_hal_nfc_pn532.scratch;
+    } else {
+        /* Raw byte stream (from furi_hal_nfc_iso14443a_listener_tx path).
+         * tx_bits is the count of raw data bits — no parity interleaving. */
+        byte_count = (tx_bits + 7U) / 8U;
+        if(byte_count > PN532_MAX_FRAME_SIZE) return FuriHalNfcErrorBufferOverflow;
+        raw = tx_data;
     }
 
     FuriHalPn532Error err = furi_hal_pn532_tg_set_data(raw, byte_count);
@@ -1185,6 +1339,13 @@ bool furi_hal_nfc_pn532_mf_is_authed(void) {
 
 void furi_hal_nfc_pn532_mf_deauth(void) {
     furi_hal_nfc_pn532.mf_authed = false;
+    /* After a failed PN532 native InDataExchange auth (status 0x14), the
+     * card is left in HALT/ERROR state.  Force the next WUPA/REQA
+     * interception in exchange_internal() to physically re-select the
+     * card before any further commands are sent — otherwise the Crypto1
+     * fallback issues an auth via InCommunicateThru to a HALTed card and
+     * times out on every attempt. */
+    furi_hal_nfc_pn532.needs_relist = true;
 }
 
 FuriHalNfcError furi_hal_nfc_pn532_mf_read_block(
@@ -1281,4 +1442,9 @@ bool furi_hal_nfc_quick_poll(void) {
     // 50ms timeout — PN532 firmware waits at most 50ms for a card;
     // when no card is present this saves ~250ms vs the standard 300ms poll.
     return furi_hal_pn532_poll_iso14443a_timeout(&target, 50);
+}
+
+bool furi_hal_nfc_pn532_poll_jewel(FuriHalPn532Target* target) {
+    if(!furi_hal_nfc_pn532_is_active()) return false;
+    return furi_hal_pn532_poll_jewel(target);
 }

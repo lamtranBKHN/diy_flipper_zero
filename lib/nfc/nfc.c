@@ -306,7 +306,14 @@ void nfc_config(Nfc* instance, NfcMode mode, NfcTech tech) {
 
     FuriHalNfcTech hal_tech = nfc_tech_table[mode][tech];
     if(hal_tech == FuriHalNfcTechInvalid) {
-        furi_crash("Unsupported mode for given tech");
+        /* On the DIY board (PN532) some mode/tech combos are unsupported but
+         * are reachable via auto-detection paths (e.g. listener mode for
+         * non-A protocols).  A panic here would kill the app on bad cards;
+         * log + return cleanly so the caller can recover. */
+        FURI_LOG_E(
+            TAG, "nfc_config: unsupported mode=%d tech=%d on this backend", mode, tech);
+        instance->config_state = NfcConfigurationStateIdle;
+        return;
     }
     FuriHalNfcMode hal_mode = (mode == NfcModePoller) ? FuriHalNfcModePoller :
                                                         FuriHalNfcModeListener;

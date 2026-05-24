@@ -23,11 +23,18 @@
 #include <nfc/protocols/mf_plus/mf_plus.h>
 #include <nfc/protocols/mf_desfire/mf_desfire.h>
 #include <nfc/protocols/slix/slix_device_defs.h>
-#include <nfc/protocols/st25tb/st25tb.h>
 #include <nfc/protocols/ntag4xx/ntag4xx.h>
 #include <nfc/protocols/type_4_tag/type_4_tag.h>
+
+/* ST25TB, EMV, and SRIX are excluded on PN532-only builds (no ST25R3916 ISO15693/ST25TB
+ * support, and EMV/SRIX are not reachable via PN532).  Their source files are omitted
+ * from the build by the SConscript exclusion filter, so we must not reference their
+ * symbols here when FURI_HAL_NFC_PN532_ONLY is defined. */
+#ifndef FURI_HAL_NFC_PN532_ONLY
+#include <nfc/protocols/st25tb/st25tb.h>
 #include <nfc/protocols/emv/emv.h>
 #include <nfc/protocols/srix/srix.h>
+#endif
 
 /**
  * @brief List of registered NFC device implementations.
@@ -47,10 +54,19 @@ const NfcDeviceBase* const nfc_devices[NfcProtocolNum] = {
     [NfcProtocolMfPlus] = &nfc_device_mf_plus,
     [NfcProtocolMfDesfire] = &nfc_device_mf_desfire,
     [NfcProtocolSlix] = &nfc_device_slix,
+#ifndef FURI_HAL_NFC_PN532_ONLY
     [NfcProtocolSt25tb] = &nfc_device_st25tb,
+#else
+    [NfcProtocolSt25tb] = NULL,
+#endif
     [NfcProtocolNtag4xx] = &nfc_device_ntag4xx,
     [NfcProtocolType4Tag] = &nfc_device_type_4_tag,
+#ifndef FURI_HAL_NFC_PN532_ONLY
     [NfcProtocolEmv] = &nfc_device_emv,
     [NfcProtocolSrix] = &nfc_device_srix,
+#else
+    [NfcProtocolEmv] = NULL,
+    [NfcProtocolSrix] = NULL,
+#endif
     /* Add new protocols here */
 };

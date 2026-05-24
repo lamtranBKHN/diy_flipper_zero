@@ -41,6 +41,11 @@ FuriHalNfcError
 FuriHalNfcError furi_hal_nfc_pn532_listener_idle(void);
 FuriHalNfcError furi_hal_nfc_pn532_listener_sleep(void);
 FuriHalNfcError furi_hal_nfc_pn532_listener_enable_rx(void);
+FuriHalNfcError furi_hal_nfc_pn532_listener_set_col_res_data(
+    const uint8_t* uid,
+    uint8_t uid_len,
+    const uint8_t* atqa,
+    uint8_t sak);
 
 // Diagnostic API
 FuriHalPn532Error furi_hal_nfc_pn532_last_error_get(void);
@@ -66,6 +71,18 @@ FuriHalNfcError furi_hal_nfc_pn532_mf_write_block(uint8_t block_num, const uint8
 // Access cached target data (used by scanner for SAK-based child optimization)
 uint8_t furi_hal_nfc_pn532_get_sak(void);
 bool furi_hal_nfc_pn532_target_is_valid(void);
+
+/** Poll for a Jewel/Topaz (NFC Type 1 Tag) card using the PN532.
+ *
+ * This is a direct HAL-level poll that bypasses the FuriHalNfcTech dispatch
+ * (Jewel is not in the FuriHalNfcTech enum).  Call from a FAP or custom
+ * protocol handler.  On success, target->uid contains the 6-byte RID
+ * (HR0, HR1, UID0..UID3) and target->atqa[0] == 0x0C (Jewel marker).
+ *
+ * @param[out] target  Pointer to target struct to fill, or NULL for presence check.
+ * @returns true if a Jewel/Topaz card was detected, false otherwise.
+ */
+bool furi_hal_nfc_pn532_poll_jewel(FuriHalPn532Target* target);
 
 #ifdef __cplusplus
 }

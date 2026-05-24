@@ -17,25 +17,15 @@ static Iso14443_3aPoller* iso14443_3a_poller_alloc(Nfc* nfc) {
     furi_assert(nfc);
 
     Iso14443_3aPoller* instance = malloc(sizeof(Iso14443_3aPoller));
+    furi_check(instance);
     instance->nfc = nfc;
     instance->tx_buffer = bit_buffer_alloc(ISO14443_3A_POLLER_MAX_BUFFER_SIZE);
-    if(!instance->tx_buffer) {
-        free(instance);
-        return NULL;
-    }
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(ISO14443_3A_POLLER_MAX_BUFFER_SIZE);
-    if(!instance->rx_buffer) {
-        bit_buffer_free(instance->tx_buffer);
-        free(instance);
-        return NULL;
-    }
+    furi_check(instance->rx_buffer);
     instance->data = iso14443_3a_alloc();
-    if(!instance->data) {
-        bit_buffer_free(instance->tx_buffer);
-        bit_buffer_free(instance->rx_buffer);
-        free(instance);
-        return NULL;
-    }
+    furi_check(instance->data);
+    
     instance->state = Iso14443_3aPollerStateIdle;
     instance->consecutive_no_target = 0;
     nfc_config(instance->nfc, NfcModePoller, NfcTechIso14443a);
