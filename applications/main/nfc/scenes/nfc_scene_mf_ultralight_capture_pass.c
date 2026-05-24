@@ -1,6 +1,5 @@
 #include "../nfc_app_i.h"
 
-#ifndef PN532_ENABLED
 NfcCommand
     nfc_scene_mf_ultralight_capture_pass_worker_callback(NfcGenericEvent event, void* context) {
     NfcApp* instance = context;
@@ -15,7 +14,6 @@ NfcCommand
 
     return NfcCommandContinue;
 }
-#endif
 
 void nfc_scene_mf_ultralight_capture_pass_on_enter(void* context) {
     NfcApp* instance = context;
@@ -34,13 +32,11 @@ void nfc_scene_mf_ultralight_capture_pass_on_enter(void* context) {
     view_dispatcher_switch_to_view(instance->view_dispatcher, NfcViewWidget);
 
     // Start worker
-#ifndef PN532_ENABLED
     const MfUltralightData* data =
         nfc_device_get_data(instance->nfc_device, NfcProtocolMfUltralight);
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolMfUltralight, data);
     nfc_listener_start(
         instance->listener, nfc_scene_mf_ultralight_capture_pass_worker_callback, instance);
-#endif
 
     nfc_blink_read_start(instance);
 }
@@ -63,10 +59,8 @@ void nfc_scene_mf_ultralight_capture_pass_on_exit(void* context) {
     NfcApp* instance = context;
 
     // Clear view
-#ifndef PN532_ENABLED
     nfc_listener_stop(instance->listener);
     nfc_listener_free(instance->listener);
-#endif
     widget_reset(instance->widget);
 
     nfc_blink_stop(instance);

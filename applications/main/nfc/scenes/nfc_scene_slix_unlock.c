@@ -46,6 +46,11 @@ bool nfc_scene_slix_unlock_on_event(void* context, SceneManagerEvent event) {
 
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventPollerFailure) {
+            nfc_poller_stop(instance->poller);
+            nfc_poller_free(instance->poller);
+            instance->poller = NULL;
+            scene_manager_search_and_switch_to_previous_scene(
+                instance->scene_manager, NfcSceneSlixUnlockMenu);
             consumed = true;
         } else if(event.event == NfcCustomEventPollerSuccess) {
             notification_message(instance->notifications, &sequence_success);
