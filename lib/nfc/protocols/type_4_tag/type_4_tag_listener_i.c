@@ -294,6 +294,19 @@ Type4TagError
             }
         }
         if(!handler) {
+            /* Try T4T emulation as fallback for unrecognized commands */
+            size_t resp_len = 0;
+            uint8_t resp_buf[260];
+            if(nfc_t4t_emulation_process_apdu(
+                   instance->t4t_emul,
+                   (const uint8_t*)bit_buffer_get_data(rx_buffer),
+                   buf_size,
+                   resp_buf,
+                   &resp_len)) {
+                bit_buffer_copy_bytes(instance->tx_buffer, resp_buf, resp_len);
+                error = Type4TagErrorNone;
+                break;
+            }
             bit_buffer_append_bytes(
                 instance->tx_buffer, type_4_tag_no_cmd_apdu, sizeof(type_4_tag_no_cmd_apdu));
             error = Type4TagErrorCustomCommand;

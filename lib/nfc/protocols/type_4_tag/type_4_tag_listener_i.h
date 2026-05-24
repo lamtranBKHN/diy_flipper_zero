@@ -3,6 +3,7 @@
 #include "type_4_tag_listener.h"
 
 #include <lib/nfc/protocols/iso14443_4a/iso14443_4a_listener_i.h>
+#include <nfc/helpers/nfc_t4t_emulation.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,6 +22,7 @@ struct Type4TagListener {
     Type4TagData* data;
     Type4TagListenerState state;
 
+    NfcT4tEmulation* t4t_emul;
     BitBuffer* tx_buffer;
 
     NfcGenericEvent generic_event;
