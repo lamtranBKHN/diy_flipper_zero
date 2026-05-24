@@ -18,12 +18,16 @@ const Iso14443_4aData* iso14443_4a_poller_get_data(Iso14443_4aPoller* instance) 
 
 static Iso14443_4aPoller* iso14443_4a_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) {
     Iso14443_4aPoller* instance = malloc(sizeof(Iso14443_4aPoller));
-    if(!instance) return NULL;
+    furi_check(instance);
     instance->iso14443_3a_poller = iso14443_3a_poller;
     instance->data = iso14443_4a_alloc();
+    furi_check(instance->data);
     instance->iso14443_4_layer = iso14443_4_layer_alloc();
+    furi_check(instance->iso14443_4_layer);
     instance->tx_buffer = bit_buffer_alloc(ISO14443_4A_POLLER_BUF_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(ISO14443_4A_POLLER_BUF_SIZE);
+    furi_check(instance->rx_buffer);
 
     instance->iso14443_4a_event.data = &instance->iso14443_4a_event_data;
 
