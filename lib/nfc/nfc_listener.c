@@ -5,6 +5,8 @@
 
 #include <furi.h>
 
+#define TAG "NfcListener"
+
 typedef struct NfcListenerListElement {
     NfcProtocol protocol;
     NfcGenericInstance* listener;
@@ -26,6 +28,7 @@ struct NfcListener {
 
 static void nfc_listener_list_alloc(NfcListener* instance) {
     instance->list.head = malloc(sizeof(NfcListenerListElement));
+    furi_check(instance->list.head);
     instance->list.head->protocol = instance->protocol;
 
     instance->list.head->listener_api = nfc_listeners_api[instance->protocol];
@@ -38,6 +41,7 @@ static void nfc_listener_list_alloc(NfcListener* instance) {
         if(parent_protocol == NfcProtocolInvalid) break;
 
         NfcListenerListElement* parent = malloc(sizeof(NfcListenerListElement));
+        furi_check(parent);
         parent->protocol = parent_protocol;
         parent->listener_api = nfc_listeners_api[parent_protocol];
         parent->child = instance->list.head;
@@ -62,6 +66,10 @@ static void nfc_listener_list_alloc(NfcListener* instance) {
 }
 
 static void nfc_listener_list_free(NfcListener* instance) {
+    if(!instance->list.head) {
+        FURI_LOG_W(TAG, "Freeing already-freed or uninitialized listener list, skipping");
+        return;
+    }
     // Free listener instances
     do {
         instance->list.head->listener_api->free(instance->list.head->listener);
@@ -79,6 +87,7 @@ NfcListener* nfc_listener_alloc(Nfc* nfc, NfcProtocol protocol, const NfcDeviceD
     furi_check(nfc_listeners_api[protocol]);
 
     NfcListener* instance = malloc(sizeof(NfcListener));
+    furi_check(instance);
     instance->nfc = nfc;
     instance->protocol = protocol;
     instance->nfc_dev = nfc_device_alloc();

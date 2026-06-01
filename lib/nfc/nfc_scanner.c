@@ -2,6 +2,7 @@
 #include "nfc_poller.h"
 
 #include <nfc/protocols/nfc_poller_defs.h>
+#include <nfc/nfc_device.h>
 #include <furi_hal_nfc_pn532.h>
 
 #include <furi/furi.h>
@@ -65,6 +66,14 @@ struct NfcScanner {
     uint8_t consecutive_empty_scans;
     bool type_a_no_target;
 
+    /* Cached SAK from detection phase (PN532 only).
+     * The target may become invalid between detection and children enumeration
+     * (after InRelease in set_mode), so we cache the SAK here while the target
+     * is still valid.  Used by find_children_protocols() to determine ISO-DEP-only
+     * status even when furi_hal_nfc_pn532_target_is_valid() returns false. */
+    uint8_t cached_sak;
+    bool cached_sak_valid;
+
     FuriThread* scan_worker;
 };
 
@@ -82,6 +91,9 @@ static void nfc_scanner_reset(NfcScanner* instance) {
     instance->current_protocol = 0;
     instance->consecutive_empty_scans = 0;
     instance->type_a_no_target = false;
+
+    instance->cached_sak = 0;
+    instance->cached_sak_valid = false;
 }
 
 typedef void (*NfcScannerStateHandler)(NfcScanner* instance);
@@ -104,9 +116,10 @@ void nfc_scanner_state_handler_idle(NfcScanner* instance) {
             NfcProtocolIso14443_3a,
             NfcProtocolIso14443_3b,
             NfcProtocolFelica,
-            // SRIX and ST25TB omitted — PN532 has no native support,
-            // they always fail with timeout, wasting ~400ms per round.
-            // NfcProtocolIso15693_3 omitted for PN532 (unsupported, causes I2C deadlock)
+            NfcProtocolJewel,
+            NfcProtocolSrix,  // SRIX uses InCommunicateThru — proven working
+            // ISO15693-3, Slix, ST25TB omitted — no PN532 native support,
+            // always timeout wasting ~400ms per round.
         };
 
         size_t write_idx = 0;
@@ -205,6 +218,16 @@ void nfc_scanner_state_handler_try_base_pollers(NfcScanner* instance) {
                 instance->current_protocol;
             instance->detected_base_protocols_num++;
 
+            /* Cache the SAK while the target is still valid (PN532 only).
+             * After InRelease in set_mode, target_is_valid() may return false,
+             * but we need the SAK in find_children_protocols() to determine
+             * ISO-DEP-only status.  Cache it now while we can. */
+            if(furi_hal_nfc_pn532_is_active() && furi_hal_nfc_pn532_target_is_valid()) {
+                instance->cached_sak = furi_hal_nfc_pn532_get_sak();
+                instance->cached_sak_valid = true;
+                FURI_LOG_D(TAG, "Cached SAK=0x%02X from detection phase", instance->cached_sak);
+            }
+
             if(instance->first_detected_protocol == NfcProtocolInvalid) {
                 instance->first_detected_protocol = instance->current_protocol;
                 instance->current_protocol = NfcProtocolInvalid;
@@ -273,26 +296,39 @@ void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
      * We detect this by checking ATQA alongside SAK so Plus SL3 cards are
      * not incorrectly treated as ISO-DEP-only bank cards. */
     bool sak_is_iso_dep_only = false;
-    if(furi_hal_nfc_pn532_is_active() && furi_hal_nfc_pn532_target_is_valid()) {
-        uint8_t sak = furi_hal_nfc_pn532_get_sak();
-        sak_has_iso_dep = (sak & 0x20) != 0;
-        /* SAK bit 6 set (0x20) but no MIFARE Classic bits (bit 4=0x08 or bit 5=0x10):
-         * this is a pure ISO-DEP card (bank card, SAK=0x20).
-         * MIFARE Plus SL3 has SAK=0x20 but ATQA=0x0344 — check ATQA to exclude it. */
-        if((sak & 0x20) && !(sak & 0x18)) {
-            /* Check ATQA: MIFARE Plus SL3 has atqa[0]=0x44, atqa[1]=0x03.
-             * If ATQA matches Plus SL3, treat as MF Classic compatible, not ISO-DEP-only. */
-            /* We don't have direct ATQA access here; use the iso14443_3a data via
-             * the PN532 SAK cache.  For now, conservatively mark SAK=0x20 as ISO-DEP-only
-             * unless we can confirm it's a Plus SL3 via ATQA.  The MF Classic poller's
-             * detect_type handler will reject it if it truly isn't MF Classic compatible. */
-            sak_is_iso_dep_only = true;
+
+    /* Use cached SAK from detection phase if available (PN532 only).
+     * The target may become invalid between detection and children enumeration
+     * (after InRelease in set_mode), so furi_hal_nfc_pn532_target_is_valid()
+     * may return false here.  The cached SAK was captured while the target
+     * was still valid during try_base_pollers(). */
+    if(furi_hal_nfc_pn532_is_active()) {
+        uint8_t sak = 0;
+        bool have_sak = false;
+
+        if(instance->cached_sak_valid) {
+            sak = instance->cached_sak;
+            have_sak = true;
+            FURI_LOG_D(TAG, "Using cached SAK=0x%02X for children filtering", sak);
+        } else if(furi_hal_nfc_pn532_target_is_valid()) {
+            sak = furi_hal_nfc_pn532_get_sak();
+            have_sak = true;
+            FURI_LOG_D(TAG, "Using live SAK=0x%02X for children filtering", sak);
         }
-        if(sak_is_iso_dep_only) {
-            FURI_LOG_D(
-                TAG,
-                "SAK=0x%02X: ISO-DEP only card (e.g. bank card), skipping non-4A children",
-                sak);
+
+        if(have_sak) {
+            sak_has_iso_dep = (sak & 0x20) != 0;
+            /* SAK bit 6 set (0x20) but no MIFARE Classic bits (bit 4=0x08 or bit 5=0x10):
+             * this is a pure ISO-DEP card (bank card, SAK=0x20). */
+            if((sak & 0x20) && !(sak & 0x18)) {
+                sak_is_iso_dep_only = true;
+            }
+            if(sak_is_iso_dep_only) {
+                FURI_LOG_D(
+                    TAG,
+                    "SAK=0x%02X: ISO-DEP only card (e.g. bank card), skipping non-4A children",
+                    sak);
+            }
         }
     }
 
@@ -314,6 +350,18 @@ void nfc_scanner_state_handler_find_children_protocols(NfcScanner* instance) {
              * ISO-DEP-only cards: these require raw 14443-3A MIFARE frames
              * that an ISO-DEP-mode card (bank card) will never respond to. */
             if(sak_is_iso_dep_only && !nfc_protocol_has_parent(i, NfcProtocolIso14443_4a)) {
+                continue;
+            }
+            /* Belt-and-suspenders: explicitly exclude MfClassic on ISO-DEP-only cards
+             * regardless of parent chain analysis.  This guards against edge cases where
+             * nfc_protocol_has_parent() might return unexpected results for MfClassic
+             * (e.g. if MfClassic's parent chain is modified in the future).
+             * Only applies on PN532 builds to avoid affecting ST25R3916. */
+            if(sak_is_iso_dep_only && (i == NfcProtocolMfClassic)) {
+                FURI_LOG_D(
+                    TAG,
+                    "Explicit MfClassic exclusion: SAK is ISO-DEP-only, skipping protocol %zu",
+                    i);
                 continue;
             }
             instance->children_protocols[instance->children_protocols_num] = i;
@@ -356,6 +404,26 @@ void nfc_scanner_state_handler_detect_children_protocols(NfcScanner* instance) {
     bool protocol_detected = nfc_poller_detect(poller);
     nfc_poller_free(poller);
 
+    /* PN532 retry logic for MfUltralight/NTAG detection:
+     * The PN532 may lose the target between base detection and child protocol
+     * probing (e.g. after InRelease in set_mode).  For MfUltralight, retry once
+     * with a fresh InListPassiveTarget poll to re-activate the card. */
+    if(!protocol_detected && furi_hal_nfc_pn532_is_active() &&
+       instance->current_protocol == NfcProtocolMfUltralight) {
+        FuriHalPn532Target target;
+        if(furi_hal_pn532_poll_iso14443a_timeout(&target, 100)) {
+            FURI_LOG_D(TAG, "MfUltralight retry: re-poll succeeded, retrying detection");
+            poller = nfc_poller_alloc(instance->nfc, instance->current_protocol);
+            protocol_detected = nfc_poller_detect(poller);
+            nfc_poller_free(poller);
+            if(!protocol_detected) {
+                FURI_LOG_D(TAG, "MfUltralight retry: detection still failed after re-poll");
+            }
+        } else {
+            FURI_LOG_D(TAG, "MfUltralight retry: re-poll failed, card not present");
+        }
+    }
+
     if(protocol_detected) {
         instance->detected_protocols[instance->detected_protocols_num] =
             instance->current_protocol;
@@ -397,6 +465,13 @@ void nfc_scanner_state_handler_complete(NfcScanner* instance) {
         nfc_scanner_filter_detected_protocols(instance);
     }
     FURI_LOG_I(TAG, "Detected %zu protocols", instance->detected_protocols_num);
+    for(size_t i = 0; i < instance->detected_protocols_num; i++) {
+        FURI_LOG_I(
+            TAG,
+            "  [%zu] %s",
+            i,
+            nfc_device_get_protocol_name(instance->detected_protocols[i]));
+    }
 
     NfcScannerEvent event = {
         .type = NfcScannerEventTypeDetected,
@@ -439,7 +514,10 @@ NfcScanner* nfc_scanner_alloc(Nfc* nfc) {
     furi_check(nfc);
 
     NfcScanner* instance = malloc(sizeof(NfcScanner));
+    furi_check(instance);
     instance->nfc = nfc;
+    instance->state = NfcScannerStateIdle;
+    instance->session_state = NfcScannerSessionStateIdle;
 
     return instance;
 }

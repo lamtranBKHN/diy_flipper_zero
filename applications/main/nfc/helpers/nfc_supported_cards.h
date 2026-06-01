@@ -79,6 +79,17 @@ bool nfc_supported_cards_parse(
     NfcDevice* device,
     FuriString* parsed_data);
 
+/**
+ * @brief Reset the consecutive failure counter used for plugin bail-out.
+ *
+ * Call this before entering a new read session (e.g., on retry) to ensure
+ * the bail-out state from a previous failed session does not cause plugins
+ * to be skipped without attempting to read.
+ *
+ * @param[in, out] instance pointer to NfcSupportedCards instance.
+ */
+void nfc_supported_cards_reset(NfcSupportedCards* instance);
+
 #ifdef __cplusplus
 }
 #endif

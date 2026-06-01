@@ -12,6 +12,15 @@
  *  for unsupported cards — running all 40 plugins causes I2C bus stress,
  *  PN532 lockup, and eventually a crash. */
 #define NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS 3
+
+/** Per-plugin timeout: if a single plugin's auth verification takes longer
+ *  than this, it is considered failed (no per-key retry within same session). */
+#define SUPPORTED_CARD_PLUGIN_TIMEOUT_MS 2000
+
+/** Cumulative timeout for all plugin checks combined.
+ *  After this elapsed time, remaining plugins are skipped and the NFC app
+ *  proceeds to the dictionary attack scene. */
+#define SUPPORTED_CARD_TOTAL_TIMEOUT_MS 5000
 #include <flipper_application/plugins/plugin_manager.h>
 #include <loader/firmware_api/firmware_api.h>
 
@@ -55,11 +64,15 @@ struct NfcSupportedCards {
     NfcSupportedCardsPluginCache_t plugins_cache_arr;
     NfcSupportedCardsLoadState load_state;
     NfcSupportedCardsLoadContext* load_context;
+    size_t consecutive_fails; /**< Consecutive plugin failure counter for bail-out */
 };
 
 NfcSupportedCards* nfc_supported_cards_alloc(CompositeApiResolver* api_resolver) {
     NfcSupportedCards* instance = malloc(sizeof(NfcSupportedCards));
     instance->api_resolver = api_resolver;
+    instance->load_state = NfcSupportedCardsLoadStateIdle;
+    instance->load_context = NULL;
+    instance->consecutive_fails = 0;
 
     NfcSupportedCardsPluginCache_init(instance->plugins_cache_arr);
 
@@ -86,6 +99,7 @@ static NfcSupportedCardsLoadContext* nfc_supported_cards_load_context_alloc(void
 
     instance->storage = furi_record_open(RECORD_STORAGE);
     instance->directory = storage_file_alloc(instance->storage);
+    instance->app = NULL;
 
     if(!storage_dir_open(instance->directory, NFC_SUPPORTED_CARDS_PLUGINS_PATH)) {
         FURI_LOG_D(TAG, "Failed to open directory: %s", NFC_SUPPORTED_CARDS_PLUGINS_PATH);
@@ -218,6 +232,11 @@ void nfc_supported_cards_load_cache(NfcSupportedCards* instance) {
     } while(false);
 }
 
+void nfc_supported_cards_reset(NfcSupportedCards* instance) {
+    furi_assert(instance);
+    instance->consecutive_fails = 0;
+}
+
 bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nfc* nfc) {
     furi_assert(instance);
     furi_assert(device);
@@ -231,11 +250,21 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
 
         instance->load_context = nfc_supported_cards_load_context_alloc();
 
-        size_t consecutive_verify_fails = 0;
+        uint32_t total_start = furi_get_tick();
+
         NfcSupportedCardsPluginCache_it_t iter;
         for(NfcSupportedCardsPluginCache_it(iter, instance->plugins_cache_arr);
             !NfcSupportedCardsPluginCache_end_p(iter);
             NfcSupportedCardsPluginCache_next(iter)) {
+            /* Cumulative timeout: skip remaining plugins if total time exceeded */
+            if((furi_get_tick() - total_start) > SUPPORTED_CARD_TOTAL_TIMEOUT_MS) {
+                FURI_LOG_I(
+                    TAG,
+                    "Plugin timeout: cumulative %lums exceeded, skipping remaining",
+                    (unsigned long)SUPPORTED_CARD_TOTAL_TIMEOUT_MS);
+                break;
+            }
+
             NfcSupportedCardsPluginCache* plugin_cache = NfcSupportedCardsPluginCache_ref(iter);
             if(plugin_cache->protocol != protocol) continue;
             if((plugin_cache->feature & NfcSupportedCardsPluginFeatureHasRead) == 0) continue;
@@ -248,11 +277,11 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
 
             if(plugin->verify) {
                 if(!plugin->verify(nfc)) {
-                    if(++consecutive_verify_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
+                    if(++instance->consecutive_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
                         FURI_LOG_I(
                             TAG,
                             "Plugin bail-out: %zu consecutive verify failures, skipping remaining",
-                            consecutive_verify_fails);
+                            instance->consecutive_fails);
                         break;
                     }
                     continue;
@@ -270,11 +299,11 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
                      * fails on unsupported cards. Without counting read()
                      * failures, the counter resets on every verify() success,
                      * defeating bail-out. */
-                    if(++consecutive_verify_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
+                    if(++instance->consecutive_fails >= NFC_SUPPORTED_CARDS_MAX_VERIFY_FAILS) {
                         FURI_LOG_I(
                             TAG,
                             "Plugin bail-out: %zu consecutive read failures, skipping remaining",
-                            consecutive_verify_fails);
+                            instance->consecutive_fails);
                         break;
                     }
                 }
@@ -286,6 +315,7 @@ bool nfc_supported_cards_read(NfcSupportedCards* instance, NfcDevice* device, Nf
         }
 
         nfc_supported_cards_load_context_free(instance->load_context);
+        instance->load_context = NULL;
     } while(false);
 
     return card_read;
@@ -330,6 +360,7 @@ bool nfc_supported_cards_parse(
         }
 
         nfc_supported_cards_load_context_free(instance->load_context);
+        instance->load_context = NULL;
     } while(false);
 
     return card_parsed;

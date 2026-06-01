@@ -385,6 +385,12 @@ void furi_hal_nfc_mf_auth_key_store(const uint8_t* key, uint8_t key_type) {
     }
 }
 
+void furi_hal_nfc_emu_set_ndef(const uint8_t* msg, size_t len) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        furi_hal_nfc_pn532_emu_set_ndef(msg, len);
+    }
+}
+
 FuriHalNfcError furi_hal_nfc_common_listener_rx_start(const FuriHalSpiBusHandle* handle) {
     /* Stub: ST25R3916-specific listener RX start.
      * On the UBYTE/PN532 board the ST25R3916 chip is absent; listener mode

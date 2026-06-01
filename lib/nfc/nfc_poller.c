@@ -39,6 +39,7 @@ static void nfc_poller_list_alloc(NfcPoller* instance) {
     FURI_LOG_I(
         TAG, "Allocating poller list for protocol: %d", instance->protocol); // <--- Added Log
     instance->list.head = malloc(sizeof(NfcPollerListElement));
+    furi_check(instance->list.head);
     instance->list.head->protocol = instance->protocol;
     instance->list.head->poller_api = nfc_pollers_api[instance->protocol];
     instance->list.head->child = NULL;
@@ -50,6 +51,7 @@ static void nfc_poller_list_alloc(NfcPoller* instance) {
         if(parent_protocol == NfcProtocolInvalid) break;
 
         NfcPollerListElement* parent = malloc(sizeof(NfcPollerListElement));
+        furi_check(parent);
         parent->protocol = parent_protocol;
         parent->poller_api = nfc_pollers_api[parent_protocol];
         parent->child = instance->list.head;
@@ -78,7 +80,12 @@ static void nfc_poller_list_alloc(NfcPoller* instance) {
 }
 
 static void nfc_poller_list_free(NfcPoller* instance) {
-    FURI_LOG_I(TAG, "Freeing poller list"); // <--- Added Log
+    furi_check(instance);
+    if(!instance->list.head) {
+        FURI_LOG_W(TAG, "Freeing already-freed poller list, skipping");
+        return;
+    }
+    FURI_LOG_I(TAG, "Freeing poller list");
     do {
         NfcProtocol current_protocol = instance->list.head->protocol;
         instance->list.head->poller_api->free(instance->list.head->poller);
@@ -97,6 +104,7 @@ NfcPoller* nfc_poller_alloc(Nfc* nfc, NfcProtocol protocol) {
     furi_check(protocol < NfcProtocolNum);
 
     NfcPoller* instance = malloc(sizeof(NfcPoller));
+    furi_check(instance);
     instance->session_state = NfcPollerSessionStateIdle;
     instance->nfc = nfc;
     instance->protocol = protocol;
@@ -348,6 +356,13 @@ bool nfc_poller_detect(NfcPoller* instance) {
         iter->poller_api->set_callback(iter->poller, nfc_poller_detect_tail_callback, instance);
         FURI_LOG_I(
             TAG, "Detect: set tail callback on protocol: %d", iter->protocol); // <--- Added Log
+    }
+
+    if(!nfc_is_config_done(instance->nfc)) {
+        FURI_LOG_E(
+            TAG, "Detect: nfc_config failed for protocol %d, aborting", instance->protocol);
+        instance->session_state = NfcPollerSessionStateIdle;
+        return false;
     }
 
     nfc_start(instance->nfc, nfc_poller_detect_head_callback, instance);

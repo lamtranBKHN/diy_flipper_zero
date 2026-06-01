@@ -183,6 +183,12 @@ static const NfcProtocolTreeNode nfc_protocol_nodes[NfcProtocolNum] = {
             .children_num = 0,
             .children_protocol = NULL,
         },
+    [NfcProtocolJewel] =
+        {
+            .parent_protocol = NfcProtocolInvalid,
+            .children_num = 0,
+            .children_protocol = NULL,
+        },
     /* Add new protocols here */
 };
 
