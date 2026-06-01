@@ -13,10 +13,22 @@ typedef enum {
     SrixPollerEventTypeReady,
     SrixPollerEventTypeFailure,
     SrixPollerEventTypeSuccess,
+    SrixPollerEventTypeRequestMode,
 } SrixPollerEventType;
+
+typedef enum {
+    SrixPollerModeRead,
+    SrixPollerModeWrite,
+} SrixPollerMode;
+
+typedef struct {
+    SrixPollerMode mode;
+    const SrixData* write_data;
+} SrixPollerModeRequest;
 
 typedef union {
     SrixError error;
+    SrixPollerModeRequest mode_request;
 } SrixPollerEventData;
 
 typedef struct {

@@ -12,6 +12,7 @@ typedef enum {
     SrixPollerStateIdle,
     SrixPollerStateSelect,
     SrixPollerStateRead,
+    SrixPollerStateWrite,
     SrixPollerStateSuccess,
     SrixPollerStateFailure,
 
@@ -22,8 +23,14 @@ typedef struct {
     uint8_t current_block;
 } SrixPollerReadContext;
 
+typedef struct {
+    uint8_t current_block;
+    const SrixData* write_data;
+} SrixPollerWriteContext;
+
 typedef union {
     SrixPollerReadContext read;
+    SrixPollerWriteContext write;
 } SrixPollerContext;
 
 struct SrixPoller {
@@ -31,6 +38,8 @@ struct SrixPoller {
     SrixPollerState state;
     SrixData* data;
     SrixError error;
+    SrixPollerMode mode;
+    const SrixData* write_data;
 
     SrixPollerContext poller_ctx;
 

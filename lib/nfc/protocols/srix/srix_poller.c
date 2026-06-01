@@ -18,6 +18,7 @@ static SrixPoller* srix_poller_alloc(Nfc* nfc) {
     furi_assert(nfc);
 
     SrixPoller* instance = malloc(sizeof(SrixPoller));
+    furi_check(instance);
     instance->nfc = nfc;
     instance->state = SrixPollerStateIdle;
     instance->data = srix_alloc();
@@ -75,10 +76,22 @@ static NfcCommand srix_poller_select_handler(SrixPoller* instance) {
             break;
         }
 
-        instance->srix_event.type = SrixPollerEventTypeReady;
+        // Fire RequestMode event — callback sets mode via event data
+        instance->srix_event_data.mode_request.mode = SrixPollerModeRead;
+        instance->srix_event_data.mode_request.write_data = NULL;
+        instance->srix_event.type = SrixPollerEventTypeRequestMode;
         command = instance->callback(instance->general_event, instance->context);
-        instance->state = SrixPollerStateRead;
-        instance->poller_ctx.read.current_block = 0;
+
+        instance->mode = instance->srix_event_data.mode_request.mode;
+        instance->write_data = instance->srix_event_data.mode_request.write_data;
+
+        if(instance->mode == SrixPollerModeWrite) {
+            instance->state = SrixPollerStateWrite;
+            instance->poller_ctx.write.current_block = 0;
+        } else {
+            instance->state = SrixPollerStateRead;
+            instance->poller_ctx.read.current_block = 0;
+        }
     } while(false);
 
     return command;
@@ -112,6 +125,32 @@ static NfcCommand srix_poller_read_handler(SrixPoller* instance) {
     return NfcCommandContinue;
 }
 
+static NfcCommand srix_poller_write_handler(SrixPoller* instance) {
+    SrixError error = SrixErrorNone;
+
+    do {
+        uint8_t* current_block = &instance->poller_ctx.write.current_block;
+        if(*current_block >= SRIX_BLOCKS_TOTAL) {
+            instance->state = SrixPollerStateSuccess;
+            break;
+        }
+
+        const uint8_t* block_data =
+            &instance->write_data->data[*current_block * SRIX_BLOCK_SIZE];
+        error = srix_poller_write_block(instance, block_data, *current_block);
+        if(error != SrixErrorNone) {
+            FURI_LOG_E(TAG, "Failed to write block %d", *current_block);
+            instance->state = SrixPollerStateFailure;
+            instance->srix_event_data.error = error;
+            break;
+        }
+
+        *current_block += 1;
+    } while(false);
+
+    return NfcCommandContinue;
+}
+
 static NfcCommand srix_poller_success_handler(SrixPoller* instance) {
     NfcCommand command = NfcCommandContinue;
     instance->srix_event.type = SrixPollerEventTypeSuccess;
@@ -121,17 +160,18 @@ static NfcCommand srix_poller_success_handler(SrixPoller* instance) {
 }
 
 static NfcCommand srix_poller_failure_handler(SrixPoller* instance) {
-    NfcCommand command = NfcCommandContinue;
     instance->srix_event.type = SrixPollerEventTypeFailure;
-    command = instance->callback(instance->general_event, instance->context);
-
-    return command;
+    instance->callback(instance->general_event, instance->context);
+    // Stay in Failure state — returning Continue would loop on next
+    // PollerReady event (same anti-pattern as other NFC pollers).
+    return NfcCommandStop;
 }
 
 static SrixPollerStateHandler srix_poller_state_handlers[SrixPollerStateNum] = {
     [SrixPollerStateIdle] = srix_poller_select_handler,
     [SrixPollerStateSelect] = srix_poller_select_handler,
     [SrixPollerStateRead] = srix_poller_read_handler,
+    [SrixPollerStateWrite] = srix_poller_write_handler,
     [SrixPollerStateSuccess] = srix_poller_success_handler,
     [SrixPollerStateFailure] = srix_poller_failure_handler,
 };
@@ -168,6 +208,11 @@ static bool srix_poller_detect(NfcGenericEvent event, void* context) {
         uint8_t chip_id = 0;
         SrixError error = srix_poller_detect_tag(instance, &chip_id);
         protocol_detected = (error == SrixErrorNone);
+        if(protocol_detected) {
+            FURI_LOG_I(TAG, "SRIX card detected (chip_id=0x%02X)", chip_id);
+        } else {
+            FURI_LOG_D(TAG, "No SRIX card detected");
+        }
     }
 
     return protocol_detected;

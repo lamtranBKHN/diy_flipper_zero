@@ -16,6 +16,39 @@ void nfc_render_mf_classic_info(
 
     furi_string_cat_printf(str, "\nKeys Found: %u/%u", keys_found, keys_total);
     furi_string_cat_printf(str, "\nSectors Read: %u/%u", sectors_read, sectors_total);
+
+    // MAD (MIFARE Application Directory) per NXP AN10787
+    static const char* mad_cluster_names[] = {
+        [0x00] = "Other",
+        [0x01] = "Transport",
+        [0x02] = "Loyalty",
+        [0x03] = "Ticketing",
+        [0x04] = "Access",
+        [0x05] = "Healthcare",
+        [0x06] = "Payments",
+        [0x07] = "Retail",
+    };
+    MfClassicMad mad;
+    if(mf_classic_parse_mad(data, &mad)) {
+        furi_string_cat_printf(str, "\nMAD v%u (%u apps)", mad.version, mad.aid_count);
+        for(uint8_t i = 0; i < mad.aid_count && i < 8; i++) {
+            const char* cluster = "Unknown";
+            if(mad.entries[i].function_cluster < COUNT_OF(mad_cluster_names) &&
+               mad_cluster_names[mad.entries[i].function_cluster]) {
+                cluster = mad_cluster_names[mad.entries[i].function_cluster];
+            }
+            furi_string_cat_printf(
+                str,
+                "\n  S%u: %02X%02X (%s)",
+                i + 1,
+                mad.entries[i].function_cluster,
+                mad.entries[i].application_code,
+                cluster);
+        }
+        if(mad.aid_count > 8) {
+            furi_string_cat_printf(str, "\n  ...+%u more", mad.aid_count - 8);
+        }
+    }
 }
 
 static void

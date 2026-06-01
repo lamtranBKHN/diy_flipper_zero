@@ -19,7 +19,6 @@
 
 #include <nfc/protocols/mf_ultralight/mf_ultralight.h>
 #include <nfc/protocols/mf_classic/mf_classic.h>
-#include <nfc/protocols/slix/slix.h>
 #include <nfc/protocols/type_4_tag/type_4_tag.h>
 
 #include <bit_lib.h>

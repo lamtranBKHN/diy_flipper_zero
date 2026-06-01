@@ -62,8 +62,56 @@ static void nfc_scene_read_success_on_enter_srix(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
+static NfcCommand nfc_scene_write_poller_callback_srix(NfcGenericEvent event, void* context) {
+    furi_assert(event.protocol == NfcProtocolSrix);
+
+    NfcApp* instance = context;
+    SrixPollerEvent* srix_event = event.event_data;
+
+    if(srix_event->type == SrixPollerEventTypeRequestMode) {
+        const SrixData* write_data =
+            nfc_device_get_data(instance->nfc_device, NfcProtocolSrix);
+        srix_event->data->mode_request.mode = SrixPollerModeWrite;
+        srix_event->data->mode_request.write_data = write_data;
+        return NfcCommandContinue;
+    }
+
+    if(srix_event->type == SrixPollerEventTypeSuccess) {
+        nfc_device_set_data(
+            instance->nfc_device, NfcProtocolSrix, nfc_poller_get_data(instance->poller));
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerSuccess);
+        return NfcCommandStop;
+    }
+
+    if(srix_event->type == SrixPollerEventTypeFailure) {
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerFailure);
+        return NfcCommandStop;
+    }
+
+    return NfcCommandContinue;
+}
+
+static void nfc_scene_write_on_enter_srix(NfcApp* instance) {
+    instance->poller = nfc_poller_alloc(instance->nfc, NfcProtocolSrix);
+    nfc_poller_start(instance->poller, nfc_scene_write_poller_callback_srix, instance);
+    furi_string_set(instance->text_box_store, "Apply the card\nwith the same\nUID");
+}
+
+static void nfc_scene_more_info_on_enter_srix(NfcApp* instance) {
+    const NfcDevice* device = instance->nfc_device;
+    const SrixData* data = nfc_device_get_data(device, NfcProtocolSrix);
+
+    FuriString* temp_str = furi_string_alloc();
+    nfc_render_srix_dump(data, temp_str);
+
+    widget_add_text_scroll_element(
+        instance->widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
+
+    furi_string_free(temp_str);
+}
+
 const NfcProtocolSupportBase nfc_protocol_support_srix = {
-    .features = NfcProtocolFeatureMoreInfo,
+    .features = NfcProtocolFeatureMoreInfo | NfcProtocolFeatureWrite,
 
     .scene_info =
         {
@@ -72,7 +120,7 @@ const NfcProtocolSupportBase nfc_protocol_support_srix = {
         },
     .scene_more_info =
         {
-            .on_enter = nfc_scene_info_on_enter_srix,
+            .on_enter = nfc_scene_more_info_on_enter_srix,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
     .scene_read =
@@ -107,7 +155,7 @@ const NfcProtocolSupportBase nfc_protocol_support_srix = {
         },
     .scene_write =
         {
-            .on_enter = nfc_protocol_support_common_on_enter_empty,
+            .on_enter = nfc_scene_write_on_enter_srix,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
 };
