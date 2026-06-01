@@ -1,16 +1,13 @@
 #include "mf_classic_poller_i.h"
 
 #include <furi_hal_nfc_pn532.h>
-#include <furi_hal_pn532.h> /* for furi_hal_pn532_irq_start() — restart IRQ
-                              poller after furi_hal_nfc_pn532_reset() */
 
 #include <nfc/protocols/nfc_poller_base.h>
 
 #include <furi.h>
+#include <core/memmgr.h>
 
 #define TAG "MfClassicPoller"
-
-
 
 #define MF_CLASSIC_MAX_BUFF_SIZE (64)
 
@@ -28,6 +25,12 @@ typedef NfcCommand (*MfClassicPollerReadHandler)(MfClassicPoller* instance);
 
 MfClassicPoller* mf_classic_poller_alloc(Iso14443_3aPoller* iso14443_3a_poller) {
     furi_assert(iso14443_3a_poller);
+
+    // Heap guard: warn if free heap is critically low before allocating ~5KB
+    const size_t free_heap = memmgr_get_free_heap();
+    if(free_heap < 8192) {
+        FURI_LOG_W(TAG, "Low heap: %lu bytes free, NFC may crash", (uint32_t)free_heap);
+    }
 
     MfClassicPoller* instance = malloc(sizeof(MfClassicPoller));
     furi_check(instance);
@@ -138,9 +141,29 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
     NfcCommand command = NfcCommandReset;
 
     const Iso14443_3aData* iso3a_data = iso14443_3a_poller_get_data(instance->iso14443_3a_poller);
+    /* Persist the detected base 3A data immediately so downstream code that copies
+     * MfClassicData during RequestMode sees a valid UID/ATQA/SAK payload. */
+    iso14443_3a_copy(instance->data->iso14443_3a_data, iso3a_data);
     uint8_t atqa0 = iso3a_data->atqa[0];
     uint8_t atqa1 = iso3a_data->atqa[1];
     uint8_t sak = iso3a_data->sak;
+
+    /* Early rejection: ISO-DEP-only cards (SAK bit 6 set, no MF Classic bits).
+     * This MUST be the first check, BEFORE any ATQA/SAK pair matching or I2C
+     * communication.  On PN532 builds, if MfClassic detection somehow reaches
+     * this handler for an ISO-DEP-only card (SAK=0x20, 0x60, 0xA0, 0xE0),
+     * attempting crypto1 auth would hang the PN532 indefinitely.
+     * Defense-in-depth: the scanner guard should prevent us from getting here,
+     * but if it's bypassed, this ensures no I2C communication occurs.
+     * Gated behind furi_hal_nfc_pn532_is_active() so ST25R3916 builds are unaffected. */
+    if(furi_hal_nfc_pn532_is_active() && (sak & 0x20) && !(sak & 0x18)) {
+        FURI_LOG_D(
+            TAG,
+            "SAK 0x%02X: ISO-DEP only (no MF Classic bits), rejecting immediately on PN532",
+            sak);
+        instance->state = MfClassicPollerStateFail;
+        return command;
+    }
 
     bool type_detected = false;
 
@@ -195,6 +218,12 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
             return command;
         }
 
+        if(sak == 0x00) {
+            FURI_LOG_D(TAG, "SAK 0x00: not MF Classic (likely NTAG/Ultralight)");
+            instance->state = MfClassicPollerStateFail;
+            return command;
+        }
+
         // SAK 0x18/0x88 → 4K, 0x09/0x89 → Mini, otherwise assume 1K
         if(sak == 0x18 || sak == 0x88) {
             instance->data->type = MfClassicType4k;
@@ -209,6 +238,7 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
         type_detected = true;
     }
 
+    instance->fail_retry_count = 0;
     instance->state = MfClassicPollerStateStart;
 
     return command;
@@ -217,6 +247,16 @@ NfcCommand mf_classic_poller_handler_detect_type(MfClassicPoller* instance) {
 NfcCommand mf_classic_poller_handler_start(MfClassicPoller* instance) {
     NfcCommand command = NfcCommandContinue;
 
+#ifndef FURI_NDEBUG
+    if(furi_log_get_level() > FuriLogLevelInfo) {
+        FURI_LOG_W(
+            TAG,
+            "Debug log level detected during NFC scan — risk OOM crash. "
+            "Run 'sysctl log level info' before scanning.");
+    }
+#endif
+
+    instance->fail_retry_count = 0;
     instance->sectors_total = mf_classic_get_total_sectors_num(instance->data->type);
     memset(&instance->mode_ctx, 0, sizeof(MfClassicPollerModeContext));
 
@@ -228,7 +268,38 @@ NfcCommand mf_classic_poller_handler_start(MfClassicPoller* instance) {
         instance->state = MfClassicPollerStateRequestKey;
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeDictAttackEnhanced) {
         mf_classic_copy(instance->data, instance->mfc_event_data.poller_mode.data);
-        instance->state = MfClassicPollerStateAnalyzeBackdoor;
+        instance->mode_ctx.dict_attack_ctx.enhanced_dict = true;
+
+        if(instance->mfc_event_data.poller_mode.backdoor != MfClassicBackdoorUnknown) {
+            FURI_LOG_I(TAG, "Using cached backdoor state");
+            instance->mode_ctx.dict_attack_ctx.nested_phase =
+                instance->mfc_event_data.poller_mode.nested_phase;
+            instance->mode_ctx.dict_attack_ctx.prng_type =
+                instance->mfc_event_data.poller_mode.prng_type;
+            instance->mode_ctx.dict_attack_ctx.backdoor =
+                instance->mfc_event_data.poller_mode.backdoor;
+
+            if(instance->mode_ctx.dict_attack_ctx.backdoor != MfClassicBackdoorNone) {
+                instance->state = MfClassicPollerStateBackdoorReadSector;
+            } else {
+                bool has_cached_keys = false;
+                for(uint8_t sector = 0; sector < instance->sectors_total; sector++) {
+                    if(mf_classic_is_key_found(instance->data, sector, MfClassicKeyTypeA) ||
+                       mf_classic_is_key_found(instance->data, sector, MfClassicKeyTypeB)) {
+                        has_cached_keys = true;
+                        break;
+                    }
+                }
+                if(has_cached_keys) {
+                    FURI_LOG_I(TAG, "Cached keys found, skipping dict attack → nested");
+                    instance->state = MfClassicPollerStateNestedController;
+                } else {
+                    instance->state = MfClassicPollerStateRequestKey;
+                }
+            }
+        } else {
+            instance->state = MfClassicPollerStateAnalyzeBackdoor;
+        }
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeRead) {
         instance->state = MfClassicPollerStateRequestReadSector;
     } else if(instance->mfc_event_data.poller_mode.mode == MfClassicPollerModeWrite) {
@@ -237,8 +308,10 @@ NfcCommand mf_classic_poller_handler_start(MfClassicPoller* instance) {
         /* Unknown mode — fail gracefully instead of crashing/rebooting the device.
          * The NFC app callback may race between start and mode selection; a hard
          * crash here turns a transient bug into a user-visible device reboot. */
-        FURI_LOG_E(TAG, "Invalid poller mode %d, failing gracefully",
-                   (int)instance->mfc_event_data.poller_mode.mode);
+        FURI_LOG_E(
+            TAG,
+            "Invalid poller mode %d, failing gracefully",
+            (int)instance->mfc_event_data.poller_mode.mode);
         instance->state = MfClassicPollerStateFail;
     }
 
@@ -289,11 +362,27 @@ NfcCommand mf_classic_handler_check_write_conditions(MfClassicPoller* instance) 
         }
 
         if(write_ctx->current_block == sec_tr_block_num) {
-            bool can_write_a = mf_classic_is_allowed_access(instance->data, write_ctx->current_block, MfClassicKeyTypeA, MfClassicActionACWrite) ||
-                               mf_classic_is_allowed_access(instance->data, write_ctx->current_block, MfClassicKeyTypeA, MfClassicActionKeyAWrite);
-            bool can_write_b = mf_classic_is_allowed_access(instance->data, write_ctx->current_block, MfClassicKeyTypeB, MfClassicActionACWrite) ||
-                               mf_classic_is_allowed_access(instance->data, write_ctx->current_block, MfClassicKeyTypeB, MfClassicActionKeyAWrite);
-                               
+            bool can_write_a = mf_classic_is_allowed_access(
+                                   instance->data,
+                                   write_ctx->current_block,
+                                   MfClassicKeyTypeA,
+                                   MfClassicActionACWrite) ||
+                               mf_classic_is_allowed_access(
+                                   instance->data,
+                                   write_ctx->current_block,
+                                   MfClassicKeyTypeA,
+                                   MfClassicActionKeyAWrite);
+            bool can_write_b = mf_classic_is_allowed_access(
+                                   instance->data,
+                                   write_ctx->current_block,
+                                   MfClassicKeyTypeB,
+                                   MfClassicActionACWrite) ||
+                               mf_classic_is_allowed_access(
+                                   instance->data,
+                                   write_ctx->current_block,
+                                   MfClassicKeyTypeB,
+                                   MfClassicActionKeyBWrite);
+
             if(can_write_a) {
                 write_ctx->key_type_write = MfClassicKeyTypeA;
             } else if(can_write_b) {
@@ -456,8 +545,10 @@ NfcCommand mf_classic_poller_handler_write_block(MfClassicPoller* instance) {
     } while(false);
 
     mf_classic_poller_halt(instance);
-    write_ctx->current_block++;
-    instance->state = MfClassicPollerStateCheckWriteConditions;
+    if(instance->state != MfClassicPollerStateFail) {
+        write_ctx->current_block++;
+        instance->state = MfClassicPollerStateCheckWriteConditions;
+    }
 
     return command;
 }
@@ -555,9 +646,11 @@ NfcCommand mf_classic_poller_handler_write_value_block(MfClassicPoller* instance
     } while(false);
 
     mf_classic_poller_halt(instance);
-    write_ctx->is_value_block = false;
-    write_ctx->current_block++;
-    instance->state = MfClassicPollerStateCheckWriteConditions;
+    if(instance->state != MfClassicPollerStateFail) {
+        write_ctx->is_value_block = false;
+        write_ctx->current_block++;
+        instance->state = MfClassicPollerStateCheckWriteConditions;
+    }
 
     return command;
 }
@@ -609,7 +702,7 @@ NfcCommand mf_classic_poller_handler_request_read_sector_blocks(MfClassicPoller*
                 sec_read_ctx->key_type,
                 NULL,
                 false);
-                
+
             if(error != MfClassicErrorNone) {
                 if(!sec_read_ctx->dict) {
                     sec_read_ctx->dict = keys_dict_alloc(
@@ -620,7 +713,16 @@ NfcCommand mf_classic_poller_handler_request_read_sector_blocks(MfClassicPoller*
                 if(sec_read_ctx->dict) {
                     keys_dict_rewind(sec_read_ctx->dict);
                     MfClassicKey dict_key;
-                    while(keys_dict_get_next_key(sec_read_ctx->dict, dict_key.data, sizeof(MfClassicKey))) {
+                    uint32_t dict_keys_tried = 0;
+                    while(keys_dict_get_next_key(
+                        sec_read_ctx->dict, dict_key.data, sizeof(MfClassicKey))) {
+                        /* Card is in HALT state after the failed auth above (or after the
+                         * previous dict key attempt).  Send HLTA before each retry so the
+                         * card is woken by the WUPA embedded in the next mf_classic_poller_auth
+                         * get_nt call.  Without this halt, auth commands go to a HALTed card,
+                         * get no response, InCommunicateThru times out, and the PN532 retry
+                         * cascade marks the chip absent → crash/freeze. */
+                        mf_classic_poller_halt(instance);
                         error = mf_classic_poller_auth(
                             instance,
                             sec_read_ctx->current_block,
@@ -629,14 +731,21 @@ NfcCommand mf_classic_poller_handler_request_read_sector_blocks(MfClassicPoller*
                             NULL,
                             false);
                         if(error == MfClassicErrorNone) {
-                            FURI_LOG_I(TAG, "Dict key found for sec %d", sec_read_ctx->current_sector);
+                            FURI_LOG_I(
+                                TAG, "Dict key found for sec %d", sec_read_ctx->current_sector);
                             sec_read_ctx->key = dict_key;
                             break;
+                        }
+                        /* Yield every 10 keys: dictionary scan blocks NFC worker thread
+                         * at Highest priority. Without yield, GUI thread starves for
+                         * 600+ keys × 200ms = 120s → watchdog reset. */
+                        if(++dict_keys_tried % 10 == 0) {
+                            furi_delay_ms(1);
                         }
                     }
                 }
             }
-                
+
             if(error != MfClassicErrorNone) break;
 
             sec_read_ctx->auth_passed = true;
@@ -730,6 +839,7 @@ NfcCommand mf_classic_poller_handler_analyze_backdoor(MfClassicPoller* instance)
         FURI_LOG_I(TAG, "Backdoor identified: v%d", backdoor_version);
         dict_attack_ctx->backdoor = mf_classic_backdoor_keys[next_key_index].type;
         instance->state = MfClassicPollerStateBackdoorReadSector;
+        command = NfcCommandContinue; /* Don't reset — proceed directly to read */
     } else if(
         (error == MfClassicErrorAuth) &&
         (next_key_index == (mf_classic_backdoor_keys_count - 1))) {
@@ -919,7 +1029,8 @@ NfcCommand mf_classic_poller_handler_next_sector(MfClassicPoller* instance) {
     MfClassicPollerDictAttackContext* dict_attack_ctx = &instance->mode_ctx.dict_attack_ctx;
 
     dict_attack_ctx->current_sector++;
-    FURI_LOG_D(TAG, "Next sector: %d / %d", dict_attack_ctx->current_sector, instance->sectors_total);
+    FURI_LOG_D(
+        TAG, "Next sector: %d / %d", dict_attack_ctx->current_sector, instance->sectors_total);
     if(dict_attack_ctx->current_sector == instance->sectors_total) {
         instance->state = MfClassicPollerStateSuccess;
     } else {
@@ -964,7 +1075,12 @@ NfcCommand mf_classic_poller_handler_read_sector(MfClassicPoller* instance) {
         if(error != MfClassicErrorNone) {
             mf_classic_poller_halt(instance);
             dict_attack_ctx->auth_passed = false;
-            FURI_LOG_W(TAG, "S%02d B%03d read FAIL (err=%d)", dict_attack_ctx->current_sector, block_num, (int)error);
+            FURI_LOG_W(
+                TAG,
+                "S%02d B%03d read FAIL (err=%d)",
+                dict_attack_ctx->current_sector,
+                block_num,
+                (int)error);
         } else {
             FURI_LOG_D(TAG, "S%02d B%03d read OK", dict_attack_ctx->current_sector, block_num);
             mf_classic_set_block_read(instance->data, block_num, &block);
@@ -1163,7 +1279,12 @@ NfcCommand mf_classic_poller_handler_key_reuse_read_sector(MfClassicPoller* inst
         if(error != MfClassicErrorNone) {
             mf_classic_poller_halt(instance);
             dict_attack_ctx->auth_passed = false;
-            FURI_LOG_W(TAG, "S%02d B%03d read FAIL (err=%d)", dict_attack_ctx->reuse_key_sector, block_num, (int)error);
+            FURI_LOG_W(
+                TAG,
+                "S%02d B%03d read FAIL (err=%d)",
+                dict_attack_ctx->reuse_key_sector,
+                block_num,
+                (int)error);
         } else {
             FURI_LOG_D(TAG, "S%02d B%03d read OK", dict_attack_ctx->reuse_key_sector, block_num);
             mf_classic_set_block_read(instance->data, block_num, &block);
@@ -1238,7 +1359,7 @@ NfcCommand mf_classic_poller_handler_nested_analyze_prng(MfClassicPoller* instan
 }
 
 NfcCommand mf_classic_poller_handler_nested_collect_nt(MfClassicPoller* instance) {
-    NfcCommand command = NfcCommandReset;
+    NfcCommand command = NfcCommandContinue;
     MfClassicPollerDictAttackContext* dict_attack_ctx = &instance->mode_ctx.dict_attack_ctx;
 
     MfClassicNt nt = {};
@@ -1298,6 +1419,13 @@ NfcCommand mf_classic_poller_handler_nested_calibrate(MfClassicPoller* instance)
 
     if(error != MfClassicErrorNone) {
         FURI_LOG_E(TAG, "Failed to perform full authentication");
+        dict_attack_ctx->calibration_retry_count++;
+        if(dict_attack_ctx->calibration_retry_count >= 3) {
+            FURI_LOG_E(TAG, "Calibration retry limit reached, aborting");
+            mf_classic_poller_halt(instance);
+            instance->state = MfClassicPollerStateFail;
+            return command;
+        }
         instance->state = MfClassicPollerStateNestedCalibrate;
         mf_classic_poller_halt(instance);
         return command;
@@ -1325,6 +1453,13 @@ NfcCommand mf_classic_poller_handler_nested_calibrate(MfClassicPoller* instance)
 
         if(error != MfClassicErrorNone) {
             FURI_LOG_E(TAG, "Failed to perform nested authentication for static encrypted tag");
+            dict_attack_ctx->calibration_retry_count++;
+            if(dict_attack_ctx->calibration_retry_count >= 3) {
+                FURI_LOG_E(TAG, "Static encrypted calibration retry limit reached, aborting");
+                mf_classic_poller_halt(instance);
+                instance->state = MfClassicPollerStateFail;
+                return command;
+            }
             instance->state = MfClassicPollerStateNestedCalibrate;
             mf_classic_poller_halt(instance);
             return command;
@@ -1358,6 +1493,7 @@ NfcCommand mf_classic_poller_handler_nested_calibrate(MfClassicPoller* instance)
 
         if(error != MfClassicErrorNone) {
             FURI_LOG_E(TAG, "Failed to perform nested authentication %u", collection_cycle);
+            mf_classic_poller_halt(instance);
             continue;
         }
 
@@ -1397,7 +1533,8 @@ NfcCommand mf_classic_poller_handler_nested_calibrate(MfClassicPoller* instance)
             cuid, nt_enc_temp_arr[collection_cycle], dict_attack_ctx->nested_known_key);
         for(int i = 0; i < 65535; i++) {
             if((i & 0x3FF) == 0) {
-                if(furi_thread_flags_get() & (1U << 0)) {
+                uint32_t thr_flags = furi_thread_flags_get();
+                if(thr_flags & (1U << 0)) {
                     command = NfcCommandStop;
                     break;
                 }
@@ -1544,7 +1681,8 @@ NfcCommand mf_classic_poller_handler_nested_collect_nt_enc(MfClassicPoller* inst
         for(uint8_t collection_cycle = 0; collection_cycle < (nt_enc_per_collection - 1);
             collection_cycle++) {
             // Check for abort signal from NFC worker
-            if(furi_thread_flags_get() & (1U << 0)) {
+            uint32_t thr_flags = furi_thread_flags_get();
+            if(thr_flags & (1U << 0)) {
                 command = NfcCommandStop;
                 break;
             }
@@ -1611,7 +1749,8 @@ NfcCommand mf_classic_poller_handler_nested_collect_nt_enc(MfClassicPoller* inst
             uint32_t dist_iter = 0;
             while(current_dist <= dict_attack_ctx->d_max) {
                 if((dist_iter++ & 0x3FF) == 0) {
-                    if(furi_thread_flags_get() & (1U << 0)) {
+                    uint32_t thr_flags = furi_thread_flags_get();
+                    if(thr_flags & (1U << 0)) {
                         command = NfcCommandStop;
                         break;
                     }
@@ -1706,7 +1845,8 @@ static MfClassicKey* search_dicts_for_nonce_key(
         keys_dict_rewind(dicts[i]);
         while(keys_dict_get_next_key(dicts[i], stack_key.data, sizeof(MfClassicKey))) {
             if((dict_iter++ & 0x3FF) == 0) {
-                if(furi_thread_flags_get() & (1U << 0)) {
+                uint32_t thr_flags = furi_thread_flags_get();
+                if(thr_flags & (1U << 0)) {
                     return NULL;
                 }
             }
@@ -1947,6 +2087,10 @@ NfcCommand mf_classic_poller_handler_nested_log(MfClassicPoller* instance) {
 
     if(!params_saved) {
         FURI_LOG_E(TAG, "Failed to save nested attack parameters");
+        furi_string_free(temp_str);
+        buffered_file_stream_close(stream);
+        stream_free(stream);
+        furi_record_close(RECORD_STORAGE);
         instance->state = MfClassicPollerStateFail;
         return command;
     }
@@ -1996,14 +2140,6 @@ bool is_valid_sum(uint16_t sum) {
 }
 
 NfcCommand mf_classic_poller_handler_nested_controller(MfClassicPoller* instance) {
-    // PN532 cannot perform nested attack (no raw Crypto1 timing support).
-    // Skip directly to success with whatever keys the dictionary attack found.
-    if(furi_hal_nfc_pn532_is_active()) {
-        FURI_LOG_I(TAG, "PN532: skipping nested attack (unsupported)");
-        instance->state = MfClassicPollerStateSuccess;
-        return NfcCommandContinue;
-    }
-
     // This function guides the nested attack through its phases, and iterates over the target keys
     NfcCommand command = mf_classic_poller_handle_data_update(instance);
     MfClassicPollerDictAttackContext* dict_attack_ctx = &instance->mode_ctx.dict_attack_ctx;
@@ -2332,6 +2468,15 @@ NfcCommand mf_classic_poller_handler_fail(MfClassicPoller* instance) {
     instance->mfc_event.type = MfClassicPollerEventTypeFail;
     command = instance->callback(instance->general_event, instance->context);
     if(command == NfcCommandContinue) {
+        instance->fail_retry_count++;
+        if(instance->fail_retry_count >= 5) {
+            FURI_LOG_E(
+                TAG,
+                "Fail handler retry limit reached (%u), stopping",
+                instance->fail_retry_count);
+            instance->state = MfClassicPollerStateSuccess;
+            return NfcCommandStop;
+        }
         instance->state = MfClassicPollerStateDetectType;
     }
 
@@ -2395,7 +2540,11 @@ NfcCommand mf_classic_poller_run(NfcGenericEvent event, void* context) {
         if(instance->card_state == MfClassicCardStateDetected) {
             instance->card_state = MfClassicCardStateLost;
             instance->state = MfClassicPollerStateDetectType;
-            instance->auth_state = MfClassicAuthStateIdle;
+            instance->auth_state = MfClassicAuthStateNever;
+            memset(
+                instance->auth_sector_state,
+                MfClassicAuthStateNever,
+                sizeof(instance->auth_sector_state));
             instance->pn532_mf_authed = false;
             instance->mfc_event.type = MfClassicPollerEventTypeCardLost;
             command = instance->callback(instance->general_event, instance->context);
@@ -2430,7 +2579,9 @@ bool mf_classic_poller_detect(NfcGenericEvent event, void* context) {
         // Fallback: try AUTH with factory-default key via PN532 InDataExchange
         // This catches non-standard ATQA/SAK combinations (e.g., clone cards
         // with unusual SAK values that still support MIFARE protocol).
+        bool auth_fallback_attempted = false;
         if(!detected && furi_hal_nfc_pn532_is_active()) {
+            auth_fallback_attempted = true;
             const uint8_t default_key[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
             FuriHalNfcError auth_err = furi_hal_nfc_pn532_mf_auth(
                 0, // block 0 (first sector, first block)
@@ -2452,21 +2603,21 @@ bool mf_classic_poller_detect(NfcGenericEvent event, void* context) {
         // which will fail because the tag ignores SEL commands in authenticated
         // or halted states. Sending InRelease clears the internal PN532 target
         // handle, allowing the next detect to start from a clean state.
-        // Safe to call even if detected=true — the next scan/read cycle will
-        // re-initialize via nfc_config() -> furi_hal_nfc_set_mode() -> reset().
+        // Only reset when the AUTH fallback was actually attempted — if detection
+        // succeeded via the primary ATQA/SAK path, no InDataExchange was issued
+        // and resetting here is unnecessary and harmful: it stops the IRQ thread
+        // and invalidates mode/tech, forcing a full PN532 reinit on the next
+        // set_mode() call which can crash the device (heap exhaustion from
+        // repeated alloc/free of the IRQ thread and event flag).
         // Acquire the NFC HAL mutex for the reset to protect against concurrent
         // NFC operations on other threads (e.g. scanner worker exit sequence).
-        if(furi_hal_nfc_pn532_is_active()) {
+        if(auth_fallback_attempted && furi_hal_nfc_pn532_is_active()) {
             furi_hal_nfc_acquire();
             furi_hal_nfc_pn532_reset();
             /* furi_hal_nfc_pn532_reset() stops the IRQ poller thread.
-             * Without restarting it here, the next exchange falls back to
-             * blocking pn532_wait_ready_ms() which sets pn532_ready=false
-             * on any timeout — that triggers a full furi_hal_pn532_init()
-             * mid-session and crashes/freezes the dict-attack poller.
-             * Restart the IRQ thread so the next session uses the
-             * event-flag wait path. */
-            furi_hal_pn532_irq_start();
+             * set_mode() — called by the scanner immediately after detect —
+             * calls furi_hal_pn532_irq_start() to restart it.  No need to
+             * restart here; doing so causes a confusing double-start log. */
             furi_hal_nfc_release();
         }
     }
