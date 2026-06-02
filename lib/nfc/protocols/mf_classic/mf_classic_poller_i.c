@@ -9,6 +9,10 @@
 
 #define TAG "MfClassicPoller"
 
+#ifndef PN532_NATIVE_AUTH_DISABLED
+#define PN532_NATIVE_AUTH_DISABLED 0
+#endif
+
 MfClassicError mf_classic_process_error(Iso14443_3aError error) {
     MfClassicError ret = MfClassicErrorNone;
 
@@ -134,32 +138,45 @@ MfClassicError mf_classic_poller_auth_common(
             instance->data->iso14443_3a_data,
             iso14443_3a_poller_get_data(instance->iso14443_3a_poller));
 
+#if !PN532_NATIVE_AUTH_DISABLED
         /* Hybrid auth: try PN532-native InDataExchange auth first for
          * non-nested, non-backdoor, non-early-ret cases. This is faster
          * than manual Crypto1 over I2C because the PN532 handles the
          * 3-pass handshake internally. Falls back to manual Crypto1
          * on failure (e.g., clone PN532 that returns 0x14). */
-        if(!is_nested && !backdoor_auth && !early_ret &&
-           furi_hal_nfc_pn532_is_active()) {
+        if(!is_nested && !backdoor_auth && !early_ret && furi_hal_nfc_pn532_is_active()) {
             size_t uid_len = 0;
-            const uint8_t* uid = iso14443_3a_get_uid(
-                instance->data->iso14443_3a_data, &uid_len);
+            const uint8_t* uid = iso14443_3a_get_uid(instance->data->iso14443_3a_data, &uid_len);
             FuriHalNfcError auth_err = furi_hal_nfc_pn532_mf_auth(
-                block_num, key->data, (uint8_t)(key_type == MfClassicKeyTypeB), uid, (uint8_t)uid_len);
+                block_num,
+                key->data,
+                (uint8_t)(key_type == MfClassicKeyTypeB),
+                uid,
+                (uint8_t)uid_len);
             if(auth_err == FuriHalNfcErrorNone) {
                 instance->pn532_mf_authed = true;
                 instance->auth_state = MfClassicAuthStatePassed;
+                uint8_t sector = mf_classic_get_sector_by_block(block_num);
+                instance->auth_sector_state[sector] = MfClassicAuthStatePassed;
                 FURI_LOG_D(TAG, "PN532 hybrid auth OK: block=%d", block_num);
                 return MfClassicErrorNone;
+            } else if(auth_err == FuriHalNfcErrorCommunicationTimeout) {
+                ret = MfClassicErrorTimeout;
+                break;
+            } else if(auth_err == FuriHalNfcErrorNotSupported) {
+                // 0x13: clone PN532 doesn't support native auth.
+                // Card was NOT touched by native auth, so no deauth needed.
+                // Fall through to Crypto1 path directly.
+                FURI_LOG_D(TAG, "PN532 native auth unsupported, using Crypto1 directly");
+                instance->pn532_mf_authed = false;
+            } else {
+                FURI_LOG_D(TAG, "PN532 hybrid auth failed, falling back to Crypto1");
+                instance->pn532_mf_authed = false;
+                iso14443_3a_poller_halt(instance->iso14443_3a_poller);
+                furi_hal_nfc_pn532_mf_deauth();
             }
-            FURI_LOG_D(TAG, "PN532 hybrid auth failed, fallback to Crypto1");
-            instance->pn532_mf_authed = false;
-            /* Clear HAL auth flag so exchange_internal() doesn't treat
-             * the next re-poll as stale and skip InListPassiveTarget.
-             * Without this, mf_authed=true in the HAL would force target_fresh=true
-             * on the Crypto1 path even though we just de-authenticated. */
-            furi_hal_nfc_pn532_mf_deauth();
         }
+#endif
 
         MfClassicNt nt = {};
         furi_hal_nfc_mf_auth_key_store(key->data, (uint8_t)(key_type == MfClassicKeyTypeB));
@@ -205,6 +222,8 @@ MfClassicError mf_classic_poller_auth_common(
 
         crypto1_word(instance->crypto, 0, 0);
         instance->auth_state = MfClassicAuthStatePassed;
+        uint8_t sector = mf_classic_get_sector_by_block(block_num);
+        instance->auth_sector_state[sector] = MfClassicAuthStatePassed;
 
         if(data) {
             data->nr = nr;
@@ -216,7 +235,14 @@ MfClassicError mf_classic_poller_auth_common(
     } while(false);
 
     if(ret != MfClassicErrorNone) {
+        uint8_t sector = mf_classic_get_sector_by_block(block_num);
+        instance->auth_sector_state[sector] = MfClassicAuthStateFailed;
         iso14443_3a_poller_halt(instance->iso14443_3a_poller);
+#if !PN532_NATIVE_AUTH_DISABLED
+        if(is_nested && furi_hal_nfc_pn532_is_active()) {
+            furi_hal_nfc_pn532_mf_deauth();
+        }
+#endif
     }
 
     return ret;
@@ -252,36 +278,20 @@ MfClassicError mf_classic_poller_auth_nested(
 MfClassicError mf_classic_poller_halt(MfClassicPoller* instance) {
     furi_check(instance);
 
-    /* PN532 path: clear HAL auth state.
-     * The card is properly deselected by InRelease sent from
-     * pn532_send_inrelease() inside furi_hal_nfc_pn532_set_mode() at the
-     * start of every new poller allocation.  No explicit HALT is needed here,
-     * and calling iso14443_3a_poller_halt() after clearing mf_authed would
-     * trigger an unwanted InListPassiveTarget that corrupts PN532 state. */
-    if(instance->pn532_mf_authed) {
-        /* PN532 native auth path: clear HAL auth state only.
-         *
-         * Do NOT call iso14443_3a_poller_halt() here.  After PN532 native
-         * InDataExchange auth, calling iso14443_3a_poller_halt() goes through
-         * exchange_internal() which — because mf_authed was just cleared —
-         * may trigger InListPassiveTarget before sending the HALT frame.
-         * InListPassiveTarget resets the PN532's internal Crypto1 session and
-         * can leave the PN532 in an inconsistent state, causing the next
-         * InListPassiveTarget (dict attack first poll) to hang/crash.
-         *
-         * The card is properly deselected by InRelease, which is sent by
-         * pn532_send_inrelease() inside furi_hal_nfc_pn532_set_mode() at the
-         * start of every new poller allocation.  No explicit HALT is needed. */
+    MfClassicError ret = MfClassicErrorNone;
+    Iso14443_3aError error = Iso14443_3aErrorNone;
+
+    if(furi_hal_nfc_pn532_is_active()) {
         furi_hal_nfc_pn532_mf_deauth();
         instance->pn532_mf_authed = false;
-        instance->auth_state = MfClassicAuthStateIdle;
+        instance->auth_state = MfClassicAuthStateNever;
+        memset(
+            instance->auth_sector_state,
+            MfClassicAuthStateNever,
+            sizeof(instance->auth_sector_state));
         instance->iso14443_3a_poller->state = Iso14443_3aPollerStateIdle;
         return MfClassicErrorNone;
     }
-
-    /* Manual Crypto1 path */
-    MfClassicError ret = MfClassicErrorNone;
-    Iso14443_3aError error = Iso14443_3aErrorNone;
 
     do {
         uint8_t halt_cmd[2] = {MF_CLASSIC_CMD_HALT_MSB, MF_CLASSIC_CMD_HALT_LSB};
@@ -300,7 +310,11 @@ MfClassicError mf_classic_poller_halt(MfClassicPoller* instance) {
             ret = mf_classic_process_error(error);
             break;
         }
-        instance->auth_state = MfClassicAuthStateIdle;
+        instance->auth_state = MfClassicAuthStateNever;
+        memset(
+            instance->auth_sector_state,
+            MfClassicAuthStateNever,
+            sizeof(instance->auth_sector_state));
         instance->iso14443_3a_poller->state = Iso14443_3aPollerStateIdle;
     } while(false);
 
@@ -316,8 +330,8 @@ MfClassicError mf_classic_poller_read_block(
 
     /* PN532-native path: plaintext read via InDataExchange */
     if(instance->pn532_mf_authed) {
-        FuriHalNfcError err = furi_hal_nfc_pn532_mf_read_block(
-            block_num, data->data, sizeof(MfClassicBlock));
+        FuriHalNfcError err =
+            furi_hal_nfc_pn532_mf_read_block(block_num, data->data, sizeof(MfClassicBlock));
         if(err == FuriHalNfcErrorNone) {
             return MfClassicErrorNone;
         }
@@ -378,8 +392,8 @@ MfClassicError mf_classic_poller_write_block(
 
     /* PN532-native path: plaintext write via InDataExchange */
     if(instance->pn532_mf_authed) {
-        FuriHalNfcError err = furi_hal_nfc_pn532_mf_write_block(
-            block_num, data->data, sizeof(MfClassicBlock));
+        FuriHalNfcError err =
+            furi_hal_nfc_pn532_mf_write_block(block_num, data->data, sizeof(MfClassicBlock));
         if(err == FuriHalNfcErrorNone) {
             return MfClassicErrorNone;
         }

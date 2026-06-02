@@ -210,6 +210,13 @@ static Type4TagError type_4_tag_listener_iso_write(
         size_t ndef_file_len_new = ndef_file_len;
         if(offset < sizeof(uint16_t)) {
             const uint8_t write_len = sizeof(uint16_t) - offset;
+            if(lc < write_len) {
+                bit_buffer_append_bytes(
+                    instance->tx_buffer,
+                    type_4_tag_offset_error_apdu,
+                    sizeof(type_4_tag_offset_error_apdu));
+                return Type4TagErrorWrongFormat;
+            }
             ndef_file_len_new = bit_lib_bytes_to_num_be(data, write_len);
             offset = sizeof(uint16_t);
             data += offset;

@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_marantec = {
 void* subghz_protocol_encoder_marantec_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderMarantec* instance = malloc(sizeof(SubGhzProtocolEncoderMarantec));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_marantec;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -255,6 +256,7 @@ LevelDuration subghz_protocol_encoder_marantec_yield(void* context) {
 void* subghz_protocol_decoder_marantec_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderMarantec* instance = malloc(sizeof(SubGhzProtocolDecoderMarantec));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_marantec;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

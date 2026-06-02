@@ -94,6 +94,7 @@ const SubGhzProtocol ws_protocol_kedsum_th = {
 void* ws_protocol_decoder_kedsum_th_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderKedsumTH* instance = malloc(sizeof(WSProtocolDecoderKedsumTH));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_kedsum_th;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

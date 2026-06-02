@@ -142,6 +142,14 @@ Nfc* nfc_alloc(void);
 void nfc_free(Nfc* instance);
 
 /**
+ * @brief Check if Nfc instance has been configured.
+ *
+ * @param[in] instance pointer to the instance to check.
+ * @returns true if nfc_config() was called and succeeded, false otherwise.
+ */
+bool nfc_is_config_done(Nfc* instance);
+
+/**
  * @brief Configure the Nfc instance to work in a particular mode.
  *
  * Not all technologies implement the listener operating mode.
@@ -217,6 +225,33 @@ void nfc_start(Nfc* instance, NfcEventCallback callback, void* context);
  * @param[in,out] instance pointer to the instance to be stopped.
  */
 void nfc_stop(Nfc* instance);
+
+/**
+ * @brief Set a semaphore to be released on abort (internal use).
+ *
+ * When the Nfc worker aborts (e.g. due to a stale abort flag from
+ * a previous session), the normal callback path that releases the
+ * detection semaphore is skipped.  This setter lets nfc_poller_detect()
+ * register its own semaphore so the abort path can release it,
+ * preventing a 3-second timeout.
+ *
+ * Must be set before nfc_start() and cleared after nfc_stop().
+ *
+ * @param[in,out] instance pointer to the Nfc instance.
+ * @param[in] sem pointer to the semaphore to release on abort, or NULL.
+ */
+void nfc_set_detect_sem(Nfc* instance, FuriSemaphore* sem);
+
+/**
+ * @brief Drain stale poller ready signal (internal use).
+ *
+ * Must be called before nfc_start() to prevent a stale semaphore
+ * count from the previous poller session being consumed by
+ * nfc_wait_for_poller_ready(), which would cause a 3-second timeout.
+ *
+ * @param[in,out] instance pointer to the Nfc instance.
+ */
+void nfc_poller_ready_drain(Nfc* instance);
 
 /**
  * @brief Wait for the poller to be ready (internal use).

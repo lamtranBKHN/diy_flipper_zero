@@ -84,6 +84,7 @@ const SubGhzProtocol subghz_protocol_holtek = {
 void* subghz_protocol_encoder_holtek_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderHoltek* instance = malloc(sizeof(SubGhzProtocolEncoderHoltek));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_holtek;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -197,6 +198,7 @@ LevelDuration subghz_protocol_encoder_holtek_yield(void* context) {
 void* subghz_protocol_decoder_holtek_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderHoltek* instance = malloc(sizeof(SubGhzProtocolDecoderHoltek));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_holtek;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

@@ -1,4 +1,5 @@
 import logging
+import time
 from enum import Enum
 
 from flipper.utils.openocd import OpenOCD
@@ -245,10 +246,16 @@ class STM32WB55:
 
         return device_reg_addr
 
-    def flash_wait_for_operation(self):
-        # Wait for flash operation to complete
-        # TODO FL-3537: timeout
+    def flash_wait_for_operation(self, timeout: float = 5.0):
+        """Wait for flash operation to complete.  Raises TimeoutError after `timeout` seconds."""
+        start = time.monotonic()
         while True:
+            if time.monotonic() - start > timeout:
+                self.flash_dump_status_register()
+                self.logger.error("Flash operation timed out")
+                raise TimeoutError(
+                    "Flash operation did not complete within %.0f seconds" % timeout
+                )
             self.FLASH_SR.load()
             if self.FLASH_SR.BSY == 0:
                 break

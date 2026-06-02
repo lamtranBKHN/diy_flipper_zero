@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_gangqi = {
 void* subghz_protocol_encoder_gangqi_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderGangQi* instance = malloc(sizeof(SubGhzProtocolEncoderGangQi));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_gangqi;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -315,6 +316,7 @@ LevelDuration subghz_protocol_encoder_gangqi_yield(void* context) {
 void* subghz_protocol_decoder_gangqi_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderGangQi* instance = malloc(sizeof(SubGhzProtocolDecoderGangQi));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_gangqi;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

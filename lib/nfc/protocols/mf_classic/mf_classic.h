@@ -227,6 +227,36 @@ void mf_classic_get_read_sectors_and_keys(
     uint8_t* sectors_read,
     uint8_t* keys_found);
 
+typedef struct {
+    bool is_read; /**< All blocks in sector have been read */
+    bool is_authed_a; /**< Key A for this sector is known */
+    bool is_authed_b; /**< Key B for this sector is known */
+    bool has_valid_ac; /**< Access bits have been parsed successfully */
+} MfClassicSectorState;
+
+#define MF_CLASSIC_MAD_KEY        0xA0A1A2A3A4A5
+#define MF_CLASSIC_MAD1_BLOCK     1
+#define MF_CLASSIC_MAD1_AID_COUNT 15
+#define MF_CLASSIC_MAD2_BLOCK     64
+#define MF_CLASSIC_MAD2_AID_COUNT 23
+#define MF_CLASSIC_MAD_AID_SIZE   2
+
+typedef struct {
+    uint8_t function_cluster;
+    uint8_t application_code;
+} MfClassicMadEntry;
+
+typedef struct {
+    uint8_t version; // 0x01 = MAD1, 0x02 = MAD2
+    uint8_t info_byte;
+    uint8_t aid_count;
+    MfClassicMadEntry entries[MF_CLASSIC_MAD1_AID_COUNT + MF_CLASSIC_MAD2_AID_COUNT];
+} MfClassicMad;
+
+bool mf_classic_parse_mad(const MfClassicData* data, MfClassicMad* mad);
+
+MfClassicSectorState mf_classic_get_sector_state(const MfClassicData* data, uint8_t sector_num);
+
 bool mf_classic_is_card_read(const MfClassicData* data);
 
 bool mf_classic_is_value_block(MfClassicSectorTrailer* sec_tr, uint8_t block_num);

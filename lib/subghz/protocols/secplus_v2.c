@@ -90,6 +90,7 @@ const SubGhzProtocol subghz_protocol_secplus_v2 = {
 void* subghz_protocol_encoder_secplus_v2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderSecPlus_v2* instance = malloc(sizeof(SubGhzProtocolEncoderSecPlus_v2));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_secplus_v2;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -646,6 +647,7 @@ bool subghz_protocol_secplus_v2_create_data(
 void* subghz_protocol_decoder_secplus_v2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderSecPlus_v2* instance = malloc(sizeof(SubGhzProtocolDecoderSecPlus_v2));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_secplus_v2;
     instance->generic.protocol_name = instance->base.protocol->name;
 

@@ -73,6 +73,7 @@ const SubGhzProtocol subghz_protocol_gate_tx = {
 void* subghz_protocol_encoder_gate_tx_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderGateTx* instance = malloc(sizeof(SubGhzProtocolEncoderGateTx));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_gate_tx;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -184,6 +185,7 @@ LevelDuration subghz_protocol_encoder_gate_tx_yield(void* context) {
 void* subghz_protocol_decoder_gate_tx_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderGateTx* instance = malloc(sizeof(SubGhzProtocolDecoderGateTx));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_gate_tx;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

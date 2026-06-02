@@ -89,6 +89,7 @@ const SubGhzProtocol subghz_protocol_bett = {
 void* subghz_protocol_encoder_bett_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderBETT* instance = malloc(sizeof(SubGhzProtocolEncoderBETT));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_bett;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -211,6 +212,7 @@ LevelDuration subghz_protocol_encoder_bett_yield(void* context) {
 void* subghz_protocol_decoder_bett_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderBETT* instance = malloc(sizeof(SubGhzProtocolDecoderBETT));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_bett;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

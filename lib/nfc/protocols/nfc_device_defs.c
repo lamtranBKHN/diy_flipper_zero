@@ -24,13 +24,6 @@
 #include <nfc/protocols/ntag4xx/ntag4xx.h>
 #include <nfc/protocols/type_4_tag/type_4_tag.h>
 
-/* ST25TB is excluded on PN532-only builds (no ST25R3916 support).
- * Its source files are omitted from the build by the SConscript exclusion
- * filter, so we must not reference its symbols here when FURI_HAL_NFC_PN532_ONLY
- * is defined. */
-#ifndef FURI_HAL_NFC_PN532_ONLY
-#include <nfc/protocols/st25tb/st25tb.h>
-#endif
 #include <nfc/protocols/srix/srix.h>
 #include <nfc/protocols/emv/emv.h>
 #include <nfc/protocols/jewel/jewel.h>
@@ -51,10 +44,8 @@ const NfcDeviceBase* const nfc_devices[NfcProtocolNum] = {
     [NfcProtocolMfClassic] = &nfc_device_mf_classic,
     [NfcProtocolMfPlus] = &nfc_device_mf_plus,
     [NfcProtocolMfDesfire] = &nfc_device_mf_desfire,
-#ifndef FURI_HAL_NFC_PN532_ONLY
-    [NfcProtocolIso15693_3] = &nfc_device_iso15693_3,
-    [NfcProtocolSlix] = &nfc_device_slix,
-#endif
+    [NfcProtocolIso15693_3] = NULL,
+    [NfcProtocolSlix] = NULL,
     [NfcProtocolSt25tb] = NULL,
     [NfcProtocolNtag4xx] = &nfc_device_ntag4xx,
     [NfcProtocolType4Tag] = &nfc_device_type_4_tag,

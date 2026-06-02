@@ -140,6 +140,7 @@ static uint16_t subghz_protocol_bin_raw_get_full_byte(uint16_t bit_count) {
 void* subghz_protocol_encoder_bin_raw_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderBinRAW* instance = malloc(sizeof(SubGhzProtocolEncoderBinRAW));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_bin_raw;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -354,6 +355,7 @@ LevelDuration subghz_protocol_encoder_bin_raw_yield(void* context) {
 void* subghz_protocol_decoder_bin_raw_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderBinRAW* instance = malloc(sizeof(SubGhzProtocolDecoderBinRAW));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_bin_raw;
     instance->generic.protocol_name = instance->base.protocol->name;
     instance->data_raw_ind = 0;

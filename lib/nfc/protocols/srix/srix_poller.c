@@ -69,6 +69,18 @@ static NfcCommand srix_poller_select_handler(SrixPoller* instance) {
             break;
         }
 
+        switch(chip_id) {
+        case 0x04:
+            instance->data->type = SrixType512;
+            break;
+        case 0x05:
+            instance->data->type = SrixType4K;
+            break;
+        default:
+            instance->data->type = SrixTypeUnknown;
+            break;
+        }
+
         error = srix_poller_read_uid(instance, instance->data->uid);
         if(error != SrixErrorNone) {
             instance->state = SrixPollerStateFailure;
@@ -135,8 +147,7 @@ static NfcCommand srix_poller_write_handler(SrixPoller* instance) {
             break;
         }
 
-        const uint8_t* block_data =
-            &instance->write_data->data[*current_block * SRIX_BLOCK_SIZE];
+        const uint8_t* block_data = &instance->write_data->data[*current_block * SRIX_BLOCK_SIZE];
         error = srix_poller_write_block(instance, block_data, *current_block);
         if(error != SrixErrorNone) {
             FURI_LOG_E(TAG, "Failed to write block %d", *current_block);

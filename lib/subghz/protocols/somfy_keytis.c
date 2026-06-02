@@ -79,6 +79,7 @@ const SubGhzProtocolEncoder subghz_protocol_somfy_keytis_encoder = {
 void* subghz_protocol_encoder_somfy_keytis_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderSomfyKeytis* instance = malloc(sizeof(SubGhzProtocolEncoderSomfyKeytis));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_somfy_keytis;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -94,6 +95,7 @@ void* subghz_protocol_encoder_somfy_keytis_alloc(SubGhzEnvironment* environment)
 void* subghz_protocol_decoder_somfy_keytis_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderSomfyKeytis* instance = malloc(sizeof(SubGhzProtocolDecoderSomfyKeytis));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_somfy_keytis;
     instance->generic.protocol_name = instance->base.protocol->name;
 

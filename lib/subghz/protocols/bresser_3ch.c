@@ -142,6 +142,7 @@ typedef enum {
 void* ws_protocol_decoder_bresser_3ch_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderBresser3ch* instance = malloc(sizeof(WSProtocolDecoderBresser3ch));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_bresser_3ch;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

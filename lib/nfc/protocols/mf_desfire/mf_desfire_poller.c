@@ -19,6 +19,7 @@ const MfDesfireData* mf_desfire_poller_get_data(MfDesfirePoller* instance) {
 
 static MfDesfirePoller* mf_desfire_poller_alloc(Iso14443_4aPoller* iso14443_4a_poller) {
     MfDesfirePoller* instance = malloc(sizeof(MfDesfirePoller));
+    furi_check(instance);
     instance->iso14443_4a_poller = iso14443_4a_poller;
     instance->data = mf_desfire_alloc();
     instance->tx_buffer = bit_buffer_alloc(MF_DESFIRE_BUF_SIZE);
@@ -174,6 +175,7 @@ static NfcCommand mf_desfire_poller_handler_read_applications(MfDesfirePoller* i
 static NfcCommand mf_desfire_poller_handler_read_fail(MfDesfirePoller* instance) {
     FURI_LOG_D(TAG, "Read Failed");
     iso14443_4a_poller_halt(instance->iso14443_4a_poller);
+    instance->mf_desfire_event.type = MfDesfirePollerEventTypeReadFailed;
     instance->mf_desfire_event.data->error = instance->error;
     NfcCommand command = instance->callback(instance->general_event, instance->context);
     instance->state = MfDesfirePollerStateIdle;

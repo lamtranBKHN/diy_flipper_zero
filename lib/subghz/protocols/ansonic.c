@@ -80,6 +80,7 @@ const SubGhzProtocol subghz_protocol_ansonic = {
 void* subghz_protocol_encoder_ansonic_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderAnsonic* instance = malloc(sizeof(SubGhzProtocolEncoderAnsonic));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_ansonic;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -192,6 +193,7 @@ LevelDuration subghz_protocol_encoder_ansonic_yield(void* context) {
 void* subghz_protocol_decoder_ansonic_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderAnsonic* instance = malloc(sizeof(SubGhzProtocolDecoderAnsonic));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_ansonic;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

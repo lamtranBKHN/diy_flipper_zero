@@ -94,6 +94,7 @@ const SubGhzProtocol ws_protocol_auriol_th = {
 void* ws_protocol_decoder_auriol_th_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderAuriol_TH* instance = malloc(sizeof(WSProtocolDecoderAuriol_TH));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_auriol_th;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

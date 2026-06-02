@@ -60,6 +60,7 @@ typedef enum {
 void* ws_protocol_encoder_nexus_th_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolEncoderNexus_TH* instance = malloc(sizeof(WSProtocolEncoderNexus_TH));
+    furi_check(instance);
 
     instance->base.protocol = &ws_protocol_nexus_th;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -81,6 +82,7 @@ void ws_protocol_encoder_nexus_th_free(void* context) {
 void* ws_protocol_decoder_nexus_th_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderNexus_TH* instance = malloc(sizeof(WSProtocolDecoderNexus_TH));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_nexus_th;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

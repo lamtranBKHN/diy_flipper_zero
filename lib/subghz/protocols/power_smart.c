@@ -83,6 +83,7 @@ const SubGhzProtocol subghz_protocol_power_smart = {
 void* subghz_protocol_encoder_power_smart_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderPowerSmart* instance = malloc(sizeof(SubGhzProtocolEncoderPowerSmart));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_power_smart;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -248,6 +249,7 @@ LevelDuration subghz_protocol_encoder_power_smart_yield(void* context) {
 void* subghz_protocol_decoder_power_smart_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderPowerSmart* instance = malloc(sizeof(SubGhzProtocolDecoderPowerSmart));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_power_smart;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

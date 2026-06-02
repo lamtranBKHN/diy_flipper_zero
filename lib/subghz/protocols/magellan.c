@@ -77,6 +77,7 @@ const SubGhzProtocol subghz_protocol_magellan = {
 void* subghz_protocol_encoder_magellan_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderMagellan* instance = malloc(sizeof(SubGhzProtocolEncoderMagellan));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_magellan;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -209,6 +210,7 @@ LevelDuration subghz_protocol_encoder_magellan_yield(void* context) {
 void* subghz_protocol_decoder_magellan_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderMagellan* instance = malloc(sizeof(SubGhzProtocolDecoderMagellan));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_magellan;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

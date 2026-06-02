@@ -4,9 +4,9 @@
 #include <furi_hal_i2c_config.h>
 #include <furi_hal_pn532.h>
 
-#define I2C_SCAN_ADDR_MIN  0x08
-#define I2C_SCAN_ADDR_MAX  0x77
-#define I2C_SCAN_TIMEOUT   50
+#define I2C_SCAN_ADDR_MIN 0x08
+#define I2C_SCAN_ADDR_MAX 0x77
+#define I2C_SCAN_TIMEOUT  50
 
 #define PN532_I2C_ADDR_7BIT 0x48
 

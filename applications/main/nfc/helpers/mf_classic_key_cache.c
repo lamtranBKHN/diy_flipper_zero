@@ -60,10 +60,11 @@ bool mf_classic_key_cache_save(MfClassicKeyCache* instance, const MfClassicData*
         if(!flipper_format_write_string_cstr(
                ff, "Mifare Classic type", mf_classic_get_device_name(data, NfcDeviceNameTypeShort)))
             break;
+        uint32_t sector_num = mf_classic_get_total_sectors_num(data->type);
+        if(!flipper_format_write_uint32(ff, "Sector count", &sector_num, 1)) break;
         if(!flipper_format_write_hex_uint64(ff, "Key A map", &data->key_a_mask, 1)) break;
         if(!flipper_format_write_hex_uint64(ff, "Key B map", &data->key_b_mask, 1)) break;
 
-        uint8_t sector_num = mf_classic_get_total_sectors_num(data->type);
         bool key_save_success = true;
         for(size_t i = 0; (i < sector_num) && (key_save_success); i++) {
             MfClassicSectorTrailer* sec_tr = mf_classic_get_sector_trailer_by_sector(data, i);
@@ -112,11 +113,17 @@ bool mf_classic_key_cache_load(MfClassicKeyCache* instance, const uint8_t* uid, 
         if(furi_string_cmp_str(temp_str, mf_classic_key_cache_file_header)) break;
         if(version != mf_classic_key_cache_file_version) break;
 
+        uint32_t sector_count = MF_CLASSIC_TOTAL_SECTORS_MAX;
+        flipper_format_read_uint32(ff, "Sector count", &sector_count, 1);
+        if(sector_count == 0 || sector_count > MF_CLASSIC_TOTAL_SECTORS_MAX) {
+            sector_count = MF_CLASSIC_TOTAL_SECTORS_MAX;
+        }
+
         if(!flipper_format_read_hex_uint64(ff, "Key A map", &instance->keys.key_a_mask, 1)) break;
         if(!flipper_format_read_hex_uint64(ff, "Key B map", &instance->keys.key_b_mask, 1)) break;
 
         bool key_read_success = true;
-        for(size_t i = 0; (i < MF_CLASSIC_TOTAL_SECTORS_MAX) && (key_read_success); i++) {
+        for(size_t i = 0; (i < sector_count) && (key_read_success); i++) {
             if(FURI_BIT(instance->keys.key_a_mask, i)) {
                 furi_string_printf(temp_str, "Key A sector %d", i);
                 key_read_success = flipper_format_read_hex(

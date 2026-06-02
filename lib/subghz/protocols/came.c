@@ -88,6 +88,7 @@ const SubGhzProtocol subghz_protocol_came = {
 void* subghz_protocol_encoder_came_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderCame* instance = malloc(sizeof(SubGhzProtocolEncoderCame));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_came;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -223,6 +224,7 @@ LevelDuration subghz_protocol_encoder_came_yield(void* context) {
 void* subghz_protocol_decoder_came_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderCame* instance = malloc(sizeof(SubGhzProtocolDecoderCame));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_came;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

@@ -23,6 +23,19 @@ typedef struct KeysDict KeysDict;
 */
 bool keys_dict_check_presence(const char* path);
 
+/** Pre-scan dictionary file to check if it will fit in available RAM
+ *
+ * Estimates the cache memory needed from the file size and compares
+ * against the current free heap.  Call BEFORE keys_dict_alloc() to
+ * avoid OOM crashes on memory-constrained devices.
+ *
+ * @param path      - Path of the dictionary file
+ * @param key_size  - Size of each key in bytes (e.g. sizeof(MfClassicKey))
+ *
+ * @return true if the file is small enough to cache, false if insufficient RAM
+*/
+bool keys_dict_check_available_ram(const char* path, size_t key_size);
+
 /** Open or create list
  * Depending on mode, list will be opened or created.
  *

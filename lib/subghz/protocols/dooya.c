@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_dooya = {
 void* subghz_protocol_encoder_dooya_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderDooya* instance = malloc(sizeof(SubGhzProtocolEncoderDooya));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_dooya;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -201,6 +202,7 @@ LevelDuration subghz_protocol_encoder_dooya_yield(void* context) {
 void* subghz_protocol_decoder_dooya_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderDooya* instance = malloc(sizeof(SubGhzProtocolDecoderDooya));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_dooya;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

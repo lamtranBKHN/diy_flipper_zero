@@ -19,6 +19,7 @@ const EmvData* emv_poller_get_data(EmvPoller* instance) {
 
 static EmvPoller* emv_poller_alloc(Iso14443_4aPoller* iso14443_4a_poller) {
     EmvPoller* instance = malloc(sizeof(EmvPoller));
+    furi_check(instance);
     instance->iso14443_4a_poller = iso14443_4a_poller;
     instance->data = emv_alloc();
     instance->tx_buffer = bit_buffer_alloc(EMV_BUF_SIZE);
@@ -122,9 +123,10 @@ static NfcCommand emv_poller_handler_read_fail(EmvPoller* instance) {
     FURI_LOG_D(TAG, "Read failed");
     iso14443_4a_poller_halt(instance->iso14443_4a_poller);
     instance->emv_event.data->error = instance->error;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    instance->state = EmvPollerStateIdle;
-    return command;
+    instance->callback(instance->general_event, instance->context);
+    // Stay in ReadFailed state — returning to Idle on error would restart
+    // the read cycle indefinitely (same anti-pattern as other NFC pollers).
+    return NfcCommandStop;
 }
 
 static NfcCommand emv_poller_handler_read_success(EmvPoller* instance) {
@@ -171,11 +173,20 @@ static NfcCommand emv_poller_run(NfcGenericEvent event, void* context) {
         command = emv_poller_read_handler[instance->state](instance);
     } else if(iso14443_4a_event->type == Iso14443_4aPollerEventTypeError) {
         instance->emv_event.type = EmvPollerEventTypeReadFailed;
+        instance->emv_event_data.error = emv_process_error(iso14443_4a_event->data->error);
         command = instance->callback(instance->general_event, instance->context);
     }
 
     return command;
 }
+
+static const uint8_t emv_common_aids[][8] = {
+    {0xA0, 0x00, 0x00, 0x00, 0x03, 0x10, 0x10, 0}, /* Visa */
+    {0xA0, 0x00, 0x00, 0x00, 0x04, 0x10, 0x10, 0}, /* Mastercard */
+    {0xA0, 0x00, 0x00, 0x00, 0x04, 0x30, 0x60, 0}, /* Maestro */
+    {0xA0, 0x00, 0x00, 0x00, 0x25, 0x01, 0x08, 0x01}, /* Amex */
+    {0xA0, 0x00, 0x00, 0x02, 0x77, 0x10, 0x10, 0}, /* Interac */
+};
 
 static bool emv_poller_detect(NfcGenericEvent event, void* context) {
     furi_assert(event.protocol == NfcProtocolIso14443_4a);
@@ -189,8 +200,34 @@ static bool emv_poller_detect(NfcGenericEvent event, void* context) {
     bool protocol_detected = false;
 
     if(iso14443_4a_event->type == Iso14443_4aPollerEventTypeReady) {
-        const EmvError error = emv_poller_select_ppse(instance);
+        // Try PPSE first
+        EmvError error = emv_poller_select_ppse(instance);
         protocol_detected = (error == EmvErrorNone) && (instance->data->emv_application.aid_len);
+
+        if(!protocol_detected) {
+            // Fallback: try common AIDs
+            for(size_t i = 0; i < COUNT_OF(emv_common_aids); i++) {
+                // Determine AID length (look for last non-zero or specific patterns)
+                // For simplicity, we use fixed lengths for these common ones
+                uint8_t aid_len = (i == 3) ? 8 : 7;
+                instance->data->emv_application.aid_len = aid_len;
+                memcpy(instance->data->emv_application.aid, emv_common_aids[i], aid_len);
+
+                error = emv_poller_select_application(instance);
+                if(error == EmvErrorNone) {
+                    protocol_detected = true;
+                    FURI_LOG_I(TAG, "EMV card detected via direct AID selection (idx %zu)", i);
+                    break;
+                }
+            }
+        }
+
+        if(protocol_detected) {
+            FURI_LOG_I(
+                TAG, "EMV card detected (AID len=%u)", instance->data->emv_application.aid_len);
+        } else {
+            FURI_LOG_D(TAG, "No EMV card detected");
+        }
     }
 
     return protocol_detected;

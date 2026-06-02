@@ -24,6 +24,7 @@ const NfcDeviceBase nfc_device_iso14443_4b = {
 
 Iso14443_4bData* iso14443_4b_alloc(void) {
     Iso14443_4bData* data = malloc(sizeof(Iso14443_4bData));
+    furi_check(data);
 
     data->iso14443_3b_data = iso14443_3b_alloc();
     return data;

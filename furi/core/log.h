@@ -141,8 +141,18 @@ bool furi_log_level_from_string(const char* str, FuriLogLevel* level);
     furi_log_print_format(FuriLogLevelInfo, tag, format, ##__VA_ARGS__)
 
 #ifdef FURI_NDEBUG
-#define FURI_LOG_D(tag, format, ...)           do { if (0) { furi_log_print_format(FuriLogLevelDebug, tag, format, ##__VA_ARGS__); } } while(0)
-#define FURI_LOG_T(tag, format, ...)           do { if (0) { furi_log_print_format(FuriLogLevelTrace, tag, format, ##__VA_ARGS__); } } while(0)
+#define FURI_LOG_D(tag, format, ...)                                              \
+    do {                                                                          \
+        if(0) {                                                                   \
+            furi_log_print_format(FuriLogLevelDebug, tag, format, ##__VA_ARGS__); \
+        }                                                                         \
+    } while(0)
+#define FURI_LOG_T(tag, format, ...)                                              \
+    do {                                                                          \
+        if(0) {                                                                   \
+            furi_log_print_format(FuriLogLevelTrace, tag, format, ##__VA_ARGS__); \
+        }                                                                         \
+    } while(0)
 #else
 #define FURI_LOG_D(tag, format, ...) \
     furi_log_print_format(FuriLogLevelDebug, tag, format, ##__VA_ARGS__)
@@ -163,8 +173,18 @@ bool furi_log_level_from_string(const char* str, FuriLogLevel* level);
     furi_log_print_raw_format(FuriLogLevelInfo, format, ##__VA_ARGS__)
 
 #ifdef FURI_NDEBUG
-#define FURI_LOG_RAW_D(format, ...) do { if (0) { furi_log_print_raw_format(FuriLogLevelDebug, format, ##__VA_ARGS__); } } while(0)
-#define FURI_LOG_RAW_T(format, ...) do { if (0) { furi_log_print_raw_format(FuriLogLevelTrace, format, ##__VA_ARGS__); } } while(0)
+#define FURI_LOG_RAW_D(format, ...)                                              \
+    do {                                                                         \
+        if(0) {                                                                  \
+            furi_log_print_raw_format(FuriLogLevelDebug, format, ##__VA_ARGS__); \
+        }                                                                        \
+    } while(0)
+#define FURI_LOG_RAW_T(format, ...)                                              \
+    do {                                                                         \
+        if(0) {                                                                  \
+            furi_log_print_raw_format(FuriLogLevelTrace, format, ##__VA_ARGS__); \
+        }                                                                        \
+    } while(0)
 #else
 #define FURI_LOG_RAW_D(format, ...) \
     furi_log_print_raw_format(FuriLogLevelDebug, format, ##__VA_ARGS__)

@@ -1,0 +1,245 @@
+
+fbt: warning: Failed parsing manifest 'F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\applications\external\cli_bridge\application.fam' : Invalid appid '.cli_gui'. Must match regex 're.compile('^[a-z0-9_]+$')'
+LoadAppManifest, line 135, in file "F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\scripts\fbt_tools\fbt_apps.py"
+
+fbt: warning: Failed parsing manifest 'F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\applications\external\mtp\application.fam' : Invalid appid '.f0_mtp'. Must match regex 're.compile('^[a-z0-9_]+$')'
+LoadAppManifest, line 135, in file "F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\scripts\fbt_tools\fbt_apps.py"
+	SDKCHK	targets\f7\api_symbols.csv
+[32mAPI version 87.6 is up to date[0m
+	CC	applications\main\archive\scenes\archive_scene_new_dir.c
+	SDKTREE	build\f7-firmware-C\sdk_headers\sdk.opts
+	CC	applications\main\archive\scenes\archive_scene_rename.c
+	CC	applications\main\archive\scenes\archive_scene_search.c
+	CC	applications\main\archive\views\archive_browser_view.c
+	CC	applications\main\archive\archive.c
+	CC	applications\main\subghz\helpers\minmea.c
+	CC	applications\main\subghz\helpers\subghz_chat.c
+	CC	applications\main\subghz\helpers\subghz_frequency_analyzer_worker.c
+	CC	applications\main\subghz\helpers\subghz_gen_info.c
+	CC	applications\main\subghz\helpers\subghz_gps.c
+	CC	applications\main\subghz\helpers\subghz_gps_plugin.c
+	CC	applications\main\subghz\helpers\subghz_threshold_rssi.c
+	CC	applications\main\subghz\helpers\subghz_txrx.c
+	CC	applications\main\subghz\helpers\subghz_txrx_create_protocol_key.c
+	CC	applications\main\subghz\scenes\subghz_scene.c
+	CC	applications\main\subghz\scenes\subghz_scene_decode_raw.c
+	CC	applications\main\subghz\scenes\subghz_scene_delete.c
+	CC	applications\main\subghz\scenes\subghz_scene_delete_raw.c
+	CC	applications\main\subghz\scenes\subghz_scene_delete_success.c
+	CC	applications\main\subghz\scenes\subghz_scene_frequency_analyzer.c
+	CC	applications\main\subghz\scenes\subghz_scene_more_raw.c
+	CC	applications\main\subghz\scenes\subghz_scene_need_saving.c
+	CC	applications\main\subghz\scenes\subghz_scene_radio_settings.c
+	CC	applications\main\subghz\scenes\subghz_scene_read_raw.c
+	CC	applications\main\subghz\scenes\subghz_scene_receiver.c
+	CC	applications\main\subghz\scenes\subghz_scene_receiver_config.c
+	CC	applications\main\subghz\scenes\subghz_scene_receiver_info.c
+	CC	applications\main\subghz\scenes\subghz_scene_rpc.c
+	CC	applications\main\subghz\scenes\subghz_scene_save_name.c
+	CC	applications\main\subghz\scenes\subghz_scene_save_success.c
+	CC	applications\main\subghz\scenes\subghz_scene_saved.c
+	CC	applications\main\subghz\scenes\subghz_scene_saved_menu.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_button.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_counter.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_key.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_seed.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_serial.c
+	CC	applications\main\subghz\scenes\subghz_scene_set_type.c
+	CC	applications\main\subghz\scenes\subghz_scene_show_error.c
+	CC	applications\main\subghz\scenes\subghz_scene_show_error_sub.c
+	CC	applications\main\subghz\scenes\subghz_scene_show_gps.c
+	CC	applications\main\subghz\scenes\subghz_scene_start.c
+	CC	applications\main\subghz\scenes\subghz_scene_transmitter.c
+	CC	applications\main\subghz\views\receiver.c
+	CC	applications\main\subghz\views\subghz_frequency_analyzer.c
+	CC	applications\main\subghz\views\subghz_read_raw.c
+	CC	applications\main\subghz\views\transmitter.c
+	CC	applications\main\subghz\subghz.c
+	CC	applications\main\subghz\subghz_cli.c
+	CC	applications\main\subghz\subghz_extended_freq.c
+	CC	applications\main\subghz\subghz_fap.c
+	CC	applications\main\subghz\subghz_history.c
+	CC	applications\main\subghz\subghz_i.c
+	CC	applications\main\subghz\subghz_last_settings.c
+	CC	applications\services\bt\bt_service\bt.c
+	CC	applications\services\bt\bt_service\bt_api.c
+	CC	applications\services\bt\bt_service\bt_keys_storage.c
+	CC	applications\services\bt\bt_service\bt_settings_api.c
+	CC	applications\services\bt\bt_cli.c
+	CC	applications\services\bt\bt_settings.c
+	CC	applications\services\cli\cli_command_gpio.c
+	CC	applications\services\cli\cli_main_commands.c
+	CC	applications\services\cli\cli_main_shell.c
+	CC	applications\services\cli\cli_vcp.c
+	CC	applications\services\desktop\animations\views\bubble_animation_view.c
+	CC	applications\services\desktop\animations\views\one_shot_animation_view.c
+	CC	applications\services\desktop\animations\animation_manager.c
+	CC	applications\services\desktop\animations\animation_storage.c
+	CC	applications\services\desktop\helpers\pin_code.c
+	CC	applications\services\desktop\helpers\slideshow.c
+	CC	applications\services\desktop\scenes\desktop_scene.c
+	CC	applications\services\desktop\scenes\desktop_scene_fault.c
+	CC	applications\services\desktop\scenes\desktop_scene_hw_mismatch.c
+	CC	applications\services\desktop\scenes\desktop_scene_lock_menu.c
+	CC	applications\services\desktop\scenes\desktop_scene_locked.c
+	CC	applications\services\desktop\scenes\desktop_scene_main.c
+	CC	applications\services\desktop\scenes\desktop_scene_pin_input.c
+	CC	applications\services\desktop\scenes\desktop_scene_pin_timeout.c
+	CC	applications\services\desktop\scenes\desktop_scene_secure_enclave.c
+	CC	applications\services\desktop\scenes\desktop_scene_slideshow.c
+	CC	applications\services\desktop\views\desktop_view_lock_menu.c
+	CC	applications\services\desktop\views\desktop_view_locked.c
+	CC	applications\services\desktop\views\desktop_view_main.c
+	CC	applications\services\desktop\views\desktop_view_pin_input.c
+	CC	applications\services\desktop\views\desktop_view_pin_timeout.c
+	CC	applications\services\desktop\views\desktop_view_slideshow.c
+	CC	applications\services\desktop\desktop.c
+	CC	applications\services\desktop\desktop_keybinds.c
+	CC	applications\services\desktop\desktop_settings.c
+	CC	applications\services\dialogs\dialogs.c
+	CC	applications\services\dialogs\dialogs_api.c
+	CC	applications\services\dialogs\dialogs_module_file_browser.c
+	CC	applications\services\dialogs\dialogs_module_message.c
+	CC	applications\services\dolphin\helpers\dolphin_deed.c
+	CC	applications\services\dolphin\helpers\dolphin_state.c
+	CC	applications\services\dolphin\dolphin.c
+	CC	applications\services\expansion\expansion.c
+	CC	applications\services\expansion\expansion_settings.c
+	CC	applications\services\expansion\expansion_worker.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_button.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_circle.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_icon.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_line.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_rect.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_string.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_string_multiline.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_text_box.c
+	CC	applications\services\gui\modules\widget_elements\widget_element_text_scroll.c
+	CC	applications\services\gui\modules\button_menu.c
+	CC	applications\services\gui\modules\button_panel.c
+	CC	applications\services\gui\modules\byte_input.c
+	CC	applications\services\gui\modules\date_time_input.c
+	CC	applications\services\gui\modules\dialog_ex.c
+	CC	applications\services\gui\modules\empty_screen.c
+	CC	applications\services\gui\modules\file_browser.c
+	CC	applications\services\gui\modules\file_browser_worker.c
+	CC	applications\services\gui\modules\loading.c
+	CC	applications\services\gui\modules\menu.c
+	CC	applications\services\gui\modules\number_input.c
+	CC	applications\services\gui\modules\popup.c
+	CC	applications\services\gui\modules\submenu.c
+	CC	applications\services\gui\modules\text_box.c
+	CC	applications\services\gui\modules\text_input.c
+	CC	applications\services\gui\modules\validators.c
+	CC	applications\services\gui\modules\variable_item_list.c
+	CC	applications\services\gui\modules\widget.c
+	CC	applications\services\gui\canvas.c
+	CC	applications\services\gui\elements.c
+	CC	applications\services\gui\gui.c
+	CC	applications\services\gui\icon.c
+	CC	applications\services\gui\icon_animation.c
+	CC	applications\services\gui\scene_manager.c
+	CC	applications\services\gui\view.c
+	CC	applications\services\gui\view_dispatcher.c
+	CC	applications\services\gui\view_holder.c
+	CC	applications\services\gui\view_port.c
+	CC	applications\services\gui\view_stack.c
+	CC	applications\services\input\input.c
+	CC	applications\services\input\input_cli.c
+	CC	applications\services\input\input_settings.c
+	APITBL	build\f7-firmware-C\assets\compiled\firmware_api_table.h
+	CC	applications\services\loader\loader.c
+	CPP	applications\services\loader\firmware_api\firmware_api.cpp
+	CC	applications\services\loader\loader_applications.c
+	CC	applications\services\loader\loader_cli.c
+	CC	applications\services\loader\loader_menu.c
+	CC	applications\services\loader\loader_menu_storage.c
+	CC	applications\services\loader\loader_queue.c
+	CC	applications\services\locale\locale.c
+	CC	applications\services\notification\notification_app.c
+	CC	applications\services\notification\notification_app_api.c
+	CC	applications\services\notification\notification_messages.c
+	CC	applications\services\notification\notification_messages_notes.c
+	CC	applications\services\power\power_service\views\power_off.c
+	CC	applications\services\power\power_service\views\power_unplug_usb.c
+	CC	applications\services\power\power_service\power.c
+	CC	applications\services\power\power_service\power_api.c
+	CC	applications\services\power\power_service\power_settings.c
+	CC	applications\services\power\power_cli.c
+	CC	applications\services\region\region.c
+	CC	applications\services\rpc\rpc.c
+	CC	applications\services\rpc\rpc_app.c
+	CC	applications\services\rpc\rpc_cli.c
+	CC	applications\services\rpc\rpc_debug.c
+	CC	applications\services\rpc\rpc_desktop.c
+	CC	applications\services\rpc\rpc_gpio.c
+	CC	applications\services\rpc\rpc_gui.c
+	CC	applications\services\rpc\rpc_property.c
+	CC	applications\services\rpc\rpc_storage.c
+	CC	applications\services\rpc\rpc_system.c
+	CC	applications\services\storage\storages\sd_notify.c
+	CC	applications\services\storage\storages\storage_ext.c
+	CC	applications\services\storage\filesystem_api.c
+	CC	applications\services\storage\storage.c
+	CC	applications\services\storage\storage_cli.c
+	CC	applications\services\storage\storage_external_api.c
+	CC	applications\services\storage\storage_glue.c
+	CC	applications\services\storage\storage_internal_api.c
+	CC	applications\services\storage\storage_processing.c
+	CC	applications\services\storage\storage_sd_api.c
+	CC	applications\settings\clock_settings\scenes\clock_settings_scene.c
+	CC	applications\settings\clock_settings\scenes\clock_settings_scene_start.c
+	CC	applications\settings\clock_settings\views\clock_settings_module.c
+	CC	applications\settings\clock_settings\clock_settings.c
+	CC	applications\settings\clock_settings\clock_settings_alarm.c
+	CC	applications\system\findmy\findmy_startup.c
+	CC	applications\system\findmy\findmy_state.c
+	CC	applications\system\updater\cli\updater_cli.c
+	CC	applications\system\updater\scenes\updater_scene.c
+	CC	applications\system\updater\scenes\updater_scene_error.c
+	CC	applications\system\updater\scenes\updater_scene_loadcfg.c
+	CC	applications\system\updater\scenes\updater_scene_main.c
+	CC	applications\system\updater\util\update_task.c
+	CC	applications\system\updater\util\update_task_worker_backup.c
+	CC	applications\system\updater\util\update_task_worker_flasher.c
+	CC	applications\system\updater\views\updater_main.c
+	CC	applications\system\updater\updater.c
+	INSTALL	build\f7-firmware-C\firmware.json
+	CDB	build\f7-firmware-C\compile_commands.json
+	LINK	build\f7-firmware-C\firmware.elf
+	INFO	
+Loaded 512 app definitions.
+[1;32mFirmware modules configuration:[0m
+[32mService:
+	[0m storage, cli_vcp, bt, dialogs, dolphin, desktop, gui, input, loader, notification, power
+[32mSystem:
+	[0m updater_app
+[32mApp:
+	[0m subghz
+[32mArchive:
+	[0m archive
+[32mSettings:
+	[0m bt_settings, notification_settings, storage_settings, power_settings, desktop_settings, passport, system_settings, expansion_settings, clock_settings, input_settings, about
+[31mStartupHook: [0m[33mDuplicate .order values in group:
+	cli (0), rpc_start (10), storage_start (60), locale (70), updater_start (90), expansion_start (100), region (120), subghz_load_extended_settings (650), clock_settings_start (1000), findmy_startup (1000)[0m
+[32mExternal:
+	[0m js_app
+[32mMenuExternal:
+	[0m lfrfid, nfc, infrared, gpio, ibutton, bad_kb, u2f, momentum_app
+[32mPackage:
+	[0m system_apps, settings_apps, basic_services, main_apps, main_apps_on_start
+Firmware size
+.text         683468 (667.45 K)
+.rodata       192044 (187.54 K)
+.data            964 (  0.94 K)
+.bss           30148 ( 29.44 K)
+.free_flash   171760 (167.73 K)
+[32mLinking build\f7-firmware-C as latest built dir (./build/latest/)[0m
+	HEX	build\f7-firmware-C\firmware.hex
+	BIN	build\f7-firmware-C\firmware.bin
+[33mfirmware.bin:  215 flash pages (last page 6.64% full)[0m
+	DFU	build\f7-firmware-C\firmware.dfu
+	DIST	dist_fw_dist
+2026-05-25 04:58:41,092 [INFO] [1;32mFirmware binaries can be found at:
+	dist\f7-C[0m
+

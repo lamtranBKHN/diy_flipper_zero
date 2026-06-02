@@ -70,11 +70,6 @@ static const NfcProtocol nfc_protocol_iso14443_4a_children_protocol[] = {
     NfcProtocolEmv,
 };
 
-/** List of ISO115693-3 child protocols. */
-static const NfcProtocol nfc_protocol_iso15693_3_children_protocol[] = {
-    NfcProtocolSlix,
-};
-
 /* Add new child protocol lists here (if necessary) */
 
 /**
@@ -114,8 +109,8 @@ static const NfcProtocolTreeNode nfc_protocol_nodes[NfcProtocolNum] = {
     [NfcProtocolIso15693_3] =
         {
             .parent_protocol = NfcProtocolInvalid,
-            .children_num = COUNT_OF(nfc_protocol_iso15693_3_children_protocol),
-            .children_protocol = nfc_protocol_iso15693_3_children_protocol,
+            .children_num = 0,
+            .children_protocol = NULL,
         },
     [NfcProtocolFelica] =
         {
@@ -149,7 +144,7 @@ static const NfcProtocolTreeNode nfc_protocol_nodes[NfcProtocolNum] = {
         },
     [NfcProtocolSlix] =
         {
-            .parent_protocol = NfcProtocolIso15693_3,
+            .parent_protocol = NfcProtocolInvalid,
             .children_num = 0,
             .children_protocol = NULL,
         },

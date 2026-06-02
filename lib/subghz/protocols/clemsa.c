@@ -88,6 +88,7 @@ const SubGhzProtocol subghz_protocol_clemsa = {
 void* subghz_protocol_encoder_clemsa_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderClemsa* instance = malloc(sizeof(SubGhzProtocolEncoderClemsa));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_clemsa;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -211,6 +212,7 @@ LevelDuration subghz_protocol_encoder_clemsa_yield(void* context) {
 void* subghz_protocol_decoder_clemsa_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderClemsa* instance = malloc(sizeof(SubGhzProtocolDecoderClemsa));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_clemsa;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

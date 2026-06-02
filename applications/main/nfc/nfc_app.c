@@ -61,7 +61,6 @@ NfcApp* nfc_app_alloc(void) {
     instance->detected_protocols = nfc_detected_protocols_alloc();
     instance->felica_auth = felica_auth_alloc();
     instance->mf_ul_auth = mf_ultralight_auth_alloc();
-    instance->slix_unlock = slix_unlock_alloc();
     instance->mfc_key_cache = mf_classic_key_cache_alloc();
     instance->nfc_supported_cards = nfc_supported_cards_alloc(instance->api_resolver);
 
@@ -173,7 +172,6 @@ void nfc_app_free(NfcApp* instance) {
     nfc_detected_protocols_free(instance->detected_protocols);
     felica_auth_free(instance->felica_auth);
     mf_ultralight_auth_free(instance->mf_ul_auth);
-    slix_unlock_free(instance->slix_unlock);
     mf_classic_key_cache_free(instance->mfc_key_cache);
     nfc_supported_cards_free(instance->nfc_supported_cards);
     if(instance->protocol_support) {

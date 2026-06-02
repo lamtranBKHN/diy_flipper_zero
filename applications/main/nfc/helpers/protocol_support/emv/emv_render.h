@@ -19,6 +19,8 @@ void nfc_render_emv_application_interchange_profile(const EmvApplication* apl, F
 
 void nfc_render_emv_extra(const EmvData* data, FuriString* str);
 
+void nfc_render_emv_dump(const EmvData* data, FuriString* str);
+
 void nfc_render_emv_country(uint16_t country_code, FuriString* str);
 
 void nfc_render_emv_currency(uint16_t cur_code, FuriString* str);

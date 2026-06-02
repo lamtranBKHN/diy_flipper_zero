@@ -4,7 +4,6 @@
 
 #include "protocol_handlers/iso14443_4a/nfc_cli_apdu_iso14443_4a.h"
 #include "protocol_handlers/iso14443_4b/nfc_cli_apdu_iso14443_4b.h"
-#include "protocol_handlers/iso15693_3/nfc_cli_apdu_iso15693_3.h"
 
 #include <furi.h>
 #include <nfc/nfc.h>
@@ -162,8 +161,6 @@ static NfcCliApduProtocolHandler nfc_cli_apdu_poller_get_handler(NfcProtocol pro
         return nfc_cli_apdu_iso14443_4a_handler;
     else if(protocol == NfcProtocolIso14443_4b)
         return nfc_cli_apdu_iso14443_4b_handler;
-    else if(protocol == NfcProtocolIso15693_3)
-        return nfc_cli_apdu_iso15693_3_handler;
     else
         return NULL;
 }
@@ -290,7 +287,7 @@ const NfcCliKeyDescriptor apdu_keys[] = {
 
 const NfcCliActionDescriptor apdu_action = {
     .name = "apdu",
-    .description = "Send APDU data to iso14443_4a, iso14443_4b or iso15693_3",
+    .description = "Send APDU data to iso14443_4a or iso14443_4b",
     .alloc = nfc_cli_apdu_alloc_ctx,
     .free = nfc_cli_apdu_free_ctx,
     .execute = nfc_cli_apdu_execute,

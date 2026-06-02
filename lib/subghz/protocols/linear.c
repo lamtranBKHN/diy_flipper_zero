@@ -79,6 +79,7 @@ const SubGhzProtocol subghz_protocol_linear = {
 void* subghz_protocol_encoder_linear_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderLinear* instance = malloc(sizeof(SubGhzProtocolEncoderLinear));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_linear;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -202,6 +203,7 @@ LevelDuration subghz_protocol_encoder_linear_yield(void* context) {
 void* subghz_protocol_decoder_linear_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderLinear* instance = malloc(sizeof(SubGhzProtocolDecoderLinear));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_linear;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

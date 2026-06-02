@@ -104,6 +104,7 @@ const SubGhzProtocol ws_protocol_tx_8300 = {
 void* ws_protocol_decoder_tx_8300_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderTX_8300* instance = malloc(sizeof(WSProtocolDecoderTX_8300));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_tx_8300;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

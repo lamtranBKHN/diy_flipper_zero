@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_nero_radio = {
 void* subghz_protocol_encoder_nero_radio_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderNeroRadio* instance = malloc(sizeof(SubGhzProtocolEncoderNeroRadio));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_nero_radio;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -222,6 +223,7 @@ LevelDuration subghz_protocol_encoder_nero_radio_yield(void* context) {
 void* subghz_protocol_decoder_nero_radio_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderNeroRadio* instance = malloc(sizeof(SubGhzProtocolDecoderNeroRadio));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_nero_radio;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

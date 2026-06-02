@@ -111,6 +111,7 @@ static bool
         FURI_LOG_RAW_T("\r\n");
         break;
     case EMV_TAG_PRIORITY:
+        furi_check(tlen == 1);
         memcpy(&app->priority, &buff[i], tlen);
         success = true;
         FURI_LOG_T(TAG, "found EMV_TAG_APP_PRIORITY %X: %d", tag, app->priority);
@@ -126,6 +127,7 @@ static bool
         FURI_LOG_RAW_T("\r\n");
         break;
     case EMV_TAG_APPL_LABEL:
+        furi_check(tlen <= 16);
         memcpy(app->application_label, &buff[i], tlen);
         app->application_label[tlen] = '\0';
         success = true;
@@ -160,11 +162,12 @@ static bool
     // Tracks data https://murdoch.is/papers/defcon20emvdecode.pdf
     case EMV_TAG_TRACK_1_EQUIV: {
         // Contain PAN and expire date
-        char track_1_equiv[80];
-        memcpy(track_1_equiv, &buff[i], tlen);
-        track_1_equiv[tlen] = '\0';
+        char track_1_equiv_local[80];
+        furi_check(tlen < sizeof(track_1_equiv_local));
+        memcpy(track_1_equiv_local, &buff[i], tlen);
+        track_1_equiv_local[tlen] = '\0';
         success = true;
-        FURI_LOG_T(TAG, "found EMV_TAG_TRACK_1_EQUIV %x : %s", tag, track_1_equiv);
+        FURI_LOG_T(TAG, "found EMV_TAG_TRACK_1_EQUIV %x : %s", tag, track_1_equiv_local);
         break;
     }
     case EMV_TAG_TRACK_2_DATA:
@@ -184,7 +187,10 @@ static bool
         // Convert 4-bit to ASCII representation
         char track_2_equiv[41];
         uint8_t track_2_equiv_len = 0;
-        for(int x = 0; x < tlen; x++) {
+        /* Each input byte produces up to 2 ASCII chars at indices x*2 and x*2+1.
+         * 41-byte buffer holds 40 chars + null; bound the loop so writes stop
+         * before x*2+1 reaches 41. */
+        for(int x = 0; x < tlen && (x * 2 + 1) < (int)sizeof(track_2_equiv); x++) {
             char top = (buff[i + x] >> 4) + '0';
             char bottom = (buff[i + x] & 0x0F) + '0';
             track_2_equiv[x * 2] = top;
@@ -565,7 +571,10 @@ EmvError emv_poller_get_processing_options(EmvPoller* instance) {
         emv_trace(instance, "Get processing options answer:");
 
         if(iso14443_4a_error != Iso14443_4aErrorNone) {
-            FURI_LOG_E(TAG, "Failed to get processing options, error %u", iso14443_4a_error);
+            FURI_LOG_E(
+                TAG,
+                "Failed to get processing options, error %s",
+                iso14443_4a_error_str(iso14443_4a_error));
             error = emv_process_error(iso14443_4a_error);
             break;
         }
@@ -718,7 +727,8 @@ static EmvError emv_poller_req_get_data(EmvPoller* instance, uint16_t tag) {
         emv_trace(instance, "Get log data answer:");
 
         if(iso14443_4a_error != Iso14443_4aErrorNone) {
-            FURI_LOG_E(TAG, "Failed to get data, error %u", iso14443_4a_error);
+            FURI_LOG_E(
+                TAG, "Failed to get data, error %s", iso14443_4a_error_str(iso14443_4a_error));
             error = emv_process_error(iso14443_4a_error);
             break;
         }
@@ -783,9 +793,14 @@ EmvError emv_poller_read_log_entry(EmvPoller* instance) {
         }
 
         instance->data->emv_application.active_tr++;
-        furi_check(
-            instance->data->emv_application.active_tr <
-            COUNT_OF(instance->data->emv_application.trans));
+        if(instance->data->emv_application.active_tr >=
+           COUNT_OF(instance->data->emv_application.trans)) {
+            FURI_LOG_D(
+                TAG,
+                "Transaction log full (%zu records)",
+                instance->data->emv_application.active_tr);
+            break;
+        }
     }
 
     instance->data->emv_application.saving_trans_list = false;

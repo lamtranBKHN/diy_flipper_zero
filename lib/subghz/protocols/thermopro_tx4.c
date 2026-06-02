@@ -93,6 +93,7 @@ const SubGhzProtocol ws_protocol_thermopro_tx4 = {
 void* ws_protocol_decoder_thermopro_tx4_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderThermoPRO_TX4* instance = malloc(sizeof(WSProtocolDecoderThermoPRO_TX4));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_thermopro_tx4;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

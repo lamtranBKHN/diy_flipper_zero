@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_phoenix_v2 = {
 void* subghz_protocol_encoder_phoenix_v2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderPhoenix_V2* instance = malloc(sizeof(SubGhzProtocolEncoderPhoenix_V2));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_phoenix_v2;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -365,6 +366,7 @@ LevelDuration subghz_protocol_encoder_phoenix_v2_yield(void* context) {
 void* subghz_protocol_decoder_phoenix_v2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderPhoenix_V2* instance = malloc(sizeof(SubGhzProtocolDecoderPhoenix_V2));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_phoenix_v2;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

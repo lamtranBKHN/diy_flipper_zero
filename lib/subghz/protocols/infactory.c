@@ -108,6 +108,7 @@ const SubGhzProtocol ws_protocol_infactory = {
 void* ws_protocol_decoder_infactory_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderInfactory* instance = malloc(sizeof(WSProtocolDecoderInfactory));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_infactory;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

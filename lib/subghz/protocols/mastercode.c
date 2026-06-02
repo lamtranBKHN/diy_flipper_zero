@@ -87,6 +87,7 @@ const SubGhzProtocol subghz_protocol_mastercode = {
 void* subghz_protocol_encoder_mastercode_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderMastercode* instance = malloc(sizeof(SubGhzProtocolEncoderMastercode));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_mastercode;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -211,6 +212,7 @@ LevelDuration subghz_protocol_encoder_mastercode_yield(void* context) {
 void* subghz_protocol_decoder_mastercode_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderMastercode* instance = malloc(sizeof(SubGhzProtocolDecoderMastercode));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_mastercode;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

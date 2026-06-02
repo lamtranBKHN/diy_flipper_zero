@@ -15,11 +15,13 @@
 #include <nfc/protocols/felica/felica.h>
 #include <nfc/protocols/felica/felica_poller_sync.h>
 #include <nfc/protocols/mf_classic/mf_classic_poller.h>
+#ifndef FURI_HAL_NFC_PN532_ONLY
 #include <nfc/protocols/iso15693_3/iso15693_3_poller.h>
 #include <nfc/protocols/slix/slix.h>
 #include <nfc/protocols/slix/slix_i.h>
 #include <nfc/protocols/slix/slix_poller.h>
 #include <nfc/protocols/slix/slix_poller_i.h>
+#endif
 
 #include <nfc/nfc_poller.h>
 
@@ -34,6 +36,7 @@
 #include "test_worker_safety.c"
 #include "test_iso14443a_listener.c"
 #include "test_iso15693_lock.c"
+#include "test_pn532_auth_property.c"
 #undef NFC_TEST_INCLUDED
 
 #define TAG "NfcTest"
@@ -63,6 +66,7 @@ typedef enum {
     NfcTestSlixPollerSetPasswordStateSetPassword,
 } NfcTestSlixPollerSetPasswordState;
 
+#ifndef FURI_HAL_NFC_PN532_ONLY
 typedef struct {
     FuriThreadId thread_id;
     NfcTestSlixPollerSetPasswordState state;
@@ -70,6 +74,7 @@ typedef struct {
     SlixPassword password;
     SlixError error;
 } NfcTestSlixPollerSetPasswordContext;
+#endif
 
 typedef struct {
     Storage* storage;
@@ -710,6 +715,7 @@ MU_TEST(felica_read_auth) {
     felica_free(felica_data);
 }
 
+#ifndef FURI_HAL_NFC_PN532_ONLY
 MU_TEST(slix_file_with_capabilities_test) {
     NfcDevice* nfc_device_missed_cap = nfc_device_alloc();
     mu_assert(
@@ -830,6 +836,7 @@ MU_TEST(slix_set_password_access_all_passwords_cap) {
     slix_set_password_test(
         EXT_PATH("unit_tests/nfc/Slix_cap_accept_all_pass.nfc"), 0x12341234, false);
 }
+#endif
 
 MU_TEST_SUITE(nfc) {
     nfc_test_alloc();
@@ -875,10 +882,12 @@ MU_TEST_SUITE(nfc) {
     MU_RUN_TEST(felica_read);
     MU_RUN_TEST(felica_read_auth);
 
+#ifndef FURI_HAL_NFC_PN532_ONLY
     MU_RUN_TEST(slix_file_with_capabilities_test);
     MU_RUN_TEST(slix_set_password_default_cap_correct_pass);
     MU_RUN_TEST(slix_set_password_default_cap_incorrect_pass);
     MU_RUN_TEST(slix_set_password_access_all_passwords_cap);
+#endif
 
     // Tests from test_pn532_protocol.c
     MU_RUN_TEST(nfc_buffer_sizes);
@@ -915,6 +924,13 @@ MU_TEST_SUITE(nfc) {
     MU_RUN_TEST(test_lock_response_error);
     MU_RUN_TEST(test_listener_lock_tracking);
     MU_RUN_TEST(test_lock_multiple_blocks);
+
+    // Property tests from test_pn532_auth_property.c
+    MU_RUN_TEST(nfc_property_nt_passthrough_integrity);
+    MU_RUN_TEST(nfc_property_deauth_state_reset);
+    MU_RUN_TEST(nfc_property_stale_target_detection);
+    MU_RUN_TEST(nfc_property_stale_target_boundary);
+    MU_RUN_TEST(nfc_property_mf_ultralight_read_response_length);
 
     nfc_test_free();
 }

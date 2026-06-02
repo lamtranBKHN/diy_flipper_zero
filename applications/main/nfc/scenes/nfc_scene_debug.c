@@ -25,11 +25,7 @@ void nfc_scene_debug_on_enter(void* context) {
     submenu_add_item(
         submenu, "I2C Scan", SubmenuDebugIndexI2cScan, nfc_scene_debug_submenu_callback, nfc);
     submenu_add_item(
-        submenu,
-        "Poller Test",
-        SubmenuDebugIndexPollerTest,
-        nfc_scene_debug_submenu_callback,
-        nfc);
+        submenu, "Poller Test", SubmenuDebugIndexPollerTest, nfc_scene_debug_submenu_callback, nfc);
 
     submenu_set_selected_item(
         submenu, scene_manager_get_scene_state(nfc->scene_manager, NfcSceneDebug));

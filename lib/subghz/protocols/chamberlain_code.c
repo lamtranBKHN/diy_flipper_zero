@@ -103,6 +103,7 @@ const SubGhzProtocol subghz_protocol_chamb_code = {
 void* subghz_protocol_encoder_chamb_code_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderChamb_Code* instance = malloc(sizeof(SubGhzProtocolEncoderChamb_Code));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_chamb_code;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -266,6 +267,7 @@ LevelDuration subghz_protocol_encoder_chamb_code_yield(void* context) {
 void* subghz_protocol_decoder_chamb_code_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderChamb_Code* instance = malloc(sizeof(SubGhzProtocolDecoderChamb_Code));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_chamb_code;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

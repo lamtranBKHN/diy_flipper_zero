@@ -64,7 +64,15 @@ FuriHalNfcError furi_hal_nfc_iso14443a_poller_trx_short_frame(FuriHalNfcaShortFr
     if(furi_hal_nfc_pn532_is_active()) {
         return furi_hal_nfc_pn532_trx_short_frame(frame);
     }
-    return FuriHalNfcErrorNone;
+    /* FIXED: Return Communication error so caller knows no RF poll was sent.
+     * Previously returned FuriHalNfcErrorNone (success!) which caused
+     * detection to silently fail — caller thought poll succeeded but
+     * no InListPassiveTarget was ever sent to the PN532. */
+    FURI_LOG_W(
+        TAG,
+        "trx_short_frame: PN532 not active (is_active=%d), returning Communication",
+        (int)furi_hal_nfc_pn532_is_active());
+    return FuriHalNfcErrorCommunication;
 }
 
 FuriHalNfcError furi_hal_nfc_iso14443a_tx_sdd_frame(const uint8_t* tx_data, size_t tx_bits) {

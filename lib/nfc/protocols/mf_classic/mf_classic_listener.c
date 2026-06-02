@@ -7,6 +7,11 @@
 
 #include <furi.h>
 #include <furi_hal_random.h>
+#include <furi_hal_nfc_pn532.h>
+
+#ifndef PN532_NATIVE_AUTH_DISABLED
+#define PN532_NATIVE_AUTH_DISABLED 0
+#endif
 
 #define TAG "MfClassicListener"
 
@@ -294,21 +299,23 @@ static MfClassicListenerCommand mf_classic_listener_write_block_second_part_hand
 
             if(mf_classic_is_allowed_access(
                    instance->data, block_num, key_type, MfClassicActionKeyAWrite)) {
-                bit_buffer_write_bytes_mid(buff, sec_tr->key_a.data, 0, sizeof(MfClassicKey));
+                memcpy(sec_tr->key_a.data, bit_buffer_get_data(buff), sizeof(MfClassicKey));
             }
             if(mf_classic_is_allowed_access(
                    instance->data, block_num, key_type, MfClassicActionKeyBWrite)) {
-                bit_buffer_write_bytes_mid(buff, sec_tr->key_b.data, 10, sizeof(MfClassicKey));
+                memcpy(sec_tr->key_b.data, bit_buffer_get_data(buff) + 10, sizeof(MfClassicKey));
             }
             if(mf_classic_is_allowed_access(
                    instance->data, block_num, key_type, MfClassicActionACWrite)) {
-                bit_buffer_write_bytes_mid(
-                    buff, sec_tr->access_bits.data, 6, sizeof(MfClassicAccessBits));
+                memcpy(
+                    sec_tr->access_bits.data,
+                    bit_buffer_get_data(buff) + 6,
+                    sizeof(MfClassicAccessBits));
             }
         } else {
             if(mf_classic_is_allowed_access(
                    instance->data, block_num, key_type, MfClassicActionDataWrite)) {
-                bit_buffer_write_bytes_mid(buff, block.data, 0, sizeof(MfClassicBlock));
+                memcpy(block.data, bit_buffer_get_data(buff), sizeof(MfClassicBlock));
             } else {
                 break;
             }
@@ -402,6 +409,10 @@ static MfClassicListenerCommand
             data = 0;
         }
 
+        /* Overflow-safe accumulation: signed int32 overflow is UB in C.
+         * Detect positive/negative overflow before adding. */
+        if(data > 0 && instance->transfer_value > (INT32_MAX - data)) break;
+        if(data < 0 && instance->transfer_value < (INT32_MIN - data)) break;
         instance->transfer_value += data;
         instance->transfer_valid = true;
 
@@ -636,6 +647,8 @@ NfcCommand mf_classic_listener_run(NfcGenericEvent event, void* context) {
 MfClassicListener*
     mf_classic_listener_alloc(Iso14443_3aListener* iso14443_3a_listener, MfClassicData* data) {
     MfClassicListener* instance = malloc(sizeof(MfClassicListener));
+    furi_check(instance);
+
     instance->iso14443_3a_listener = iso14443_3a_listener;
     instance->data = data;
     mf_classic_listener_prepare_emulation(instance);
@@ -644,6 +657,8 @@ MfClassicListener*
     instance->tx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
     instance->tx_encrypted_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
     instance->rx_plain_buffer = bit_buffer_alloc(MF_CLASSIC_MAX_BUFF_SIZE);
+
+    mf_classic_listener_reset_state(instance);
 
     instance->mfc_event.data = &instance->mfc_event_data;
     instance->generic_event.protocol = NfcProtocolMfClassic;
@@ -660,6 +675,12 @@ void mf_classic_listener_free(MfClassicListener* instance) {
     furi_assert(instance->rx_plain_buffer);
     furi_assert(instance->tx_encrypted_buffer);
     furi_assert(instance->tx_plain_buffer);
+
+#if !PN532_NATIVE_AUTH_DISABLED
+    if(furi_hal_nfc_pn532_is_active()) {
+        furi_hal_pn532_force_reinit();
+    }
+#endif
 
     crypto1_free(instance->crypto);
     bit_buffer_free(instance->rx_plain_buffer);

@@ -82,7 +82,7 @@ static void nfc_scene_emulate_on_enter_mf_desfire(NfcApp* instance) {
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_mf_desfire = {
-    .features = NfcProtocolFeatureEmulateUid | NfcProtocolFeatureMoreInfo,
+    .features = NfcProtocolFeatureMoreInfo,
 
     .scene_info =
         {

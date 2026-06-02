@@ -72,6 +72,7 @@ const SubGhzProtocol subghz_protocol_roger = {
 void* subghz_protocol_encoder_roger_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderRoger* instance = malloc(sizeof(SubGhzProtocolEncoderRoger));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_roger;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -315,6 +316,7 @@ LevelDuration subghz_protocol_encoder_roger_yield(void* context) {
 void* subghz_protocol_decoder_roger_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderRoger* instance = malloc(sizeof(SubGhzProtocolDecoderRoger));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_roger;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

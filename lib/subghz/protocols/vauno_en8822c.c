@@ -110,6 +110,7 @@ typedef enum {
 void* ws_protocol_decoder_vauno_en8822c_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderVaunoEN8822C* instance = malloc(sizeof(WSProtocolDecoderVaunoEN8822C));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_vauno_en8822c;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

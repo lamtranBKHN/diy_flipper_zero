@@ -36,6 +36,7 @@ const NfcDeviceBase nfc_device_ntag4xx = {
 
 Ntag4xxData* ntag4xx_alloc(void) {
     Ntag4xxData* data = malloc(sizeof(Ntag4xxData));
+    furi_check(data);
     data->iso14443_4a_data = iso14443_4a_alloc();
     data->device_name = furi_string_alloc();
     return data;
@@ -70,10 +71,10 @@ void ntag4xx_copy(Ntag4xxData* data, const Ntag4xxData* other) {
 }
 
 bool ntag4xx_verify(Ntag4xxData* data, const FuriString* device_type) {
-    UNUSED(data);
+    furi_check(data);
     UNUSED(device_type);
 
-    return false;
+    return (data->version.hw_type != 0) || (data->version.sw_type != 0);
 }
 
 bool ntag4xx_load(Ntag4xxData* data, FlipperFormat* ff, uint32_t version) {

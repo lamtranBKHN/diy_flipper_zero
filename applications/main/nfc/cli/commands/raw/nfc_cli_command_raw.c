@@ -5,7 +5,6 @@
 #include "protocol_handlers/nfc_cli_raw_common_types.h"
 #include "protocol_handlers/iso14443_3a/nfc_cli_raw_iso14443_3a.h"
 #include "protocol_handlers/iso14443_3b/nfc_cli_raw_iso14443_3b.h"
-#include "protocol_handlers/iso15693_3/nfc_cli_raw_iso15693_3.h"
 #include "protocol_handlers/felica/nfc_cli_raw_felica.h"
 
 #include <toolbox/args.h>
@@ -113,7 +112,7 @@ const NfcCliRawProtocolSpecificHandler nfc_cli_raw_protocol_handlers[] = {
     [NfcProtocolIso14443_3b] = nfc_cli_raw_iso14443_3b_handler,
     [NfcProtocolIso14443_4a] = NULL,
     [NfcProtocolIso14443_4b] = NULL,
-    [NfcProtocolIso15693_3] = nfc_cli_raw_iso15693_3_handler,
+    [NfcProtocolIso15693_3] = NULL,
     [NfcProtocolFelica] = nfc_cli_raw_felica_handler,
     [NfcProtocolMfUltralight] = NULL,
     [NfcProtocolMfClassic] = NULL,

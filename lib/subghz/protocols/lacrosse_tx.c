@@ -112,6 +112,7 @@ const SubGhzProtocol ws_protocol_lacrosse_tx = {
 void* ws_protocol_decoder_lacrosse_tx_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderLaCrosse_TX* instance = malloc(sizeof(WSProtocolDecoderLaCrosse_TX));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_lacrosse_tx;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

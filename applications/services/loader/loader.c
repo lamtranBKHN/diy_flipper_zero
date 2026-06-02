@@ -121,9 +121,9 @@ static void loader_show_gui_error(
     } else if(status.value == LoaderStatusErrorUnknownApp) {
         loader_dialog_prepare_and_show(dialogs, &err_app_not_found);
     } else if(status.value == LoaderStatusErrorInternal) {
-        // TODO FL-3522: we have many places where we can emit a double start, ex: desktop, menu
         // LoaderStatusErrorAppStarted is intentionally excluded below to avoid UI noise.
-        // Actual double-start prevention happens in the caller.
+        // Double-start sources: desktop menu, RPC, CLI, startup scripts.
+        // Prevention happens in callers before reaching this point.
         switch(status.error) {
         case LoaderStatusErrorInvalidFile:
             loader_dialog_prepare_and_show(dialogs, &err_invalid_flie);
@@ -865,6 +865,7 @@ static void loader_do_app_closed(Loader* loader) {
     }
 
     furi_string_free(loader->app.launch_path);
+    loader->app.launch_path = NULL;
 
     FURI_LOG_I(TAG, "Application stopped. Free heap: %zu", memmgr_get_free_heap());
 

@@ -10,6 +10,8 @@ extern "C" {
 bool furi_hal_nfc_pn532_backend_init(void);
 bool furi_hal_nfc_pn532_is_active(void);
 void furi_hal_nfc_pn532_reset(void);
+void furi_hal_nfc_pn532_reset_keep_target(void);
+void furi_hal_nfc_pn532_queue_reset(void);
 
 typedef enum {
     FuriHalNfcPn532ResultDetected,
@@ -47,6 +49,18 @@ FuriHalNfcError furi_hal_nfc_pn532_listener_set_col_res_data(
     const uint8_t* atqa,
     uint8_t sak);
 
+/** Configure the NFCID2t for FeliCa listener (emulation) mode.
+ *
+ * Must be called before furi_hal_nfc_pn532_listener_wait_event() to ensure
+ * the emulated FeliCa card advertises the correct NFCID2t. Forces
+ * re-initialisation of TgInitAsTarget on the next wait_event call.
+ *
+ * @param[in] nfcid2t  8-byte NFCID2t of the FeliCa card being emulated.
+ */
+void furi_hal_nfc_pn532_listener_set_felica_params(const uint8_t* nfcid2t);
+
+void furi_hal_nfc_pn532_emu_set_ndef(const uint8_t* msg, size_t len);
+
 // Diagnostic API
 FuriHalPn532Error furi_hal_nfc_pn532_last_error_get(void);
 const char* furi_hal_nfc_pn532_last_error_str(void);
@@ -65,8 +79,16 @@ FuriHalNfcError furi_hal_nfc_pn532_mf_auth(
     uint8_t uid_len);
 bool furi_hal_nfc_pn532_mf_is_authed(void);
 void furi_hal_nfc_pn532_mf_deauth(void);
-FuriHalNfcError furi_hal_nfc_pn532_mf_read_block(uint8_t block_num, uint8_t* data, size_t data_size);
-FuriHalNfcError furi_hal_nfc_pn532_mf_write_block(uint8_t block_num, const uint8_t* data, size_t data_size);
+
+/** Send InRelease(0x52, 0x00) if a target is in-listed, then clear state.
+ *  Idempotent. Safe to call from any *_poller_free() / teardown path.
+ *  Best-effort: errors are swallowed because InRelease is cleanup, not
+ *  part of the application-facing protocol. */
+void furi_hal_nfc_pn532_release_if_listed(void);
+FuriHalNfcError
+    furi_hal_nfc_pn532_mf_read_block(uint8_t block_num, uint8_t* data, size_t data_size);
+FuriHalNfcError
+    furi_hal_nfc_pn532_mf_write_block(uint8_t block_num, const uint8_t* data, size_t data_size);
 
 // Access cached target data (used by scanner for SAK-based child optimization)
 uint8_t furi_hal_nfc_pn532_get_sak(void);
@@ -83,6 +105,12 @@ bool furi_hal_nfc_pn532_target_is_valid(void);
  * @returns true if a Jewel/Topaz card was detected, false otherwise.
  */
 bool furi_hal_nfc_pn532_poll_jewel(FuriHalPn532Target* target);
+
+// Test accessors — expose internal state for property-based testing
+uint8_t furi_hal_nfc_pn532_get_target_number(void);
+bool furi_hal_nfc_pn532_test_get_needs_relist(void);
+uint32_t furi_hal_nfc_pn532_test_get_target_tick(void);
+void furi_hal_nfc_pn532_test_set_state(bool mf_authed, bool needs_relist, uint32_t target_tick);
 
 #ifdef __cplusplus
 }

@@ -64,6 +64,7 @@ struct Nfc {
 
     FuriThread* worker_thread;
     FuriSemaphore* poller_ready_sem;
+    FuriSemaphore* detect_sem;
 };
 
 typedef bool (*NfcWorkerPollerStateHandler)(Nfc* instance);
@@ -178,16 +179,22 @@ static int32_t nfc_worker_listener(void* context) {
 bool nfc_worker_poller_stop_handler(Nfc* instance);
 
 bool nfc_worker_poller_start_handler(Nfc* instance) {
-    furi_hal_nfc_poller_field_on();
+    FuriHalNfcError field_err = furi_hal_nfc_poller_field_on();
+    if(field_err != FuriHalNfcErrorNone) {
+        FURI_LOG_W(TAG, "start_handler: poller_field_on failed err=%d", field_err);
+    }
     if(instance->guard_time_us) {
         furi_hal_nfc_timer_block_tx_start_us(instance->guard_time_us);
         FuriHalNfcEvent event = furi_hal_nfc_poller_wait_event(FURI_HAL_NFC_EVENT_WAIT_FOREVER);
         if(event & FuriHalNfcEventAbortRequest) {
             instance->poller_state = NfcPollerStateStop;
-            /* Release the semaphore so nfc_poller_detect() doesn't block
-             * for 3 seconds waiting for the ready handler to release it.
-             * The ready handler will NOT fire because we're exiting early. */
+            /* Release both semaphores: poller_ready_sem for legacy
+             * nfc_wait_for_poller_ready() callers, detect_sem for
+             * nfc_poller_detect().  The callback will NOT fire
+             * because we're exiting early, so detect_sem would
+             * otherwise never be released → 3s timeout. */
             furi_semaphore_release(instance->poller_ready_sem);
+            if(instance->detect_sem) furi_semaphore_release(instance->detect_sem);
             return nfc_worker_poller_stop_handler(instance);
         }
         furi_assert(event & FuriHalNfcEventTimerBlockTxExpired);
@@ -206,6 +213,13 @@ bool nfc_worker_poller_ready_handler(Nfc* instance) {
         instance->poller_state = NfcPollerStateReset;
     } else if(command == NfcCommandStop) {
         instance->poller_state = NfcPollerStateStop;
+    } else if(command == NfcCommandContinue) {
+        // 1ms sleep instead of yield: NfcWorker runs at Highest priority;
+        // yield gives CPU only to equal-priority threads.  GUI thread
+        // (Normal priority) starves → ViewPort can't draw → watchdog.
+        // furi_delay_ms(1) blocks for 1 tick, letting lower-priority
+        // GUI thread refresh the display via SPI1/I2C1.
+        furi_delay_ms(1);
     }
 
     furi_semaphore_release(instance->poller_ready_sem);
@@ -264,6 +278,7 @@ Nfc* nfc_alloc(void) {
     furi_hal_nfc_acquire();
 
     Nfc* instance = malloc(sizeof(Nfc));
+    furi_check(instance);
     instance->state = NfcStateIdle;
     instance->comm_state = NfcCommStateIdle;
     instance->config_state = NfcConfigurationStateIdle;
@@ -274,6 +289,7 @@ Nfc* nfc_alloc(void) {
     furi_thread_set_priority(instance->worker_thread, FuriThreadPriorityHighest);
     furi_thread_set_stack_size(instance->worker_thread, 12 * 1024);
     instance->poller_ready_sem = furi_semaphore_alloc(1, 0);
+    instance->detect_sem = NULL;
     furi_hal_nfc_release();
 
     return instance;
@@ -298,6 +314,11 @@ void nfc_free(Nfc* instance) {
     free(instance);
 }
 
+bool nfc_is_config_done(Nfc* instance) {
+    furi_check(instance);
+    return instance->config_state == NfcConfigurationStateDone;
+}
+
 void nfc_config(Nfc* instance, NfcMode mode, NfcTech tech) {
     furi_check(instance);
     furi_check(mode < NfcModeNum);
@@ -310,8 +331,7 @@ void nfc_config(Nfc* instance, NfcMode mode, NfcTech tech) {
          * are reachable via auto-detection paths (e.g. listener mode for
          * non-A protocols).  A panic here would kill the app on bad cards;
          * log + return cleanly so the caller can recover. */
-        FURI_LOG_E(
-            TAG, "nfc_config: unsupported mode=%d tech=%d on this backend", mode, tech);
+        FURI_LOG_E(TAG, "nfc_config: unsupported mode=%d tech=%d on this backend", mode, tech);
         instance->config_state = NfcConfigurationStateIdle;
         return;
     }
@@ -320,6 +340,7 @@ void nfc_config(Nfc* instance, NfcMode mode, NfcTech tech) {
     furi_hal_nfc_low_power_mode_stop();
     FuriHalNfcError error = furi_hal_nfc_set_mode(hal_mode, hal_tech);
     if(error != FuriHalNfcErrorNone) {
+        FURI_LOG_E(TAG, "nfc_config: set_mode failed err=%d mode=%d tech=%d", error, mode, tech);
         furi_hal_nfc_low_power_mode_start();
         instance->config_state = NfcConfigurationStateIdle;
         return;
@@ -376,19 +397,32 @@ void nfc_stop(Nfc* instance) {
     furi_check(instance);
     furi_check(instance->state == NfcStateRunning);
 
+    // Always signal abort to the NFC HAL regardless of mode (poller or
+    // listener).  Without this, the worker thread keeps running PN532
+    // exchanges and firing ViewDispatcher events after the main thread
+    // has called furi_thread_join(), causing a deadlock: join blocks
+    // waiting for worker, worker blocks on full event queue.
     furi_hal_nfc_abort();
-    furi_thread_join(instance->worker_thread);
+
+    if(furi_thread_get_current() != instance->worker_thread) {
+        furi_thread_join(instance->worker_thread);
+    }
 
     instance->state = NfcStateIdle;
 }
 
-FuriStatus nfc_wait_for_poller_ready(Nfc* instance, uint32_t timeout_ms) {
-    /* Drain stale ready signal from previous poller_start() cycle.
-     * nfc_poller_start() releases the semaphore in the worker's ready
-     * handler but the caller never waits for it — the count leaks into
-     * the next nfc_poller_detect() call, causing immediate return and
-     * spurious abort.  Non-blocking acquire removes the stale count. */
+void nfc_set_detect_sem(Nfc* instance, FuriSemaphore* sem) {
+    furi_check(instance);
+    instance->detect_sem = sem;
+}
+
+void nfc_poller_ready_drain(Nfc* instance) {
+    furi_check(instance);
     furi_semaphore_acquire(instance->poller_ready_sem, 0);
+}
+
+FuriStatus nfc_wait_for_poller_ready(Nfc* instance, uint32_t timeout_ms) {
+    furi_check(instance);
     return furi_semaphore_acquire(instance->poller_ready_sem, timeout_ms);
 }
 
@@ -428,6 +462,12 @@ static NfcError nfc_poller_trx_state_machine(Nfc* instance, uint32_t fwt_fc) {
                 FURI_LOG_D(TAG, "Transition: WaitBlockTxTimer -> ReadyTx");
                 instance->comm_state = NfcCommStateReadyTx;
             }
+        }
+        if(event & FuriHalNfcEventAbortRequest) {
+            error = NfcErrorInternal;
+            furi_hal_nfc_timer_fwt_stop();
+            furi_hal_nfc_timer_block_tx_stop();
+            break;
         }
         if(event & FuriHalNfcEventTimeout) {
             if(instance->comm_state == NfcCommStateWaitTxEnd) {
@@ -484,16 +524,6 @@ static NfcError nfc_poller_trx_state_machine(Nfc* instance, uint32_t fwt_fc) {
                 furi_hal_nfc_timer_block_tx_stop();
                 break;
             }
-        }
-        if(event & FuriHalNfcEventAbortRequest) {
-            error = NfcErrorInternal;
-            furi_hal_nfc_timer_fwt_stop();
-            furi_hal_nfc_timer_block_tx_stop();
-            break;
-        }
-        if(instance->comm_state == NfcCommStateFailed) {
-            error = NfcErrorInternal;
-            break;
         }
         if(event == 0 || (event & FuriHalNfcEventTimeout)) {
             FURI_LOG_E(TAG, "State %d timed out — no transition event received", instance->state);
@@ -555,7 +585,7 @@ NfcError nfc_iso14443a_poller_trx_custom_parity(
             ret = nfc_process_hal_error(error);
             break;
         }
-        if(instance->rx_bits >= 9) {
+        if(instance->rx_bits > 0) {
             if((instance->rx_bits % 9) != 0) {
                 ret = NfcErrorDataFormat;
                 break;
@@ -660,7 +690,11 @@ NfcError nfc_iso14443a_poller_trx_short_frame(
                 furi_hal_nfc_poller_wait_event(FURI_HAL_NFC_EVENT_WAIT_FOREVER);
             if(event & FuriHalNfcEventTimerBlockTxExpired) {
                 break;
-            };
+            }
+            if(event & FuriHalNfcEventAbortRequest) {
+                ret = NfcErrorInternal;
+                break;
+            }
         }
 
         error = furi_hal_nfc_iso14443a_poller_trx_short_frame(short_frame);

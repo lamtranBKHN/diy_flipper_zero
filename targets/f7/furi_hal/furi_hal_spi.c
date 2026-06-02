@@ -26,7 +26,7 @@ static FuriSemaphore* spi_dma_lock = NULL;
 static FuriSemaphore* spi_dma_completed = NULL;
 
 static uint32_t spi_acquire_tick = 0;
-static const char* spi_acquire_caller = NULL;
+static void* spi_acquire_caller = NULL;
 
 void furi_hal_spi_dma_init(void) {
     spi_dma_lock = furi_semaphore_alloc(1, 1);
@@ -67,7 +67,7 @@ void furi_hal_spi_acquire(const FuriHalSpiBusHandle* handle) {
     handle->callback(handle, FuriHalSpiBusHandleEventActivate);
 
     spi_acquire_tick = furi_get_tick();
-    spi_acquire_caller = NULL;
+    spi_acquire_caller = __builtin_return_address(0);
 }
 
 void furi_hal_spi_release(const FuriHalSpiBusHandle* handle) {
@@ -145,11 +145,17 @@ bool furi_hal_spi_bus_tx(
 
     bool ret = true;
 
+    uint32_t tx_deadline = furi_get_tick() + timeout;
     while(size > 0) {
         if(LL_SPI_IsActiveFlag_TXE(handle->bus->spi)) {
             LL_SPI_TransmitData8(handle->bus->spi, *buffer);
             buffer++;
             size--;
+        }
+        if(furi_get_tick() >= tx_deadline) {
+            FURI_LOG_E(TAG, "SPI TX loop timeout, %zu bytes remaining", size);
+            ret = false;
+            break;
         }
     }
 
@@ -173,6 +179,7 @@ bool furi_hal_spi_bus_trx(
     size_t tx_size = size;
     bool tx_allowed = true;
 
+    uint32_t trx_deadline = furi_get_tick() + timeout;
     while(size > 0) {
         if(tx_size > 0 && LL_SPI_IsActiveFlag_TXE(handle->bus->spi) && tx_allowed) {
             if(tx_buffer) {
@@ -194,6 +201,12 @@ bool furi_hal_spi_bus_trx(
             }
             size--;
             tx_allowed = true;
+        }
+
+        if(furi_get_tick() >= trx_deadline) {
+            FURI_LOG_E(TAG, "SPI TRX loop timeout, %zu bytes remaining", size);
+            ret = false;
+            break;
         }
     }
 

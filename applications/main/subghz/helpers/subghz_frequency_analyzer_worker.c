@@ -268,6 +268,13 @@ static int32_t subghz_frequency_analyzer_worker_thread(void* context) {
 SubGhzFrequencyAnalyzerWorker* subghz_frequency_analyzer_worker_alloc(void* context) {
     furi_assert(context);
     SubGhzFrequencyAnalyzerWorker* instance = malloc(sizeof(SubGhzFrequencyAnalyzerWorker));
+    furi_check(instance);
+
+    instance->worker_running = false;
+    instance->sample_hold_counter = 0;
+    instance->filVal = 0;
+    instance->pair_callback = NULL;
+    instance->context = NULL;
 
     instance->thread = furi_thread_alloc_ex(
         "SubGhzFAWorker", 2048, subghz_frequency_analyzer_worker_thread, instance);

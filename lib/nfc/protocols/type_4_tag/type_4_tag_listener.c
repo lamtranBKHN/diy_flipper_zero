@@ -9,13 +9,30 @@ static const uint8_t default_ndef_data[] = {
     0xD1, /* MB, ME, TNF=1 (NFC Forum well-known) */
     0x01, /* Type length = 1 */
     0x14, /* Payload length = 20 */
-    'T',  /* Type: "T" (text record) */
+    'T', /* Type: "T" (text record) */
     /* Payload: Status byte + language (en) + text */
     0x02, /* Status: UTF-8, language length = 2 */
-    'e', 'n',
-    'H', 'e', 'l', 'l', 'o', ' ', 'f', 'r',
-    'o', 'm', ' ', 'F', 'l', 'i', 'p', 'p', 'e', 'r', '!'
-};
+    'e',
+    'n',
+    'H',
+    'e',
+    'l',
+    'l',
+    'o',
+    ' ',
+    'f',
+    'r',
+    'o',
+    'm',
+    ' ',
+    'F',
+    'l',
+    'i',
+    'p',
+    'p',
+    'e',
+    'r',
+    '!'};
 
 static void type_4_tag_listener_reset_state(Type4TagListener* instance) {
     instance->state = Type4TagListenerStateIdle;
@@ -27,14 +44,18 @@ static Type4TagListener*
     furi_assert(iso14443_4a_listener);
 
     Type4TagListener* instance = malloc(sizeof(Type4TagListener));
+    furi_check(instance);
+
     instance->iso14443_4a_listener = iso14443_4a_listener;
     instance->data = data;
 
     instance->t4t_emul = nfc_t4t_emulation_alloc();
-    nfc_t4t_emulation_set_ndef(
-        instance->t4t_emul, default_ndef_data, sizeof(default_ndef_data));
+    nfc_t4t_emulation_set_ndef(instance->t4t_emul, default_ndef_data, sizeof(default_ndef_data));
 
     instance->tx_buffer = bit_buffer_alloc(TYPE_4_TAG_BUF_SIZE);
+    instance->state = Type4TagListenerStateIdle;
+    instance->callback = NULL;
+    instance->context = NULL;
 
     instance->type_4_tag_event.data = &instance->type_4_tag_event_data;
     instance->generic_event.protocol = NfcProtocolType4Tag;

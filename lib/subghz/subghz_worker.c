@@ -105,6 +105,13 @@ static int32_t subghz_worker_thread_callback(void* context) {
 
 SubGhzWorker* subghz_worker_alloc(void) {
     SubGhzWorker* instance = malloc(sizeof(SubGhzWorker));
+    furi_check(instance);
+
+    instance->running = false;
+    instance->overrun = false;
+    instance->overrun_callback = NULL;
+    instance->pair_callback = NULL;
+    instance->context = NULL;
 
     instance->thread =
         furi_thread_alloc_ex("SubGhzWorker", 2048, subghz_worker_thread_callback, instance);

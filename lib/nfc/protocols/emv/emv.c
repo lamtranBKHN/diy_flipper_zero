@@ -27,6 +27,7 @@ const NfcDeviceBase nfc_device_emv = {
 
 EmvData* emv_alloc(void) {
     EmvData* data = malloc(sizeof(EmvData));
+    furi_check(data);
     data->iso14443_4a_data = iso14443_4a_alloc();
     data->emv_application.pin_try_counter = 0xff;
 
@@ -76,14 +77,26 @@ bool emv_load(EmvData* data, FlipperFormat* ff, uint32_t version) {
 
         EmvApplication* app = &data->emv_application;
 
-        flipper_format_read_string(ff, "Cardholder name", temp_str);
-        strcpy(app->cardholder_name, furi_string_get_cstr(temp_str));
+        if(!flipper_format_read_string(ff, "Cardholder name", temp_str)) break;
+        snprintf(
+            app->cardholder_name,
+            sizeof(app->cardholder_name),
+            "%s",
+            furi_string_get_cstr(temp_str));
 
-        flipper_format_read_string(ff, "Application name", temp_str);
-        strcpy(app->application_name, furi_string_get_cstr(temp_str));
+        if(!flipper_format_read_string(ff, "Application name", temp_str)) break;
+        snprintf(
+            app->application_name,
+            sizeof(app->application_name),
+            "%s",
+            furi_string_get_cstr(temp_str));
 
-        flipper_format_read_string(ff, "Application label", temp_str);
-        strcpy(app->application_label, furi_string_get_cstr(temp_str));
+        if(!flipper_format_read_string(ff, "Application label", temp_str)) break;
+        snprintf(
+            app->application_label,
+            sizeof(app->application_label),
+            "%s",
+            furi_string_get_cstr(temp_str));
 
         uint32_t pan_len;
         if(!flipper_format_read_uint32(ff, "PAN length", &pan_len, 1)) break;

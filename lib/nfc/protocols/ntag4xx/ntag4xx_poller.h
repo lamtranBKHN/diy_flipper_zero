@@ -13,19 +13,31 @@ extern "C" {
  */
 typedef struct Ntag4xxPoller Ntag4xxPoller;
 
+typedef enum {
+    Ntag4xxPollerModeRead,
+    Ntag4xxPollerModeWrite,
+} Ntag4xxPollerMode;
+
 /**
  * @brief Enumeration of possible Ntag4xx poller event types.
  */
 typedef enum {
+    Ntag4xxPollerEventTypeRequestMode, /**< Request poller mode (Read/Write). */
     Ntag4xxPollerEventTypeReadSuccess, /**< Card was read successfully. */
     Ntag4xxPollerEventTypeReadFailed, /**< Poller failed to read card. */
+    Ntag4xxPollerEventTypeWriteSuccess, /**< Card was written successfully. */
+    Ntag4xxPollerEventTypeWriteFailed, /**< Poller failed to write card. */
 } Ntag4xxPollerEventType;
 
 /**
  * @brief Ntag4xx poller event data.
  */
 typedef union {
-    Ntag4xxError error; /**< Error code indicating card reading fail reason. */
+    Ntag4xxError error; /**< Error code indicating card operation fail reason. */
+    struct {
+        Ntag4xxPollerMode mode;
+        const Ntag4xxData* write_data;
+    } mode_request;
 } Ntag4xxPollerEventData;
 
 /**

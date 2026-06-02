@@ -42,6 +42,7 @@ struct FelicaPoller {
     FelicaPollerEventData felica_event_data;
     NfcGenericCallback callback;
     uint8_t block_index;
+    uint8_t activate_retry_count;
     void* context;
 };
 

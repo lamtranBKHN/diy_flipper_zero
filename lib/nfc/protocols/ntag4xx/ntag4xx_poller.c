@@ -19,13 +19,22 @@ static const Ntag4xxData* ntag4xx_poller_get_data(Ntag4xxPoller* instance) {
 
 static Ntag4xxPoller* ntag4xx_poller_alloc(Iso14443_4aPoller* iso14443_4a_poller) {
     Ntag4xxPoller* instance = malloc(sizeof(Ntag4xxPoller));
+    furi_check(instance);
     instance->iso14443_4a_poller = iso14443_4a_poller;
     instance->data = ntag4xx_alloc();
+    furi_check(instance->data);
     instance->tx_buffer = bit_buffer_alloc(NTAG4XX_BUF_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(NTAG4XX_BUF_SIZE);
+    furi_check(instance->rx_buffer);
     instance->input_buffer = bit_buffer_alloc(NTAG4XX_BUF_SIZE);
+    furi_check(instance->input_buffer);
     instance->result_buffer = bit_buffer_alloc(NTAG4XX_RESULT_BUF_SIZE);
+    furi_check(instance->result_buffer);
 
+    instance->state = Ntag4xxPollerStateIdle;
+    instance->mode = Ntag4xxPollerModeRead;
+    instance->write_data = NULL;
     instance->ntag4xx_event.data = &instance->ntag4xx_event_data;
 
     instance->general_event.protocol = NfcProtocolNtag4xx;
@@ -56,7 +65,26 @@ static NfcCommand ntag4xx_poller_handler_idle(Ntag4xxPoller* instance) {
         instance->data->iso14443_4a_data,
         iso14443_4a_poller_get_data(instance->iso14443_4a_poller));
 
-    instance->state = Ntag4xxPollerStateReadVersion;
+    instance->state = Ntag4xxPollerStateRequestMode;
+    return NfcCommandContinue;
+}
+
+static NfcCommand ntag4xx_poller_handler_request_mode(Ntag4xxPoller* instance) {
+    instance->ntag4xx_event.type = Ntag4xxPollerEventTypeRequestMode;
+    instance->ntag4xx_event.data->mode_request.mode = Ntag4xxPollerModeRead;
+    instance->ntag4xx_event.data->mode_request.write_data = NULL;
+
+    NfcCommand command = instance->callback(instance->general_event, instance->context);
+    if(command != NfcCommandContinue) {
+        return command;
+    }
+
+    if(instance->mode == Ntag4xxPollerModeWrite) {
+        instance->state = Ntag4xxPollerStateWriteVersion;
+    } else {
+        instance->state = Ntag4xxPollerStateReadVersion;
+    }
+
     return NfcCommandContinue;
 }
 
@@ -74,29 +102,52 @@ static NfcCommand ntag4xx_poller_handler_read_version(Ntag4xxPoller* instance) {
     return NfcCommandContinue;
 }
 
+static NfcCommand ntag4xx_poller_handler_write_version(Ntag4xxPoller* instance) {
+    FURI_LOG_W(TAG, "Write version unsupported (NTAG4xx DNA version is read-only)");
+    iso14443_4a_poller_halt(instance->iso14443_4a_poller);
+    instance->state = Ntag4xxPollerStateWriteFailed;
+    return NfcCommandContinue;
+}
+
 static NfcCommand ntag4xx_poller_handler_read_failed(Ntag4xxPoller* instance) {
     FURI_LOG_D(TAG, "Read Failed");
     iso14443_4a_poller_halt(instance->iso14443_4a_poller);
     instance->ntag4xx_event.type = Ntag4xxPollerEventTypeReadFailed;
     instance->ntag4xx_event.data->error = instance->error;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    instance->state = Ntag4xxPollerStateIdle;
-    return command;
+    return instance->callback(instance->general_event, instance->context);
 }
 
 static NfcCommand ntag4xx_poller_handler_read_success(Ntag4xxPoller* instance) {
     FURI_LOG_D(TAG, "Read success");
     iso14443_4a_poller_halt(instance->iso14443_4a_poller);
     instance->ntag4xx_event.type = Ntag4xxPollerEventTypeReadSuccess;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    return command;
+    return instance->callback(instance->general_event, instance->context);
+}
+
+static NfcCommand ntag4xx_poller_handler_write_failed(Ntag4xxPoller* instance) {
+    FURI_LOG_D(TAG, "Write Failed");
+    iso14443_4a_poller_halt(instance->iso14443_4a_poller);
+    instance->ntag4xx_event.type = Ntag4xxPollerEventTypeWriteFailed;
+    instance->ntag4xx_event.data->error = instance->error;
+    return instance->callback(instance->general_event, instance->context);
+}
+
+static NfcCommand ntag4xx_poller_handler_write_success(Ntag4xxPoller* instance) {
+    FURI_LOG_D(TAG, "Write success");
+    iso14443_4a_poller_halt(instance->iso14443_4a_poller);
+    instance->ntag4xx_event.type = Ntag4xxPollerEventTypeWriteSuccess;
+    return instance->callback(instance->general_event, instance->context);
 }
 
 static const Ntag4xxPollerReadHandler ntag4xx_poller_read_handler[Ntag4xxPollerStateNum] = {
     [Ntag4xxPollerStateIdle] = ntag4xx_poller_handler_idle,
+    [Ntag4xxPollerStateRequestMode] = ntag4xx_poller_handler_request_mode,
     [Ntag4xxPollerStateReadVersion] = ntag4xx_poller_handler_read_version,
+    [Ntag4xxPollerStateWriteVersion] = ntag4xx_poller_handler_write_version,
     [Ntag4xxPollerStateReadFailed] = ntag4xx_poller_handler_read_failed,
     [Ntag4xxPollerStateReadSuccess] = ntag4xx_poller_handler_read_success,
+    [Ntag4xxPollerStateWriteFailed] = ntag4xx_poller_handler_write_failed,
+    [Ntag4xxPollerStateWriteSuccess] = ntag4xx_poller_handler_write_success,
 };
 
 static void ntag4xx_poller_set_callback(
@@ -126,7 +177,8 @@ static NfcCommand ntag4xx_poller_run(NfcGenericEvent event, void* context) {
         command = ntag4xx_poller_read_handler[instance->state](instance);
     } else if(iso14443_4a_event->type == Iso14443_4aPollerEventTypeError) {
         instance->ntag4xx_event.type = Ntag4xxPollerEventTypeReadFailed;
-        command = instance->callback(instance->general_event, instance->context);
+        instance->callback(instance->general_event, instance->context);
+        command = NfcCommandStop;
     }
 
     return command;

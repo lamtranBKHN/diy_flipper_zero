@@ -62,6 +62,7 @@ const NfcDeviceBase nfc_device_mf_desfire = {
 
 MfDesfireData* mf_desfire_alloc(void) {
     MfDesfireData* data = malloc(sizeof(MfDesfireData));
+    furi_check(data);
     data->iso14443_4a_data = iso14443_4a_alloc();
     data->master_key_versions = simple_array_alloc(&mf_desfire_key_version_array_config);
     data->application_ids = simple_array_alloc(&mf_desfire_app_id_array_config);

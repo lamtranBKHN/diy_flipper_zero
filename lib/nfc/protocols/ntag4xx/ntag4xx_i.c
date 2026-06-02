@@ -34,9 +34,9 @@ bool ntag4xx_version_parse(Ntag4xxVersion* data, const BitBuffer* buf) {
                            buf_size == sizeof(Ntag4xxVersion) - sizeof(data->optional);
 
     if(can_parse) {
-        bit_buffer_write_bytes(buf, data, sizeof(Ntag4xxVersion));
+        bit_buffer_write_bytes(buf, data, buf_size);
         if(buf_size < sizeof(Ntag4xxVersion)) {
-            memset(&data->optional, 0, sizeof(data->optional));
+            memset((uint8_t*)data + buf_size, 0, sizeof(Ntag4xxVersion) - buf_size);
         }
     }
 

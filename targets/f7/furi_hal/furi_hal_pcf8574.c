@@ -10,7 +10,7 @@ static bool pcf8574_ready = false;
 static uint8_t pcf8574_addr = PCF8574_I2C_ADDR;
 static uint32_t pcf8574_last_error_tick = 0;
 #define PCF8574_REINIT_COOLDOWN_MS 5000U /* Minimum ms between full I2C address scans */
-#define PCF8574_I2C_TIMEOUT_MS     50
+#define PCF8574_I2C_TIMEOUT_MS     150 /* Shared I2C1 bus (PN532+OLED), voltage drop */
 static GpioExtiCallback pcf8574_int_cb = NULL;
 static void* pcf8574_int_ctx = NULL;
 static const uint8_t pcf8574_output_mask = (1u << PCF8574_PIN_VIBRO) | (1u << PCF8574_PIN_BUZZER);
@@ -29,7 +29,9 @@ bool furi_hal_pcf8574_init(void) {
         candidates[cidx++] = a;
     }
     for(uint8_t a = 0x20; a <= 0x27; a++) {
-        candidates[cidx++] = (uint8_t)(a << 1);
+        uint8_t shifted = (uint8_t)(a << 1);
+        if(shifted == 0x48) continue; // skip PN532 I2C address
+        candidates[cidx++] = shifted;
     }
 
     for(size_t i = 0; i < cidx; i++) {

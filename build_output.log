@@ -1,0 +1,18 @@
+
+fbt: warning: Failed parsing manifest 'F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\applications\external\cli_bridge\application.fam' : Invalid appid '.cli_gui'. Must match regex 're.compile('^[a-z0-9_]+$')'
+LoadAppManifest, line 135, in file "F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\scripts\fbt_tools\fbt_apps.py"
+
+fbt: warning: Failed parsing manifest 'F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\applications\external\mtp\application.fam' : Invalid appid '.f0_mtp'. Must match regex 're.compile('^[a-z0-9_]+$')'
+LoadAppManifest, line 135, in file "F:\FB_V3\diy_flipper_zero.worktrees\copilot-worktree-2026-04-03T07-50-46\scripts\fbt_tools\fbt_apps.py"
+	INSTALL	build\f7-firmware-C\lib\libu8g2.a
+	SDKCHK	targets\f7\api_symbols.csv
+[31mAPI version is still WIP: 87.6. Review the changes and re-run command.[0m
+CSV file entries to mark up:
+[33mApiEntryFunction(name='furi_hal_pn532_in_data_exchange_ex', returns='FuriHalPn532Error', params='uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint8_t*')
+ApiEntryFunction(name='furi_hal_nfc_pn532_listener_set_felica_params', returns='void', params='const uint8_t*')
+ApiEntryFunction(name='furi_hal_pn532_poll_iso15693', returns='_Bool', params='FuriHalPn532Target*')[0m
+	CC	applications\main\archive\scenes\archive_scene_delete.c
+scons: *** [targets\f7\api_symbols.csv] SDK version is not finalized, please review changes and re-run operation. See AppsOnSDCard.md for more details
+
+[91m[1m********** FBT ERRORS **********[0m[0m
+[33mtargets\f7\api_symbols.csv[0m: SDK version is not finalized, please review changes and re-run operation. See AppsOnSDCard.md for more details

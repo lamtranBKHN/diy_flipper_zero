@@ -39,8 +39,9 @@ extern const MfClassicKey auth3_backdoor_key;
 extern const uint16_t valid_sums[19];
 
 typedef enum {
-    MfClassicAuthStateIdle,
-    MfClassicAuthStatePassed,
+    MfClassicAuthStateNever, /**< No auth attempted for this sector yet */
+    MfClassicAuthStateFailed, /**< Auth attempted and failed */
+    MfClassicAuthStatePassed, /**< Auth succeeded */
 } MfClassicAuthState;
 
 typedef enum {
@@ -148,6 +149,7 @@ typedef struct {
     uint16_t d_min;
     uint16_t d_max;
     uint8_t attempt_count;
+    uint8_t calibration_retry_count;
     KeysDict* mf_classic_system_dict;
     KeysDict* mf_classic_user_dict;
     // Hardnested
@@ -196,6 +198,9 @@ struct MfClassicPoller {
     void* context;
 
     bool pn532_mf_authed; /**< PN532 native MIFARE Classic auth active (InDataExchange) */
+    uint8_t fail_retry_count; /**< Retry count for fail -> detect loop (max 5) */
+    MfClassicAuthState
+        auth_sector_state[MF_CLASSIC_TOTAL_SECTORS_MAX]; /**< Per-sector auth result */
 };
 
 typedef struct {

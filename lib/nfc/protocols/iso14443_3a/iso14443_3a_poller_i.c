@@ -130,8 +130,40 @@ Iso14443_3aError
             instance->rx_buffer,
             ISO14443_3A_FDT_LISTEN_FC);
         if(error != NfcErrorNone) {
-            ret = Iso14443_3aErrorNotPresent;
-            break;
+            error = nfc_iso14443a_poller_trx_short_frame(
+                instance->nfc,
+                NfcIso14443aShortFrameAllReqa,
+                instance->rx_buffer,
+                ISO14443_3A_FDT_LISTEN_FC);
+            if(error != NfcErrorNone) {
+                /* Retry once on genuine communication error (not timeout/no-card).
+                 * PN532 IRQ readiness is handled by the wait loop in
+                 * furi_hal_nfc_pn532_trx_short_frame() (Fix 1).  A clean timeout
+                 * means no card present — no benefit in retrying.  Only retry
+                 * when error is a communication failure (I2C glitch, PN532
+                 * busy, etc.) to avoid doubling probe time on the no-card case.
+                 * 5ms settle delay gives I2C bus time to recover from glitch. */
+                if(error != NfcErrorTimeout) {
+                    furi_delay_ms(5);
+                    FURI_LOG_D(TAG, "Activate retry: WUPA+REQA comm error=%d, retrying...", error);
+                    error = nfc_iso14443a_poller_trx_short_frame(
+                        instance->nfc,
+                        NfcIso14443aShortFrameSensReq,
+                        instance->rx_buffer,
+                        ISO14443_3A_FDT_LISTEN_FC);
+                    if(error != NfcErrorNone) {
+                        error = nfc_iso14443a_poller_trx_short_frame(
+                            instance->nfc,
+                            NfcIso14443aShortFrameAllReqa,
+                            instance->rx_buffer,
+                            ISO14443_3A_FDT_LISTEN_FC);
+                    }
+                }
+                if(error != NfcErrorNone) {
+                    ret = Iso14443_3aErrorNotPresent;
+                    break;
+                }
+            }
         }
         if(bit_buffer_get_size_bytes(instance->rx_buffer) != sizeof(instance->col_res.sens_resp)) {
             FURI_LOG_W(TAG, "Wrong sens response size");
@@ -151,7 +183,17 @@ Iso14443_3aError
         instance->col_res.cascade_level = 0;
         instance->col_res.state = Iso14443_3aPollerColResStateStateNewCascade;
 
+        /* Max 3 cascade levels (ISO14443-3 allows 3 at most: CL1, CL2, CL3).
+         * Prevent infinite loop on stuck/malicious tags that never complete
+         * cascade (e.g. always respond with SDD_CL=0x88). 3 iterations cover
+         * all valid single/dual/triple-length UID sizes. */
+        uint8_t col_res_iterations = 0;
         while(instance->state == Iso14443_3aPollerStateColResInProgress) {
+            if(col_res_iterations++ >= 6) {
+                FURI_LOG_E(TAG, "Collision resolution exceeded max iterations, aborting");
+                ret = Iso14443_3aErrorColResFailed;
+                break;
+            }
             if(instance->col_res.state == Iso14443_3aPollerColResStateStateNewCascade) {
                 bit_buffer_set_size_bytes(instance->tx_buffer, 2);
                 bit_buffer_set_byte(

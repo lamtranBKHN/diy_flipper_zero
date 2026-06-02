@@ -114,6 +114,7 @@ const SubGhzProtocol tpms_protocol_schrader_gg4 = {
 void* tpms_protocol_decoder_schrader_gg4_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     TPMSProtocolDecoderSchraderGG4* instance = malloc(sizeof(TPMSProtocolDecoderSchraderGG4));
+    furi_check(instance);
     instance->base.protocol = &tpms_protocol_schrader_gg4;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

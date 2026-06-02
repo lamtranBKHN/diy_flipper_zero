@@ -68,6 +68,7 @@ typedef enum {
     FuriHalNfcErrorBufferOverflow, /**< Receive buffer was too small for the received data. */
     FuriHalNfcErrorIncompleteFrame, /**< Not enough data was received to parse a valid frame. */
     FuriHalNfcErrorDataFormat, /**< Cannot parse a frame due to unexpected/invalid data. */
+    FuriHalNfcErrorNotSupported, /**< Operation not supported by this NFC hardware. */
 } FuriHalNfcError;
 
 /**
@@ -490,6 +491,55 @@ bool furi_hal_nfc_quick_poll(void);
  * @param[in] key_type 0 for key A, 1 for key B
  */
 void furi_hal_nfc_mf_auth_key_store(const uint8_t* key, uint8_t key_type);
+
+/**
+ * @brief Arm Bruce-style ISO-DEP Type-4 NDEF card emulation (PN532 backend).
+ *
+ * When an NDEF message is set, the listener emulates a generic NFC-Forum
+ * Type-4 tag (ISO14443-4 / ISO-DEP) serving this message, instead of raw
+ * type-A. ISO-DEP WTX tolerates host latency, so emulation works reliably
+ * (a reader sees an ISO14443-4 NDEF tag, not a byte-exact NTAG clone).
+ * Pass msg=NULL or len=0 to disable and fall back to raw type-A emulation.
+ *
+ * @param[in] msg pointer to the raw NDEF message bytes (records only).
+ * @param[in] len NDEF message length in bytes (0 disables).
+ */
+void furi_hal_nfc_emu_set_ndef(const uint8_t* msg, size_t len);
+
+/**
+ * Set a global PN532 exchange deadline (tick).  When set,
+ * every pn532_exchange() call returns FuriHalPn532ErrorTimeout
+ * once the deadline has passed, and pn532_wait_ready_ms() clamps
+ * its individual waits to the remaining time.
+ *
+ * Use to cap the total time inside a plugin loop or other
+ * time-budgeted section that calls pn532_exchange() repeatedly.
+ * Must be matched by furi_hal_nfc_clear_exchange_deadline() on
+ * every exit path from the guarded section.
+ *
+ * @param[in] deadline_tick  Absolute tick (furi_get_tick()).
+ */
+void furi_hal_nfc_set_exchange_deadline(uint32_t deadline_tick);
+
+/**
+ * Clear the global PN532 exchange deadline.
+ * Must be called on every exit path from a section that called
+ * furi_hal_nfc_set_exchange_deadline().
+ */
+void furi_hal_nfc_clear_exchange_deadline(void);
+
+/**
+ * Release the currently-listed NFC target (InRelease on PN532 backend).
+ * 
+ * Idempotent and best-effort: safe to call when no target is active, on
+ * a fresh session, or after a prior release. No-op for non-PN532 backends
+ * (ST25R3916 uses different release semantics via set_mode).
+ * 
+ * Intended to be called at the end of every poller session to free the
+ * RF field before the next protocol's activation. Centralized in
+ * nfc_poller_free() to cover all 15 protocol pollers uniformly.
+ */
+void furi_hal_nfc_release_active_target(void);
 
 #ifdef __cplusplus
 }

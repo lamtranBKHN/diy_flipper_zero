@@ -12,6 +12,7 @@ struct SubGhzEnvironment {
 
 SubGhzEnvironment* subghz_environment_alloc(void) {
     SubGhzEnvironment* instance = malloc(sizeof(SubGhzEnvironment));
+    furi_check(instance);
 
     instance->keystore = subghz_keystore_alloc();
     instance->protocol_registry = NULL;

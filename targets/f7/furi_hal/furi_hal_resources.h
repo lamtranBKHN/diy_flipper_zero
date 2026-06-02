@@ -280,7 +280,7 @@ GND - GND
 #define SPI_SCK_Pin        LL_GPIO_PIN_5
 
 // Legacy NFC IRQ aliases required by external ST25R3916-based apps.
-// Route them to the configured board interrupt input.
+// PN532 on this DIY board does not use these pins; it uses I2C1 SCL/SDA only.
 #define NFC_IRQ_Pin       PCF8574_INT_Pin
 #define NFC_IRQ_GPIO_Port PCF8574_INT_GPIO_Port
 
@@ -292,11 +292,8 @@ GND - GND
 #define I2C_3_SCL_GPIO_Port GPIOA
 #define I2C_3_SCL_Pin       LL_GPIO_PIN_7
 /* NOTE: I2C_3_SCL (PA7) shares the same MCU pin as SPI_MOSI (PA7).
- * I2C3 is only used by furi_hal_i2c_handle_external (PN532 backend).
- * While PN532 is disabled, PA7 is exclusively owned by SPI MOSI (SW SPI wrapper).
- * If PN532 is re-enabled, concurrent I2C3 and SPI transfers on PA7 will conflict.
- * Resolution: move I2C3_SCL to PC0 (AF4, not on header) or re-enable PN532 only
- * after verifying no SPI traffic is in-flight on PA7.
+ * I2C3 is disabled on this DIY board and must not be used for PN532.
+ * PN532 is on I2C1 through furi_hal_i2c_handle_power (SCL=PA9, SDA=PB9).
  */
 #define I2C_3_SDA_GPIO_Port GPIOB
 #define I2C_3_SDA_Pin       LL_GPIO_PIN_4

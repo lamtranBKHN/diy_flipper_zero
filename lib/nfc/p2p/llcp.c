@@ -40,7 +40,11 @@ int8_t llcp_activate(uint16_t timeout_ms) {
     FuriHalPn532Error err =
         furi_hal_pn532_tg_init_as_target(dep_params, sizeof(dep_params), timeout_ms);
     if(err == FuriHalPn532ErrorNone) return 1;
-    if(err == FuriHalPn532ErrorTimeout) return 0;
+    if(err == FuriHalPn532ErrorTimeout) {
+        FURI_LOG_E(TAG, "llcp_activate: PN532 target init timed out");
+        return 0;
+    }
+    FURI_LOG_E(TAG, "llcp_activate: PN532 target init failed: %s", furi_hal_pn532_error_str(err));
     return -1;
 }
 
@@ -62,9 +66,13 @@ int8_t llcp_wait_for_connection(Llcp* llcp, uint16_t timeout_ms) {
             furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu));
             continue;
         }
+        FURI_LOG_E(TAG, "llcp_wait_for_connection: unexpected PDU type=%d", type);
         return -3;
     }
-    if(furi_get_tick() >= deadline) return -1;
+    if(furi_get_tick() >= deadline) {
+        FURI_LOG_E(TAG, "llcp_wait_for_connection: timeout waiting for CONNECT");
+        return -1;
+    }
 
     llcp->ssap = llcp_get_dsap(llcp->rx_buf);
     llcp->dsap = llcp_get_ssap(llcp->rx_buf);
@@ -73,6 +81,7 @@ int8_t llcp_wait_for_connection(Llcp* llcp, uint16_t timeout_ms) {
     llcp->tx_buf[1] = ((LlcpPduCc & 0x03) << 6) | llcp->ssap;
 
     if(furi_hal_pn532_tg_set_data(llcp->tx_buf, 2) != FuriHalPn532ErrorNone) {
+        FURI_LOG_E(TAG, "llcp_wait_for_connection: failed to send CC PDU");
         return -2;
     }
 
@@ -96,7 +105,10 @@ int8_t llcp_connect(Llcp* llcp, uint16_t timeout_ms) {
             break;
         }
     }
-    if(furi_get_tick() >= deadline) return -1;
+    if(furi_get_tick() >= deadline) {
+        FURI_LOG_E(TAG, "llcp_connect: timeout waiting for initial SYMM");
+        return -1;
+    }
 
     llcp->tx_buf[0] = (LLCP_DEFAULT_DSAP << 2) | (LlcpPduConnect >> 2);
     llcp->tx_buf[1] = ((LlcpPduConnect & 0x03) << 6) | LLCP_DEFAULT_SSAP;
@@ -110,6 +122,7 @@ int8_t llcp_connect(Llcp* llcp, uint16_t timeout_ms) {
     memcpy(&llcp->tx_buf[2], body, 17);
 
     if(furi_hal_pn532_tg_set_data(llcp->tx_buf, total_len) != FuriHalPn532ErrorNone) {
+        FURI_LOG_E(TAG, "llcp_connect: failed to send CONNECT PDU");
         return -2;
     }
 
@@ -126,9 +139,11 @@ int8_t llcp_connect(Llcp* llcp, uint16_t timeout_ms) {
             furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu));
             continue;
         }
+        FURI_LOG_E(TAG, "llcp_connect: unexpected PDU type=%d (expecting CC)", type);
         return -3;
     }
 
+    FURI_LOG_E(TAG, "llcp_connect: timeout waiting for CC");
     return -1;
 }
 
@@ -143,7 +158,11 @@ bool llcp_write(Llcp* llcp, const uint8_t* header, uint8_t hlen, const uint8_t* 
     }
 
     uint16_t total = 3 + (uint16_t)hlen + (uint16_t)blen;
-    if(total > LLCP_BUF_SIZE) return false;
+    if(total > LLCP_BUF_SIZE) {
+        FURI_LOG_E(
+            TAG, "llcp_write: payload too large: hlen=%u, blen=%u, total=%u", hlen, blen, total);
+        return false;
+    }
 
     for(int8_t i = (int8_t)hlen - 1; i >= 0; i--) {
         llcp->tx_buf[3 + i] = header[i];
@@ -156,6 +175,7 @@ bool llcp_write(Llcp* llcp, const uint8_t* header, uint8_t hlen, const uint8_t* 
     }
 
     if(furi_hal_pn532_tg_set_data(llcp->tx_buf, total) != FuriHalPn532ErrorNone) {
+        FURI_LOG_E(TAG, "llcp_write: failed to send I PDU (total=%u)", total);
         return false;
     }
 
@@ -174,11 +194,16 @@ bool llcp_write(Llcp* llcp, const uint8_t* header, uint8_t hlen, const uint8_t* 
             furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu));
             continue;
         }
+        FURI_LOG_E(TAG, "llcp_write: unexpected PDU type=%d (expecting RR)", type);
         return false;
     }
-    if(furi_get_tick() >= deadline) return false;
+    if(furi_get_tick() >= deadline) {
+        FURI_LOG_E(TAG, "llcp_write: timeout waiting for RR");
+        return false;
+    }
 
     if(furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu)) != FuriHalPn532ErrorNone) {
+        FURI_LOG_E(TAG, "llcp_write: failed to send trailing SYMM");
         return false;
     }
 
@@ -206,6 +231,7 @@ int16_t llcp_read(Llcp* llcp, uint8_t* buf, uint16_t len) {
             llcp->tx_buf[2] = (llcp->rx_buf[2] >> 4) + 1;
 
             if(furi_hal_pn532_tg_set_data(llcp->tx_buf, 3) != FuriHalPn532ErrorNone) {
+                FURI_LOG_E(TAG, "llcp_read: failed to send RR PDU");
                 return -2;
             }
 
@@ -215,13 +241,16 @@ int16_t llcp_read(Llcp* llcp, uint8_t* buf, uint16_t len) {
         }
         if(type == LlcpPduSymm) {
             if(furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu)) != FuriHalPn532ErrorNone) {
+                FURI_LOG_E(TAG, "llcp_read: failed to send SYMM during poll");
                 return -2;
             }
             continue;
         }
+        FURI_LOG_E(TAG, "llcp_read: unexpected PDU type=%d (expecting I)", type);
         return -3;
     }
 
+    FURI_LOG_E(TAG, "llcp_read: timeout waiting for I PDU");
     return -1;
 }
 
@@ -236,12 +265,16 @@ int8_t llcp_disconnect(Llcp* llcp, uint16_t timeout_ms) {
             break;
         }
     }
-    if(furi_get_tick() >= deadline) return -1;
+    if(furi_get_tick() >= deadline) {
+        FURI_LOG_E(TAG, "llcp_disconnect: timeout waiting for initial SYMM");
+        return -1;
+    }
 
     llcp->tx_buf[0] = (LLCP_DEFAULT_DSAP << 2) | (LlcpPduDisc >> 2);
     llcp->tx_buf[1] = ((LlcpPduDisc & 0x03) << 6) | LLCP_DEFAULT_SSAP;
 
     if(furi_hal_pn532_tg_set_data(llcp->tx_buf, 2) != FuriHalPn532ErrorNone) {
+        FURI_LOG_E(TAG, "llcp_disconnect: failed to send DISC PDU");
         return -2;
     }
 
@@ -256,12 +289,15 @@ int8_t llcp_disconnect(Llcp* llcp, uint16_t timeout_ms) {
         }
         if(type == LlcpPduSymm) {
             if(furi_hal_pn532_tg_set_data(symm_pdu, sizeof(symm_pdu)) != FuriHalPn532ErrorNone) {
+                FURI_LOG_E(TAG, "llcp_disconnect: failed to send SYMM during poll");
                 return -2;
             }
             continue;
         }
+        FURI_LOG_E(TAG, "llcp_disconnect: unexpected PDU type=%d (expecting DM)", type);
         return -3;
     }
 
+    FURI_LOG_E(TAG, "llcp_disconnect: timeout waiting for DM");
     return -1;
 }

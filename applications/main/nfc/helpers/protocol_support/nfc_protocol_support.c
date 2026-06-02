@@ -106,18 +106,19 @@ const char* nfc_protocol_support_plugin_names[NfcProtocolNum] = {
     [NfcProtocolIso14443_3b] = "iso14443_3b",
     [NfcProtocolIso14443_4a] = "iso14443_4a",
     [NfcProtocolIso14443_4b] = "iso14443_4b",
-    [NfcProtocolIso15693_3] = "iso15693_3",
+    [NfcProtocolIso15693_3] = NULL,
     [NfcProtocolFelica] = "felica",
     [NfcProtocolMfUltralight] = "mf_ultralight",
     [NfcProtocolMfClassic] = "mf_classic",
     [NfcProtocolMfPlus] = "mf_plus",
     [NfcProtocolMfDesfire] = "mf_desfire",
-    [NfcProtocolSlix] = "slix",
-    [NfcProtocolSt25tb] = "st25tb",
+    [NfcProtocolSlix] = NULL,
+    [NfcProtocolSt25tb] = NULL,
     [NfcProtocolNtag4xx] = "ntag4xx",
     [NfcProtocolType4Tag] = "type_4_tag",
     [NfcProtocolEmv] = "emv",
     [NfcProtocolSrix] = "srix",
+    [NfcProtocolJewel] = "jewel",
     /* Add new protocol support plugin names here */
 };
 
@@ -312,8 +313,13 @@ static void nfc_protocol_support_scene_read_on_enter(NfcApp* instance) {
     const NfcProtocol protocol = nfc_detected_protocols_get_selected(instance->detected_protocols);
     instance->poller = nfc_poller_alloc(instance->nfc, protocol);
 
-    view_dispatcher_switch_to_view(instance->view_dispatcher, NfcViewPopup);
     //nfc_supported_cards_load_cache(instance->nfc_supported_cards);
+
+    // Reset supported cards plugin state before starting a new read session.
+    // The bail-out counter is local to each read() call and resets automatically,
+    // but this API provides a clear contract and future-proofing for any
+    // instance-level state that may be added.
+    nfc_supported_cards_reset(instance->nfc_supported_cards);
 
     // Start poller with the appropriate callback
     nfc_protocol_support_get(protocol, instance)->scene_read.on_enter(instance);
@@ -345,11 +351,41 @@ static bool nfc_protocol_support_scene_read_on_event(NfcApp* instance, SceneMana
                 dolphin_deed(DolphinDeedNfcReadSuccess);
                 consumed = true;
             } else {
-                const NfcProtocol protocol =
-                    nfc_detected_protocols_get_selected(instance->detected_protocols);
-                consumed = nfc_protocol_support_get(protocol, instance)
-                               ->scene_read.on_event(instance, event);
+                // Defer ALL protocol lookup + scene transition to next main loop
+                // iteration.  nfc_protocol_support_get() may need to load a
+                // different protocol's FAP from SD card (e.g., switching from
+                // ISO14443-3A to MF Classic).  That SD I/O deep in the poller
+                // callback chain overflows the ~4KB main thread stack.
+                FURI_LOG_E(TAG, "Card read failed, deferring transition");
+                view_dispatcher_send_custom_event(
+                    instance->view_dispatcher, NfcCustomEventPollerReadFailed);
+                consumed = true;
             }
+        } else if(event.event == NfcCustomEventPollerReadFailed) {
+            // Deferred from PollerIncomplete handler to avoid stack overflow.
+            // nfc_protocol_support_get() loads a new FAP from SD, and protocol
+            // on_event may call scene_manager_next_scene — both too heavy for
+            // the deep poller callback chain.  Handle directly here instead of
+            // dispatching to protocol on_event (which checks event.event and
+            // would not match NfcCustomEventPollerReadFailed).
+            // Defensive cleanup: free any stale poller from incomplete paths
+            // that did not return NfcCommandStop (use-after-free protection).
+            if(instance->poller) {
+                nfc_poller_stop(instance->poller);
+                nfc_poller_free(instance->poller);
+                instance->poller = NULL;
+            }
+            const NfcProtocol protocol =
+                nfc_detected_protocols_get_selected(instance->detected_protocols);
+            if(protocol == NfcProtocolMfClassic) {
+                scene_manager_next_scene(instance->scene_manager, NfcSceneMfClassicDictAttack);
+            } else if(scene_manager_has_previous_scene(
+                          instance->scene_manager, NfcSceneRetryConfirm)) {
+                // Already in retry scene, ignore
+            } else {
+                scene_manager_next_scene(instance->scene_manager, NfcSceneRetryConfirm);
+            }
+            consumed = true;
         } else if(event.event == NfcCustomEventPollerFailure) {
             if(instance->poller) {
                 nfc_poller_stop(instance->poller);
@@ -886,6 +922,8 @@ static bool
 }
 
 static void nfc_protocol_support_scene_emulate_stop_listener(NfcApp* instance) {
+    if(!instance->listener) return;
+
     nfc_listener_stop(instance->listener);
 
     const NfcProtocol protocol = nfc_device_get_protocol(instance->nfc_device);
@@ -1031,29 +1069,50 @@ static void nfc_protocol_support_scene_write_on_enter(NfcApp* instance) {
 
 static bool nfc_protocol_support_scene_write_on_event(NfcApp* instance, SceneManagerEvent event) {
     bool consumed = false;
+    uint32_t epoch = instance->poller_epoch;
 
     if(event.type == SceneManagerEventTypeCustom) {
         uint32_t new_state = -1;
         bool stop_poller = false;
 
         if(event.event == NfcCustomEventCardDetected) {
+            if(epoch != instance->poller_epoch) {
+                consumed = true;
+                return consumed;
+            }
             new_state = NfcSceneWriteStateWriting;
             consumed = true;
         } else if(event.event == NfcCustomEventCardLost) {
+            if(epoch != instance->poller_epoch) {
+                consumed = true;
+                return consumed;
+            }
             new_state = NfcSceneWriteStateSearching;
             consumed = true;
         } else if(event.event == NfcCustomEventPollerSuccess) {
+            if(epoch != instance->poller_epoch) {
+                consumed = true;
+                return consumed;
+            }
             dolphin_deed(DolphinDeedNfcSave);
             notification_message(instance->notifications, &sequence_success);
             new_state = NfcSceneWriteStateSuccess;
             stop_poller = true;
             consumed = true;
         } else if(event.event == NfcCustomEventPollerFailure) {
+            if(epoch != instance->poller_epoch) {
+                consumed = true;
+                return consumed;
+            }
             notification_message(instance->notifications, &sequence_error);
             new_state = NfcSceneWriteStateFailure;
             stop_poller = true;
             consumed = true;
         } else if(event.event == NfcCustomEventWrongCard) {
+            if(epoch != instance->poller_epoch) {
+                consumed = true;
+                return consumed;
+            }
             notification_message(instance->notifications, &sequence_error);
             new_state = NfcSceneWriteStateWrongCard;
             stop_poller = true;
@@ -1062,6 +1121,7 @@ static bool nfc_protocol_support_scene_write_on_event(NfcApp* instance, SceneMan
             scene_manager_previous_scene(instance->scene_manager);
             consumed = true;
         } else if(event.event == NfcCustomEventRetry) {
+            instance->poller_epoch++;
             nfc_protocol_support_scenes[NfcProtocolSupportSceneWrite].on_exit(instance);
             nfc_protocol_support_scenes[NfcProtocolSupportSceneWrite].on_enter(instance);
             consumed = true;

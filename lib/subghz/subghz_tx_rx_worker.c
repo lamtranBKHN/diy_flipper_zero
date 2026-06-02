@@ -90,7 +90,12 @@ bool subghz_tx_rx_worker_rx(SubGhzTxRxWorker* instance, uint8_t* data, uint8_t* 
             subghz_devices_get_lqi(instance->device));
         if(subghz_devices_is_rx_data_crc_valid(instance->device)) {
             subghz_devices_read_packet(instance->device, data, size);
-            ret = true;
+            if(*size <= SUBGHZ_TXRX_WORKER_MAX_TXRX_SIZE) {
+                ret = true;
+            } else {
+                FURI_LOG_E(TAG, "RX packet too large: %d", *size);
+                *size = 0;
+            }
         }
         subghz_devices_flush_rx(instance->device);
         subghz_devices_set_rx(instance->device);
@@ -171,7 +176,7 @@ static int32_t subghz_tx_rx_worker_thread(void* context) {
                     FURI_LOG_W(TAG, "TX short read: got %zu, expected %zu", received, size_tx);
                     memset(data + received, 0, size_tx - received);
                 }
-                subghz_tx_rx_worker_tx(instance, data, size_tx);
+                subghz_tx_rx_worker_tx(instance, data, received > 0 ? received : size_tx);
             }
         } else {
             //receive
@@ -216,6 +221,7 @@ static int32_t subghz_tx_rx_worker_thread(void* context) {
 
 SubGhzTxRxWorker* subghz_tx_rx_worker_alloc(void) {
     SubGhzTxRxWorker* instance = malloc(sizeof(SubGhzTxRxWorker));
+    furi_check(instance);
 
     instance->thread =
         furi_thread_alloc_ex("SubGhzTxRxWorker", 2048, subghz_tx_rx_worker_thread, instance);

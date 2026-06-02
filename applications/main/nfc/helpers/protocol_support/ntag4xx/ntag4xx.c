@@ -46,7 +46,10 @@ static NfcCommand nfc_scene_read_poller_callback_ntag4xx(NfcGenericEvent event, 
     NfcApp* instance = context;
     const Ntag4xxPollerEvent* ntag4xx_event = event.event_data;
 
-    if(ntag4xx_event->type == Ntag4xxPollerEventTypeReadSuccess) {
+    if(ntag4xx_event->type == Ntag4xxPollerEventTypeRequestMode) {
+        ntag4xx_event->data->mode_request.mode = Ntag4xxPollerModeRead;
+        ntag4xx_event->data->mode_request.write_data = NULL;
+    } else if(ntag4xx_event->type == Ntag4xxPollerEventTypeReadSuccess) {
         nfc_device_set_data(
             instance->nfc_device, NfcProtocolNtag4xx, nfc_poller_get_data(instance->poller));
         view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerSuccess);
@@ -75,6 +78,34 @@ static void nfc_scene_read_success_on_enter_ntag4xx(NfcApp* instance) {
         instance->widget, 0, 0, 128, 52, furi_string_get_cstr(temp_str));
 
     furi_string_free(temp_str);
+}
+
+static NfcCommand nfc_scene_write_poller_callback_ntag4xx(NfcGenericEvent event, void* context) {
+    furi_assert(event.protocol == NfcProtocolNtag4xx);
+
+    NfcCommand command = NfcCommandContinue;
+
+    NfcApp* instance = context;
+    const Ntag4xxPollerEvent* ntag4xx_event = event.event_data;
+
+    if(ntag4xx_event->type == Ntag4xxPollerEventTypeRequestMode) {
+        ntag4xx_event->data->mode_request.mode = Ntag4xxPollerModeWrite;
+        ntag4xx_event->data->mode_request.write_data =
+            nfc_device_get_data(instance->nfc_device, NfcProtocolNtag4xx);
+    } else if(ntag4xx_event->type == Ntag4xxPollerEventTypeWriteSuccess) {
+        nfc_device_set_data(
+            instance->nfc_device, NfcProtocolNtag4xx, nfc_poller_get_data(instance->poller));
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerSuccess);
+        command = NfcCommandStop;
+    } else if(ntag4xx_event->type == Ntag4xxPollerEventTypeWriteFailed) {
+        command = NfcCommandReset;
+    }
+
+    return command;
+}
+
+static void nfc_scene_write_on_enter_ntag4xx(NfcApp* instance) {
+    nfc_poller_start(instance->poller, nfc_scene_write_poller_callback_ntag4xx, instance);
 }
 
 static void nfc_scene_emulate_on_enter_ntag4xx(NfcApp* instance) {
@@ -132,7 +163,7 @@ const NfcProtocolSupportBase nfc_protocol_support_ntag4xx = {
         },
     .scene_write =
         {
-            .on_enter = nfc_protocol_support_common_on_enter_empty,
+            .on_enter = nfc_scene_write_on_enter_ntag4xx,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
 };

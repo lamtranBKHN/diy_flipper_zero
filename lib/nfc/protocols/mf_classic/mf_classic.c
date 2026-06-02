@@ -1,9 +1,13 @@
 #include "mf_classic.h"
 
 #include <furi/furi.h>
+#include <core/memmgr.h>
+#include <inttypes.h>
 #include <toolbox/hex.h>
 
 #include <lib/bit_lib/bit_lib.h>
+
+#define TAG "MfClassic"
 
 #define MF_CLASSIC_PROTOCOL_NAME "Mifare Classic"
 
@@ -57,7 +61,16 @@ const NfcDeviceBase nfc_device_mf_classic = {
 };
 
 MfClassicData* mf_classic_alloc(void) {
+    const size_t free_heap = memmgr_get_free_heap();
+    if(free_heap < sizeof(MfClassicData) + 4096) {
+        FURI_LOG_W(
+            TAG,
+            "Low heap: %" PRIu32 " free, need %" PRIu32,
+            (uint32_t)free_heap,
+            (uint32_t)(sizeof(MfClassicData) + 4096U));
+    }
     MfClassicData* data = malloc(sizeof(MfClassicData));
+    furi_check(data);
     memset(data, 0, sizeof(MfClassicData));
     data->iso14443_3a_data = iso14443_3a_alloc();
     return data;
@@ -73,6 +86,9 @@ void mf_classic_free(MfClassicData* data) {
 void mf_classic_reset(MfClassicData* data) {
     furi_check(data);
 
+    Iso14443_3aData* iso_data = data->iso14443_3a_data;
+    memset(data, 0, sizeof(MfClassicData));
+    data->iso14443_3a_data = iso_data;
     iso14443_3a_reset(data->iso14443_3a_data);
 }
 
@@ -199,11 +215,12 @@ bool mf_classic_load(MfClassicData* data, FlipperFormat* ff, uint32_t version) {
         furi_string_free(block_str);
         if(!block_read) break;
 
-        // Set keys and blocks as unknown for backward compatibility
+        // Old-format files don't store key/block masks, but the actual key bytes
+        // and block data were already parsed above. Preserve the data so get_key()
+        // and block reads work correctly. Only clear masks if the file truly
+        // has no key data (all zeros in sector trailers).
         if(old_format) {
-            data->key_a_mask = 0ULL;
-            data->key_b_mask = 0ULL;
-            memset(data->block_read_mask, 0, sizeof(data->block_read_mask));
+            // Don't zero masks — the parsed data is valid
         }
 
         parsed = true;
@@ -365,12 +382,16 @@ bool mf_classic_set_uid(MfClassicData* data, const uint8_t* uid, size_t uid_len)
         memcpy(block, data->iso14443_3a_data->uid, uid_len);
 
         if(uid_len == 4) {
-            // Calculate BCC byte
+            // Single-size UID: BCC = UID0 ^ UID1 ^ UID2 ^ UID3
             block[uid_len] = 0;
 
             for(size_t i = 0; i < uid_len; i++) {
                 block[uid_len] ^= block[i];
             }
+        } else if(uid_len == 7) {
+            // Double-size UID: block layout = UID0 UID1 UID2 CT BCC UID3 UID4 UID5 UID6
+            // BCC = UID0 ^ UID1 ^ UID2 ^ CT
+            block[4] = block[0] ^ block[1] ^ block[2] ^ block[3];
         }
     }
 
@@ -555,6 +576,12 @@ MfClassicKey
     furi_check(sector_num < mf_classic_get_total_sectors_num(data->type));
     furi_check(key_type == MfClassicKeyTypeA || key_type == MfClassicKeyTypeB);
 
+    // Return zero key if not found (prevents use of stale/uninitialized data)
+    if(!mf_classic_is_key_found(data, sector_num, key_type)) {
+        MfClassicKey empty_key = {0};
+        return empty_key;
+    }
+
     const MfClassicSectorTrailer* sector_trailer =
         mf_classic_get_sector_trailer_by_sector(data, sector_num);
 
@@ -631,6 +658,39 @@ void mf_classic_get_read_sectors_and_keys(
             *sectors_read += 1;
         }
     }
+}
+
+MfClassicSectorState mf_classic_get_sector_state(const MfClassicData* data, uint8_t sector_num) {
+    furi_check(data);
+    furi_check(sector_num < mf_classic_get_total_sectors_num(data->type));
+
+    MfClassicSectorState state;
+    state.is_authed_a = mf_classic_is_key_found(data, sector_num, MfClassicKeyTypeA);
+    state.is_authed_b = mf_classic_is_key_found(data, sector_num, MfClassicKeyTypeB);
+    state.has_valid_ac = false;
+    state.is_read = false;
+
+    uint8_t sec_tr_block = mf_classic_get_sector_trailer_num_by_sector(sector_num);
+    if(mf_classic_is_block_read(data, sec_tr_block)) {
+        const MfClassicSectorTrailer* sec_tr =
+            mf_classic_get_sector_trailer_by_sector(data, sector_num);
+        uint8_t zero_check = 0;
+        for(size_t i = 0; i < MF_CLASSIC_ACCESS_BYTES_SIZE; i++) {
+            zero_check |= sec_tr->access_bits.data[i];
+        }
+        state.has_valid_ac = (zero_check != 0);
+    }
+
+    uint8_t start_block = mf_classic_get_first_block_num_of_sector(sector_num);
+    uint8_t total_blocks = mf_classic_get_blocks_num_in_sector(sector_num);
+    bool blocks_read = true;
+    for(size_t i = start_block; i < start_block + total_blocks; i++) {
+        blocks_read = mf_classic_is_block_read(data, i);
+        if(!blocks_read) break;
+    }
+    state.is_read = blocks_read;
+
+    return state;
 }
 
 bool mf_classic_is_card_read(const MfClassicData* data) {
@@ -717,7 +777,7 @@ bool mf_classic_is_allowed_access_data_block(
     }
 
     uint8_t sector_block = 0;
-    if(block_num <= 128) {
+    if(block_num < 128) {
         sector_block = block_num & 0x03;
     } else {
         sector_block = (block_num & 0x0f) / 5;
@@ -765,6 +825,69 @@ bool mf_classic_is_allowed_access_data_block(
     default:
         return false;
     }
+}
+
+bool mf_classic_parse_mad(const MfClassicData* data, MfClassicMad* mad) {
+    furi_check(data);
+    furi_check(mad);
+
+    memset(mad, 0, sizeof(MfClassicMad));
+
+    const size_t sector_count = mf_classic_get_total_sectors_num(data->type);
+
+    // MAD layout per NXP AN10787:
+    // MAD1: block 1 (sector 0), 15 AIDs at bytes 2-31
+    // MAD2: block 64 (sector 16), 23 AIDs at bytes 2-47
+    // Each AID: 2 bytes (function_cluster, application_code)
+    // Byte 0 of block = info byte, byte 1 = CRC
+    // Key A of MAD sectors must be A0A1A2A3A4A5
+
+    const struct {
+        uint8_t block;
+        uint8_t aid_count;
+        uint8_t sector;
+    } mads[] = {
+        {MF_CLASSIC_MAD1_BLOCK, MF_CLASSIC_MAD1_AID_COUNT, 0},
+        {MF_CLASSIC_MAD2_BLOCK, MF_CLASSIC_MAD2_AID_COUNT, 16},
+    };
+
+    uint8_t total_aids = 0;
+
+    for(uint8_t m = 0; m < COUNT_OF(mads); m++) {
+        const uint8_t block = mads[m].block;
+        const uint8_t sector = mads[m].sector;
+
+        if(sector_count <= sector) continue;
+        if(!mf_classic_is_block_read(data, block)) continue;
+
+        // Verify MAD key
+        const MfClassicSectorTrailer* sec_tr =
+            mf_classic_get_sector_trailer_by_sector(data, sector);
+        const uint64_t key_a =
+            bit_lib_bytes_to_num_be(sec_tr->key_a.data, COUNT_OF(sec_tr->key_a.data));
+        if(key_a != MF_CLASSIC_MAD_KEY) continue;
+
+        // Parse info byte and AIDs
+        const uint8_t* block_data = data->block[block].data;
+        if(m == 0) {
+            mad->info_byte = block_data[0];
+            mad->version = (block_data[0] & 0x03); // bits 0-1: MAD version
+        }
+
+        for(uint8_t i = 0; i < mads[m].aid_count; i++) {
+            const uint8_t* aid = &block_data[2 + i * MF_CLASSIC_MAD_AID_SIZE];
+            // AID 0x0000 = unassigned, skip
+            if(aid[0] == 0x00 && aid[1] == 0x00) continue;
+            if(total_aids < COUNT_OF(mad->entries)) {
+                mad->entries[total_aids].function_cluster = aid[0];
+                mad->entries[total_aids].application_code = aid[1];
+                total_aids++;
+            }
+        }
+    }
+
+    mad->aid_count = total_aids;
+    return total_aids > 0;
 }
 
 bool mf_classic_is_allowed_access(

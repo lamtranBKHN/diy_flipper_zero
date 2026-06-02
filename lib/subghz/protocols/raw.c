@@ -220,6 +220,7 @@ size_t subghz_protocol_raw_get_sample_write(SubGhzProtocolDecoderRAW* instance) 
 void* subghz_protocol_decoder_raw_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderRAW* instance = malloc(sizeof(SubGhzProtocolDecoderRAW));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_raw;
     instance->upload_raw = NULL;
     instance->ind_write = 0;
@@ -281,6 +282,7 @@ void subghz_protocol_decoder_raw_get_string(void* context, FuriString* output) {
 void* subghz_protocol_encoder_raw_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderRAW* instance = malloc(sizeof(SubGhzProtocolEncoderRAW));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_raw;
     instance->file_name = furi_string_alloc();

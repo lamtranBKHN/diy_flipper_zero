@@ -102,6 +102,7 @@ static void subghz_protocol_keeloq_check_remote_controller(
 
 void* subghz_protocol_encoder_keeloq_alloc(SubGhzEnvironment* environment) {
     SubGhzProtocolEncoderKeeloq* instance = malloc(sizeof(SubGhzProtocolEncoderKeeloq));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_keeloq;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -620,6 +621,7 @@ LevelDuration subghz_protocol_encoder_keeloq_yield(void* context) {
 
 void* subghz_protocol_decoder_keeloq_alloc(SubGhzEnvironment* environment) {
     SubGhzProtocolDecoderKeeloq* instance = malloc(sizeof(SubGhzProtocolDecoderKeeloq));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_keeloq;
     instance->generic.protocol_name = instance->base.protocol->name;
     instance->keystore = subghz_environment_get_keystore(environment);

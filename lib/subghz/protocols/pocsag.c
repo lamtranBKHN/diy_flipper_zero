@@ -73,6 +73,7 @@ void* subghz_protocol_decoder_pocsag_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
 
     SubGhzProtocolDecoderPocsag* instance = malloc(sizeof(SubGhzProtocolDecoderPocsag));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_pocsag;
     instance->generic.protocol_name = instance->base.protocol->name;
     instance->msg = furi_string_alloc();

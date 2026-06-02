@@ -1,6 +1,8 @@
 #include <update_util/resources/manifest.h>
+#ifndef FURI_HAL_NFC_PN532_ONLY
 #include <nfc/protocols/slix/slix_i.h>
 #include <nfc/protocols/iso15693_3/iso15693_3_poller_i.h>
+#endif
 #include <FreeRTOS.h>
 #include <FreeRTOS-Kernel/include/queue.h>
 #include <task.h>
@@ -13,8 +15,10 @@ static constexpr auto unit_tests_api_table = sort(create_array_t<sym_entry>(
     API_METHOD(resource_manifest_reader_open, bool, (ResourceManifestReader*, const char*)),
     API_METHOD(resource_manifest_reader_next, ResourceManifestEntry*, (ResourceManifestReader*)),
     API_METHOD(resource_manifest_reader_previous, ResourceManifestEntry*, (ResourceManifestReader*)),
+#ifndef FURI_HAL_NFC_PN532_ONLY
     API_METHOD(slix_process_iso15693_3_error, SlixError, (Iso15693_3Error)),
     API_METHOD(iso15693_3_poller_get_data, const Iso15693_3Data*, (Iso15693_3Poller*)),
+#endif
     API_METHOD(rpc_system_storage_get_error, PB_CommandStatus, (FS_Error)),
     API_METHOD(xQueueSemaphoreTake, BaseType_t, (QueueHandle_t, TickType_t)),
     API_METHOD(

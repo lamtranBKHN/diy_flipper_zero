@@ -92,6 +92,9 @@ typedef enum {
 typedef struct {
     MfClassicPollerMode mode; /**< Mode to be used by poller. */
     const MfClassicData* data; /**< Data to be used by poller. */
+    MfClassicNestedPhase nested_phase; /**< Injected nested attack phase. */
+    MfClassicPrngType prng_type; /**< Injected PRNG type. */
+    MfClassicBackdoor backdoor; /**< Injected Backdoor type. */
 } MfClassicPollerEventDataRequestMode;
 
 /**

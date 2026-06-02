@@ -96,6 +96,7 @@ static void subghz_protocol_nice_flor_s_remote_controller(
 
 void* subghz_protocol_encoder_nice_flor_s_alloc(SubGhzEnvironment* environment) {
     SubGhzProtocolEncoderNiceFlorS* instance = malloc(sizeof(SubGhzProtocolEncoderNiceFlorS));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_nice_flor_s;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -516,6 +517,7 @@ bool subghz_protocol_nice_flor_s_create_data(
 
 void* subghz_protocol_decoder_nice_flor_s_alloc(SubGhzEnvironment* environment) {
     SubGhzProtocolDecoderNiceFlorS* instance = malloc(sizeof(SubGhzProtocolDecoderNiceFlorS));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_nice_flor_s;
     instance->generic.protocol_name = instance->base.protocol->name;
     instance->nice_flor_s_rainbow_table_file_name =

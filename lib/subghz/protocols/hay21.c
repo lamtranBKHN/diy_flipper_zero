@@ -73,6 +73,7 @@ const SubGhzProtocol subghz_protocol_hay21 = {
 void* subghz_protocol_encoder_hay21_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderHay21* instance = malloc(sizeof(SubGhzProtocolEncoderHay21));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_hay21;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -312,6 +313,7 @@ LevelDuration subghz_protocol_encoder_hay21_yield(void* context) {
 void* subghz_protocol_decoder_hay21_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderHay21* instance = malloc(sizeof(SubGhzProtocolDecoderHay21));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_hay21;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

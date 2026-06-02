@@ -100,6 +100,7 @@ const SubGhzProtocol ws_protocol_acurite_592txr = {
 void* ws_protocol_decoder_acurite_592txr_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderAcurite_592TXR* instance = malloc(sizeof(WSProtocolDecoderAcurite_592TXR));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_acurite_592txr;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;
@@ -293,6 +294,7 @@ void ws_protocol_decoder_acurite_592txr_get_string(void* context, FuriString* ou
 void* ws_protocol_encoder_acurite_592txr_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolEncoderAcurite_592TXR* instance = malloc(sizeof(WSProtocolEncoderAcurite_592TXR));
+    furi_check(instance);
 
     instance->base.protocol = &ws_protocol_acurite_592txr;
     instance->generic.protocol_name = instance->base.protocol->name;

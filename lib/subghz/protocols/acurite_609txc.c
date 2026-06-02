@@ -84,6 +84,7 @@ const SubGhzProtocol ws_protocol_acurite_609txc = {
 void* ws_protocol_decoder_acurite_609txc_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderAcurite_609TXC* instance = malloc(sizeof(WSProtocolDecoderAcurite_609TXC));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_acurite_609txc;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

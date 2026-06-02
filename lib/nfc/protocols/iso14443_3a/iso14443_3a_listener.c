@@ -28,9 +28,14 @@ Iso14443_3aListener* iso14443_3a_listener_alloc(Nfc* nfc, Iso14443_3aData* data)
     furi_assert(nfc);
 
     Iso14443_3aListener* instance = malloc(sizeof(Iso14443_3aListener));
+    furi_check(instance);
+
     instance->nfc = nfc;
     instance->data = data;
     instance->tx_buffer = bit_buffer_alloc(ISO14443_3A_LISTENER_MAX_BUFFER_SIZE);
+    instance->state = Iso14443_3aListenerStateIdle;
+    instance->callback = NULL;
+    instance->context = NULL;
 
     instance->iso14443_3a_event.data = &instance->iso14443_3a_event_data;
     instance->generic_event.protocol = NfcProtocolIso14443_3a;

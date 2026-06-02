@@ -48,6 +48,7 @@ const NfcDeviceBase nfc_device_mf_plus = {
 
 MfPlusData* mf_plus_alloc(void) {
     MfPlusData* data = malloc(sizeof(MfPlusData));
+    furi_check(data);
     data->device_name = furi_string_alloc();
     data->iso14443_4a_data = iso14443_4a_alloc();
 
@@ -80,6 +81,8 @@ void mf_plus_reset(MfPlusData* data) {
 void mf_plus_copy(MfPlusData* data, const MfPlusData* other) {
     furi_check(data);
     furi_check(other);
+
+    mf_plus_reset(data);
 
     iso14443_4a_copy(data->iso14443_4a_data, other->iso14443_4a_data);
     data->version = other->version;

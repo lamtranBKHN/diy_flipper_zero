@@ -169,6 +169,7 @@ static MfUltralightCommand
 
         MfUltralightPage pages[64] = {};
         uint8_t page_cnt = (end_page - start_page) + 1;
+        if(page_cnt > 64) page_cnt = 64;
         mf_ultralight_listener_perform_read(pages, instance, start_page, page_cnt, do_i2c_check);
 
         bit_buffer_copy_bytes(instance->tx_buffer, (uint8_t*)pages, page_cnt * 4);
@@ -570,9 +571,14 @@ static MfUltralightCommand
 
         mf_ultralight_3des_shift_data(rndA);
         mf_ultralight_3des_shift_data(instance->rndB);
-        if(memcmp(decoded_shifted_rndB, instance->rndB, sizeof(instance->rndB)) == 0) {
-            instance->auth_state = MfUltralightListenerAuthStateSuccess;
+        if(memcmp(decoded_shifted_rndB, instance->rndB, sizeof(instance->rndB)) != 0) {
+            /* Authentication failed: 3DES decrypted value did not match
+             * our rndB. Do NOT send the encrypted rndA back — that would
+             * leak crypto material to an unauthorized reader. Return NAK. */
+            FURI_LOG_W(TAG, "AUTH_2: 3DES mutual auth failed");
+            break;
         }
+        instance->auth_state = MfUltralightListenerAuthStateSuccess;
 
         mf_ultralight_3des_encrypt(
             &instance->des_context, ck, iv, rndA, MF_ULTRALIGHT_C_AUTH_RND_BLOCK_SIZE, rndA);
@@ -742,6 +748,8 @@ MfUltralightListener* mf_ultralight_listener_alloc(
     furi_assert(iso14443_3a_listener);
 
     MfUltralightListener* instance = malloc(sizeof(MfUltralightListener));
+    furi_check(instance);
+
     instance->mirror.ascii_mirror_data = furi_string_alloc();
     instance->iso14443_3a_listener = iso14443_3a_listener;
     instance->data = data;
@@ -749,6 +757,7 @@ MfUltralightListener* mf_ultralight_listener_alloc(
     mf_ultralight_listener_prepare_emulation(instance);
     mf_ultralight_composite_command_reset(instance);
     instance->sector = 0;
+    instance->auth_state = MfUltralightListenerAuthStateIdle;
     instance->tx_buffer = bit_buffer_alloc(MF_ULTRALIGHT_LISTENER_MAX_TX_BUFF_SIZE);
 
     instance->mfu_event.data = &instance->mfu_event_data;

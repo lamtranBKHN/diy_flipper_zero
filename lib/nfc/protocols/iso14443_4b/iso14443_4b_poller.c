@@ -18,11 +18,16 @@ const Iso14443_4bData* iso14443_4b_poller_get_data(Iso14443_4bPoller* instance) 
 
 static Iso14443_4bPoller* iso14443_4b_poller_alloc(Iso14443_3bPoller* iso14443_3b_poller) {
     Iso14443_4bPoller* instance = malloc(sizeof(Iso14443_4bPoller));
+    furi_check(instance);
     instance->iso14443_3b_poller = iso14443_3b_poller;
     instance->data = iso14443_4b_alloc();
+    furi_check(instance->data);
     instance->iso14443_4_layer = iso14443_4_layer_alloc();
+    furi_check(instance->iso14443_4_layer);
     instance->tx_buffer = bit_buffer_alloc(ISO14443_4A_POLLER_BUF_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(ISO14443_4A_POLLER_BUF_SIZE);
+    furi_check(instance->rx_buffer);
 
     instance->iso14443_4b_event.data = &instance->iso14443_4b_event_data;
 
@@ -56,9 +61,11 @@ static NfcCommand iso14443_4b_poller_handler_idle(Iso14443_4bPoller* instance) {
 static NfcCommand iso14443_4b_poller_handler_error(Iso14443_4bPoller* instance) {
     iso14443_3b_poller_halt(instance->iso14443_3b_poller);
     instance->iso14443_4b_event_data.error = instance->error;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    instance->poller_state = Iso14443_4bPollerStateIdle;
-    return command;
+    instance->callback(instance->general_event, instance->context);
+    // Stay in Error state — returning to Idle on error would restart the read
+    // cycle indefinitely since the app callback returns NfcCommandContinue
+    // for non-Ready events (same anti-pattern as other NFC pollers).
+    return NfcCommandStop;
 }
 
 static NfcCommand iso14443_4b_poller_handler_ready(Iso14443_4bPoller* instance) {

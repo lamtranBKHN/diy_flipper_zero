@@ -78,9 +78,11 @@ static NfcCommand iso14443_4a_poller_handler_read_ats(Iso14443_4aPoller* instanc
 static NfcCommand iso14443_4a_poller_handler_error(Iso14443_4aPoller* instance) {
     iso14443_3a_poller_halt(instance->iso14443_3a_poller);
     instance->iso14443_4a_event_data.error = instance->error;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    instance->poller_state = Iso14443_4aPollerStateIdle;
-    return command;
+    instance->callback(instance->general_event, instance->context);
+    // Stay in Error state — returning to Idle on error would restart the read
+    // cycle indefinitely since the app callback returns NfcCommandContinue
+    // for non-ReadReady events (same pattern as MF Ultralight poller fix).
+    return NfcCommandStop;
 }
 
 static NfcCommand iso14443_4a_poller_handler_ready(Iso14443_4aPoller* instance) {
@@ -146,6 +148,11 @@ static bool iso14443_4a_poller_detect(NfcGenericEvent event, void* context) {
 
     if(iso14443_3a_event->type == Iso14443_3aPollerEventTypeReady) {
         protocol_detected = iso14443_3a_supports_iso14443_4(instance->data->iso14443_3a_data);
+        if(protocol_detected) {
+            FURI_LOG_I(TAG, "ISO 14443-4A (ISO-DEP) card detected");
+        } else {
+            FURI_LOG_D(TAG, "Not an ISO 14443-4A (ISO-DEP) card");
+        }
     }
 
     return protocol_detected;

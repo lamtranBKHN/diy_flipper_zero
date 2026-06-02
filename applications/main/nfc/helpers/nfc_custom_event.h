@@ -28,6 +28,7 @@ typedef enum {
 
     NfcCustomEventPollerSuccess,
     NfcCustomEventPollerIncomplete,
+    NfcCustomEventPollerReadFailed, // Deferred: read fail → dict attack (avoids stack overflow)
     NfcCustomEventPollerFailure,
 
     NfcCustomEventListenerUpdate,

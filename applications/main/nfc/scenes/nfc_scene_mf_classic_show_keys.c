@@ -28,8 +28,9 @@ void nfc_scene_mf_classic_show_keys_on_enter(void* context) {
     for(uint8_t i = 0; i < num_sectors; i++) {
         MfClassicSectorTrailer* sec_tr = mf_classic_get_sector_trailer_by_sector(mfc_data, i);
 
-        bool key_a = FURI_BIT(mfc_data->key_a_mask, i);
-        bool key_b = FURI_BIT(mfc_data->key_b_mask, i);
+        MfClassicSectorState state = mf_classic_get_sector_state(mfc_data, i);
+        bool key_a = state.is_authed_a;
+        bool key_b = state.is_authed_b;
 
         if(key_a || key_b) {
             furi_string_cat_printf(instance->text_box_store, "\n  -> Sector %d\n\e*AccBits:", i);

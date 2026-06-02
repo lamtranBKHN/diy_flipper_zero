@@ -18,6 +18,10 @@ FuriHalNfcError furi_hal_nfc_event_start(void) {
     furi_hal_nfc_event->thread = furi_thread_get_current_id();
     FURI_LOG_D(TAG, "Event system started for thread ID: %p", furi_hal_nfc_event->thread);
     furi_thread_flags_clear(FURI_HAL_NFC_EVENT_INTERNAL_ALL);
+    /* Clear stale PN532 event queue — timer events from previous detection
+     * cycle persist across nfc_stop/nfc_start. Without this reset, ready_handler
+     * immediately receives stale TxEnd/RxEnd events and reports abort. */
+    furi_hal_nfc_pn532_queue_reset();
 
     return FuriHalNfcErrorNone;
 }
@@ -43,7 +47,7 @@ void furi_hal_nfc_event_set(FuriHalNfcEventInternalType event) {
 }
 
 FuriHalNfcError furi_hal_nfc_abort(void) {
-    FURI_LOG_D(TAG, "Abort requested from thread %p", furi_thread_get_current_id());
+    FURI_LOG_W(TAG, "Abort requested from thread %p", furi_thread_get_current_id());
     if(!furi_hal_nfc_event) return FuriHalNfcErrorNone;
     if(!furi_hal_nfc_event->thread) return FuriHalNfcErrorNone;
     furi_hal_nfc_event_set(FuriHalNfcEventInternalTypeAbort);

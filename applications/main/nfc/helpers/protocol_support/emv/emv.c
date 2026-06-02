@@ -39,6 +39,10 @@ static NfcCommand nfc_scene_read_poller_callback_emv(NfcGenericEvent event, void
             instance->nfc_device, NfcProtocolEmv, nfc_poller_get_data(instance->poller));
         view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerSuccess);
         return NfcCommandStop;
+    } else if(emv_event->type == EmvPollerEventTypeReadFailed) {
+        /* Surface the error to the user instead of silently retrying. */
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventPollerFailure);
+        return NfcCommandStop;
     }
 
     return NfcCommandContinue;
@@ -77,6 +81,19 @@ static void nfc_scene_read_success_on_enter_emv(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
+static void nfc_scene_more_info_on_enter_emv(NfcApp* instance) {
+    const NfcDevice* device = instance->nfc_device;
+    const EmvData* data = nfc_device_get_data(device, NfcProtocolEmv);
+
+    FuriString* temp_str = furi_string_alloc();
+    nfc_render_emv_dump(data, temp_str);
+
+    widget_add_text_scroll_element(
+        instance->widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
+
+    furi_string_free(temp_str);
+}
+
 static bool nfc_scene_read_menu_on_event_emv(NfcApp* instance, SceneManagerEvent event) {
     bool consumed = false;
 
@@ -91,7 +108,7 @@ static bool nfc_scene_read_menu_on_event_emv(NfcApp* instance, SceneManagerEvent
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_emv = {
-    .features = NfcProtocolFeatureNone,
+    .features = NfcProtocolFeatureMoreInfo,
 
     .scene_info =
         {
@@ -100,7 +117,7 @@ const NfcProtocolSupportBase nfc_protocol_support_emv = {
         },
     .scene_more_info =
         {
-            .on_enter = nfc_protocol_support_common_on_enter_empty,
+            .on_enter = nfc_scene_more_info_on_enter_emv,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
     .scene_read =

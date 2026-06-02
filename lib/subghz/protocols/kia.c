@@ -76,6 +76,7 @@ const SubGhzProtocol subghz_protocol_kia = {
 void* subghz_protocol_decoder_kia_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderKIA* instance = malloc(sizeof(SubGhzProtocolDecoderKIA));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_kia;
     instance->generic.protocol_name = instance->base.protocol->name;
 

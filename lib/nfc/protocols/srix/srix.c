@@ -30,6 +30,7 @@ const NfcDeviceBase nfc_device_srix = {
 
 SrixData* srix_alloc(void) {
     SrixData* data = malloc(sizeof(SrixData));
+    furi_check(data);
     return data;
 }
 

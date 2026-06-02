@@ -1,5 +1,7 @@
 #include "iso14443_3b_render.h"
 
+#include <nfc/protocols/iso14443_3b/iso14443_3b_i.h>
+
 void nfc_render_iso14443_3b_info(
     const Iso14443_3bData* data,
     NfcProtocolFormatType format_type,
@@ -74,5 +76,54 @@ void nfc_render_iso14443_3b_info(
     const uint8_t* app_data = iso14443_3b_get_application_data(data, &app_data_size);
     for(size_t i = 0; i < app_data_size; ++i) {
         furi_string_cat_printf(str, " %02X", app_data[i]);
+    }
+}
+
+void nfc_render_iso14443_3b_dump(const Iso14443_3bData* data, FuriString* str) {
+    furi_assert(data);
+    furi_assert(str);
+
+    furi_string_cat_printf(
+        str,
+        "Raw ATQB (%zu bytes):\n",
+        (size_t)ISO14443_3B_UID_SIZE + ISO14443_3B_APP_DATA_SIZE +
+            sizeof(Iso14443_3bProtocolInfo));
+
+    // UID (4 bytes)
+    size_t uid_size;
+    const uint8_t* uid = iso14443_3b_get_uid(data, &uid_size);
+    furi_string_cat_printf(str, "UID:  ");
+    for(size_t i = 0; i < uid_size; i++) {
+        furi_string_cat_printf(str, "%02X ", uid[i]);
+    }
+    furi_string_cat_printf(str, "\n");
+
+    // Application Data (4 bytes)
+    size_t app_data_size;
+    const uint8_t* app_data = iso14443_3b_get_application_data(data, &app_data_size);
+    furi_string_cat_printf(str, "App:  ");
+    for(size_t i = 0; i < app_data_size; i++) {
+        furi_string_cat_printf(str, "%02X ", app_data[i]);
+    }
+    furi_string_cat_printf(str, "\n");
+
+    // Protocol Info raw (4 bytes)
+    const uint8_t* proto_raw = (const uint8_t*)&data->protocol_info;
+    furi_string_cat_printf(str, "Proto:");
+    for(size_t i = 0; i < sizeof(data->protocol_info); i++) {
+        furi_string_cat_printf(str, " %02X", proto_raw[i]);
+    }
+    furi_string_cat_printf(str, "\n");
+
+    // Full hex dump in 8-byte rows
+    furi_string_cat_printf(str, "\n--- Raw Hex Dump ---\n");
+    const uint8_t* all_bytes = (const uint8_t*)data;
+    const size_t total = sizeof(Iso14443_3bData);
+    for(size_t i = 0; i < total; i += 8) {
+        furi_string_cat_printf(str, "%04zX:", i);
+        for(size_t j = 0; j < 8 && (i + j) < total; j++) {
+            furi_string_cat_printf(str, " %02X", all_bytes[i + j]);
+        }
+        furi_string_cat_printf(str, "\n");
     }
 }

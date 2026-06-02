@@ -3,8 +3,6 @@
 
 #define TAG "NfcMfUlCDictAttack"
 
-// TODO: Support card_detected properly
-
 enum {
     DictAttackStateUserDictInProgress,
     DictAttackStateSystemDictInProgress,
@@ -19,6 +17,8 @@ NfcCommand nfc_mf_ultralight_c_dict_attack_worker_callback(NfcGenericEvent event
     MfUltralightPollerEvent* poller_event = event.event_data;
 
     if(poller_event->type == MfUltralightPollerEventTypeRequestMode) {
+        instance->mf_ultralight_c_dict_context.is_card_present = true;
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventCardDetected);
         poller_event->data->poller_mode = MfUltralightPollerModeDictAttack;
         command = NfcCommandContinue;
     } else if(poller_event->type == MfUltralightPollerEventTypeRequestKey) {
@@ -53,6 +53,10 @@ NfcCommand nfc_mf_ultralight_c_dict_attack_worker_callback(NfcGenericEvent event
         view_dispatcher_send_custom_event(
             instance->view_dispatcher, NfcCustomEventDictAttackComplete);
         command = NfcCommandStop;
+    } else if(poller_event->type == MfUltralightPollerEventTypeReadFailed) {
+        instance->mf_ultralight_c_dict_context.is_card_present = false;
+        view_dispatcher_send_custom_event(instance->view_dispatcher, NfcCustomEventCardLost);
+        command = NfcCommandContinue;
     }
     return command;
 }
@@ -153,7 +157,18 @@ bool nfc_scene_mf_ultralight_c_dict_attack_on_event(void* context, SceneManagerE
         scene_manager_get_scene_state(instance->scene_manager, NfcSceneMfUltralightCDictAttack);
 
     if(event.type == SceneManagerEventTypeCustom) {
-        if(event.event == NfcCustomEventDictAttackComplete) {
+        if(event.event == NfcCustomEventCardDetected) {
+            dict_attack_set_card_state(instance->dict_attack, true);
+            consumed = true;
+        } else if(event.event == NfcCustomEventCardLost) {
+            dict_attack_set_card_state(instance->dict_attack, false);
+            consumed = true;
+        } else if(event.event == NfcCustomEventDictAttackComplete) {
+            if(!instance->poller) {
+                FURI_LOG_W(TAG, "Stale DictAttackComplete ignored: poller NULL");
+                consumed = true;
+                return consumed;
+            }
             if(state == DictAttackStateUserDictInProgress) {
                 if(instance->mf_ultralight_c_dict_context.auth_success) {
                     notification_message(instance->notifications, &sequence_success);

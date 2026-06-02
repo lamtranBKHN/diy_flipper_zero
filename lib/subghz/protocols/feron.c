@@ -73,6 +73,7 @@ const SubGhzProtocol subghz_protocol_feron = {
 void* subghz_protocol_encoder_feron_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderFeron* instance = malloc(sizeof(SubGhzProtocolEncoderFeron));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_feron;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -203,6 +204,7 @@ LevelDuration subghz_protocol_encoder_feron_yield(void* context) {
 void* subghz_protocol_decoder_feron_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderFeron* instance = malloc(sizeof(SubGhzProtocolDecoderFeron));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_feron;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

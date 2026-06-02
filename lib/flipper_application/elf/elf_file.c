@@ -687,33 +687,42 @@ static bool elf_file_find_string_by_hash(ELFFile* elf, uint32_t hash, FuriString
 
 static bool elf_relocate_fast(ELFFile* elf, ELFSection* s) {
     UNUSED(elf);
-    const uint8_t* start = s->fast_rel->data;
-    const uint8_t version = *start;
+    const uint8_t* const data_start = s->fast_rel->data;
+    const uint8_t* const data_end = data_start + s->fast_rel->size;
+    const uint8_t* start = data_start;
     bool no_errors = true;
 
+    if(start + 1 > data_end) return false;
+    const uint8_t version = *start;
     if(version != FAST_RELOCATION_VERSION) {
         FURI_LOG_E(TAG, "Unsupported fast relocation version %d", version);
         return false;
     }
     start += 1;
 
+    if(start + 4 > data_end) return false;
     const uint32_t records_count = *((uint32_t*)start);
     start += 4;
     FURI_LOG_D(TAG, "Fast relocation records count: %ld", records_count);
 
-    for(uint32_t i = 0; i < records_count; i++) {
+    for(uint32_t i = 0; i < records_count && no_errors; i++) {
+        if(start + 1 > data_end) { no_errors = false; break; }
         bool is_section = (*start & (0x1 << 7)) ? true : false;
         uint8_t type = *start & 0x7F;
         start += 1;
+
+        if(start + 4 > data_end) { no_errors = false; break; }
         uint32_t hash_or_section_index = *((uint32_t*)start);
         start += 4;
 
         uint32_t section_value = ELF_INVALID_ADDRESS;
         if(is_section) {
+            if(start + 4 > data_end) { no_errors = false; break; }
             section_value = *((uint32_t*)start);
             start += 4;
         }
 
+        if(start + 4 > data_end) { no_errors = false; break; }
         const uint32_t offsets_count = *((uint32_t*)start);
         start += 4;
 
@@ -753,9 +762,11 @@ static bool elf_relocate_fast(ELFFile* elf, ELFSection* s) {
             furi_string_free(symbol_name);
 
             no_errors = false;
+            if(start + (size_t)3 * offsets_count > data_end) break;
             start += 3 * offsets_count;
         } else {
             for(uint32_t j = 0; j < offsets_count; j++) {
+                if(start + 3 > data_end) { no_errors = false; break; }
                 uint32_t offset = *((uint32_t*)start) & 0x00FFFFFF;
                 start += 3;
                 Elf32_Addr relAddr = ((Elf32_Addr)s->data) + offset;
@@ -1064,6 +1075,7 @@ void elf_file_init_debug_info(ELFFile* elf, ELFDebugInfo* debug_info) {
             mmap_entry_idx++;
         }
     }
+    debug_info->mmap_entry_count = mmap_entry_idx;
 }
 
 void elf_file_clear_debug_info(ELFDebugInfo* debug_info) {

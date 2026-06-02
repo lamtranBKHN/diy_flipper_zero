@@ -29,6 +29,7 @@ typedef enum {
 
 SubGhzKeystore* subghz_keystore_alloc(void) {
     SubGhzKeystore* instance = malloc(sizeof(SubGhzKeystore));
+    furi_check(instance);
 
     SubGhzKeyArray_init(instance->data);
 
@@ -117,7 +118,9 @@ static bool subghz_keystore_read_file(SubGhzKeystore* instance, Stream* stream, 
     uint8_t buffer[FILE_BUFFER_SIZE];
 
     char* decrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_DECRYPTED_LINE_SIZE);
+    furi_check(decrypted_line);
     char* encrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_ENCRYPTED_LINE_SIZE);
+    furi_check(encrypted_line);
     size_t encrypted_line_cursor = 0;
 
     do {
@@ -255,7 +258,9 @@ bool subghz_keystore_save(SubGhzKeystore* instance, const char* file_name, uint8
 
     Storage* storage = furi_record_open(RECORD_STORAGE);
     char* decrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_DECRYPTED_LINE_SIZE);
+    furi_check(decrypted_line);
     char* encrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_ENCRYPTED_LINE_SIZE);
+    furi_check(encrypted_line);
 
     FlipperFormat* flipper_format = flipper_format_file_alloc(storage);
     do {
@@ -362,6 +367,7 @@ bool subghz_keystore_raw_encrypted_save(
     Storage* storage = furi_record_open(RECORD_STORAGE);
 
     char* encrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_ENCRYPTED_LINE_SIZE);
+    furi_check(encrypted_line);
 
     FlipperFormat* input_flipper_format = flipper_format_file_alloc(storage);
     do {
@@ -501,6 +507,7 @@ bool subghz_keystore_raw_get_data(const char* file_name, size_t offset, uint8_t*
 
     Storage* storage = furi_record_open(RECORD_STORAGE);
     char* decrypted_line = malloc(SUBGHZ_KEYSTORE_FILE_DECRYPTED_LINE_SIZE);
+    furi_check(decrypted_line);
 
     FlipperFormat* flipper_format = flipper_format_file_alloc(storage);
     do {

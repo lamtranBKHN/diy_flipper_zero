@@ -66,7 +66,15 @@ bool ndef_find_tlv(const uint8_t* data, size_t data_len, size_t* ndef_offset, si
         }
 
         if(type == NDEF_TLV_NDEF) {
-            if(offset + len > data_len) return false;
+            if(offset + len > data_len) {
+                FURI_LOG_E(
+                    TAG,
+                    "NDEF TLV boundary exceeds tag data: offset=%zu, len=%zu, data_len=%zu",
+                    offset,
+                    len,
+                    data_len);
+                return false;
+            }
             *ndef_offset = offset;
             *ndef_length = len;
             return true;
@@ -75,6 +83,7 @@ bool ndef_find_tlv(const uint8_t* data, size_t data_len, size_t* ndef_offset, si
         offset += len;
     }
 
+    FURI_LOG_E(TAG, "No NDEF TLV found in tag data (data_len=%zu)", data_len);
     return false;
 }
 
@@ -171,7 +180,13 @@ bool ndef_parse(const uint8_t* data, size_t data_len, NdefMessage* msg) {
     }
 
     msg->record_count = record_idx;
-    return (record_idx > 0);
+
+    if(record_idx == 0) {
+        FURI_LOG_E(TAG, "NDEF parse failed: no records extracted (data_len=%zu)", ndef_len);
+        return false;
+    }
+
+    return true;
 }
 
 bool ndef_build_uri(

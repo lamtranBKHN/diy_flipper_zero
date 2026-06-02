@@ -30,6 +30,8 @@ const NfcDeviceBase nfc_device_iso14443_3a = {
 
 Iso14443_3aData* iso14443_3a_alloc(void) {
     Iso14443_3aData* data = malloc(sizeof(Iso14443_3aData));
+    furi_check(data);
+    memset(data, 0, sizeof(Iso14443_3aData));
     return data;
 }
 

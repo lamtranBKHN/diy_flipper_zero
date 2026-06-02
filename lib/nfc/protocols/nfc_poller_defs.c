@@ -12,12 +12,6 @@
 #include <nfc/protocols/ntag4xx/ntag4xx_poller_defs.h>
 #include <nfc/protocols/type_4_tag/type_4_tag_poller_defs.h>
 
-/* ST25TB poller is excluded on PN532-only builds.
- * Its source files are omitted by the SConscript exclusion filter, so
- * we must not reference its symbols when FURI_HAL_NFC_PN532_ONLY is set. */
-#ifndef FURI_HAL_NFC_PN532_ONLY
-#include <nfc/protocols/st25tb/st25tb_poller_defs.h>
-#endif
 #include <nfc/protocols/srix/srix_poller_defs.h>
 #include <nfc/protocols/emv/emv_poller_defs.h>
 #include <nfc/protocols/jewel/jewel_poller_defs.h>
@@ -32,10 +26,8 @@ const NfcPollerBase* const nfc_pollers_api[NfcProtocolNum] = {
     [NfcProtocolMfClassic] = &mf_classic_poller,
     [NfcProtocolMfPlus] = &mf_plus_poller,
     [NfcProtocolMfDesfire] = &mf_desfire_poller,
-#ifndef FURI_HAL_NFC_PN532_ONLY
-    [NfcProtocolIso15693_3] = &nfc_poller_iso15693_3,
-    [NfcProtocolSlix] = &nfc_poller_slix,
-#endif
+    [NfcProtocolIso15693_3] = NULL,
+    [NfcProtocolSlix] = NULL,
     [NfcProtocolSt25tb] = NULL,
     [NfcProtocolNtag4xx] = &ntag4xx_poller,
     [NfcProtocolType4Tag] = &type_4_tag_poller,

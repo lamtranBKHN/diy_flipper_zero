@@ -73,6 +73,7 @@ const SubGhzProtocol subghz_protocol_ido = {
 void* subghz_protocol_decoder_ido_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderIDo* instance = malloc(sizeof(SubGhzProtocolDecoderIDo));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_ido;
     instance->generic.protocol_name = instance->base.protocol->name;
 

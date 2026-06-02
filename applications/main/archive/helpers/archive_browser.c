@@ -48,6 +48,10 @@ static void fap_cache_set(const char* path, const char* name, const uint8_t* ico
     if(slot >= FAP_CACHE_SIZE) {
         uint32_t oldest_tick = furi_get_tick();
         for(uint32_t i = 0; i < FAP_CACHE_SIZE; i++) {
+            if(!fap_cache.entries[i].valid) {
+                slot = i;
+                break;
+            }
             if(fap_cache.entries[i].cached_at < oldest_tick) {
                 oldest_tick = fap_cache.entries[i].cached_at;
                 slot = i;

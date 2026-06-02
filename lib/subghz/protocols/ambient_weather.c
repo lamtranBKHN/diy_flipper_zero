@@ -98,6 +98,7 @@ const SubGhzProtocol ws_protocol_ambient_weather = {
 void* ws_protocol_decoder_ambient_weather_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderAmbient_Weather* instance = malloc(sizeof(WSProtocolDecoderAmbient_Weather));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_ambient_weather;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

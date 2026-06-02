@@ -30,6 +30,11 @@ void nfc_render_emv_uid(const uint8_t* uid, const uint8_t uid_len, FuriString* s
     furi_string_cat_printf(str, "\n");
 }
 
+void nfc_render_emv_name(const char* data, FuriString* str) {
+    if(!data || data[0] == '\0') return;
+    furi_string_cat_printf(str, "Name: %s\n", data);
+}
+
 void nfc_render_emv_data(const EmvData* data, FuriString* str) {
     nfc_render_emv_pan(data->emv_application.pan, data->emv_application.pan_len, str);
     nfc_render_emv_name(data->emv_application.application_name, str);
@@ -166,4 +171,86 @@ void nfc_render_emv_extra(const EmvData* data, FuriString* str) {
 
     nfc_render_emv_currency(data->emv_application.currency_code, str);
     nfc_render_emv_country(data->emv_application.country_code, str);
+}
+
+void nfc_render_emv_dump(const EmvData* data, FuriString* str) {
+    furi_assert(data);
+    furi_assert(str);
+
+    furi_string_cat_printf(str, "\e#EMV Raw Data\n");
+
+    // UID from ISO14443-3A
+    const Iso14443_3aData* iso3a = data->iso14443_4a_data->iso14443_3a_data;
+    furi_string_cat_printf(str, "UID (%u): ", iso3a->uid_len);
+    for(uint8_t i = 0; i < iso3a->uid_len; i++) {
+        furi_string_cat_printf(str, "%02X ", iso3a->uid[i]);
+    }
+    furi_string_cat_printf(str, "\n");
+    furi_string_cat_printf(str, "ATQA: %02X%02X\n", iso3a->atqa[1], iso3a->atqa[0]);
+    furi_string_cat_printf(str, "SAK: %02X\n", iso3a->sak);
+
+    // ATS from ISO14443-4A
+    const Iso14443_4aAtsData* ats = &data->iso14443_4a_data->ats_data;
+    if(ats->tl > 0) {
+        furi_string_cat_printf(str, "\nATS (TL=%u):\n", ats->tl);
+        furi_string_cat_printf(str, "  T0=%02X", ats->t0);
+        if(ats->t0 & (1U << 4)) furi_string_cat_printf(str, " TA1=%02X", ats->ta_1);
+        if(ats->t0 & (1U << 5)) furi_string_cat_printf(str, " TB1=%02X", ats->tb_1);
+        if(ats->t0 & (1U << 6)) furi_string_cat_printf(str, " TC1=%02X", ats->tc_1);
+        furi_string_cat_printf(str, "\n");
+        uint32_t hist_count = 0;
+        const uint8_t* hist =
+            iso14443_4a_get_historical_bytes(data->iso14443_4a_data, &hist_count);
+        if(hist_count > 0) {
+            furi_string_cat_printf(str, "  T1-TK (%lu): ", hist_count);
+            for(uint32_t i = 0; i < hist_count; i++) {
+                furi_string_cat_printf(str, "%02X ", hist[i]);
+            }
+            furi_string_cat_printf(str, "\n");
+        }
+    }
+
+    // Application ID (AID)
+    const EmvApplication* apl = &data->emv_application;
+    if(apl->aid_len > 0) {
+        furi_string_cat_printf(str, "\nAID (%u): ", apl->aid_len);
+        for(uint8_t i = 0; i < apl->aid_len; i++) {
+            furi_string_cat_printf(str, "%02X", apl->aid[i]);
+        }
+        furi_string_cat_printf(str, "\n");
+    }
+
+    // PDOL
+    if(apl->pdol.size > 0) {
+        furi_string_cat_printf(str, "PDOL (%u): ", apl->pdol.size);
+        for(uint8_t i = 0; i < apl->pdol.size; i++) {
+            furi_string_cat_printf(str, "%02X ", apl->pdol.data[i]);
+        }
+        furi_string_cat_printf(str, "\n");
+    }
+
+    // AFL
+    if(apl->afl.size > 0) {
+        furi_string_cat_printf(str, "AFL (%u): ", apl->afl.size);
+        for(uint8_t i = 0; i < apl->afl.size; i++) {
+            furi_string_cat_printf(str, "%02X ", apl->afl.data[i]);
+        }
+        furi_string_cat_printf(str, "\n");
+    }
+
+    // PAN
+    if(apl->pan_len > 0) {
+        furi_string_cat_printf(str, "PAN (%u): ", apl->pan_len);
+        for(uint8_t i = 0; i < apl->pan_len; i++) {
+            furi_string_cat_printf(str, "%02X", apl->pan[i]);
+        }
+        furi_string_cat_printf(str, "\n");
+    }
+
+    // Application Interchange Profile
+    furi_string_cat_printf(
+        str,
+        "AIP: %02X %02X\n",
+        apl->application_interchange_profile[0],
+        apl->application_interchange_profile[1]);
 }

@@ -5,14 +5,16 @@ static const char* protocol_names[NfcProtocolNum] = {
     [NfcProtocolIso14443_3b] = "Iso14443-3b",
     [NfcProtocolIso14443_4a] = "Iso14443-4a",
     [NfcProtocolIso14443_4b] = "Iso14443-4b",
-    [NfcProtocolIso15693_3] = "Iso15693-3",
+    [NfcProtocolIso15693_3] = NULL,
     [NfcProtocolFelica] = "FeliCa",
     [NfcProtocolMfUltralight] = "Mifare Ultralight",
     [NfcProtocolMfClassic] = "Mifare Classic",
     [NfcProtocolMfDesfire] = "Mifare DESFire",
     [NfcProtocolMfPlus] = "Mifare Plus",
-    [NfcProtocolSlix] = "Slix",
-    [NfcProtocolSt25tb] = "St25tb",
+    [NfcProtocolSlix] = NULL,
+    [NfcProtocolSt25tb] = NULL,
+    [NfcProtocolSrix] = "Srix",
+    [NfcProtocolJewel] = "Jewel",
 };
 
 const char* nfc_cli_get_protocol_name(NfcProtocol protocol) {

@@ -78,13 +78,17 @@ static void nfc_listener_list_free(NfcListener* instance) {
         if(child == NULL) break;
         instance->list.head = child;
     } while(true);
+    instance->list.head = NULL;
 }
 
 NfcListener* nfc_listener_alloc(Nfc* nfc, NfcProtocol protocol, const NfcDeviceData* data) {
     furi_check(nfc);
     furi_check(protocol < NfcProtocolNum);
     furi_check(data);
-    furi_check(nfc_listeners_api[protocol]);
+    if(nfc_listeners_api[protocol] == NULL) {
+        FURI_LOG_E(TAG, "No listener API for protocol %d", protocol);
+        return NULL;
+    }
 
     NfcListener* instance = malloc(sizeof(NfcListener));
     furi_check(instance);

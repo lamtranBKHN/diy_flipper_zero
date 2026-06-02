@@ -59,9 +59,10 @@
 #define ISO14443_4_LAYER_NAD_NOT_SET       ((uint8_t) - 2)
 
 /* Maximum chained payload accumulation buffer.
- * 256 bytes covers all standard ISO14443-4 chained APDUs (EMV, DESFire).
- * Kept small to fit comfortably in STM32WB55's 256 KB RAM. */
-#define ISO14443_4_CHAIN_BUF_SIZE 256
+ * Uses ISO14443_4_MAX_APDU_SIZE from iso14443_4_layer.h.
+ * Covers large ISO14443-4 chained APDUs (EMV, DESFire, large NDEF).
+ * Fits comfortably in STM32WB55's 256 KB RAM. */
+#define ISO14443_4_CHAIN_BUF_SIZE ISO14443_4_MAX_APDU_SIZE
 
 struct Iso14443_4Layer {
     uint8_t pcb;
@@ -91,6 +92,7 @@ static inline void iso14443_4_layer_update_pcb(Iso14443_4Layer* instance, bool t
 
 Iso14443_4Layer* iso14443_4_layer_alloc(void) {
     Iso14443_4Layer* instance = malloc(sizeof(Iso14443_4Layer));
+    furi_check(instance);
     instance->chaining_buffer = NULL;
     instance->last_tx_data = NULL;
 
@@ -217,14 +219,21 @@ bool iso14443_4_layer_decode_response(
                 /* Accumulate fragment into chain_buf */
                 const size_t frag_bytes = bit_buffer_get_size_bytes(block_data);
                 const size_t frag_len = (frag_bytes > 1) ? (frag_bytes - 1) : 0;
-                if(frag_len > 0 &&
-                   (instance->chain_len + frag_len) <= ISO14443_4_CHAIN_BUF_SIZE) {
-                    const uint8_t* frag_data = bit_buffer_get_data(block_data);
-                    memcpy(
-                        &instance->chain_buf[instance->chain_len],
-                        &frag_data[1], /* skip PCB byte */
-                        frag_len);
-                    instance->chain_len += frag_len;
+                if(frag_len > 0) {
+                    if((instance->chain_len + frag_len) <= ISO14443_4_CHAIN_BUF_SIZE) {
+                        const uint8_t* frag_data = bit_buffer_get_data(block_data);
+                        memcpy(
+                            &instance->chain_buf[instance->chain_len],
+                            &frag_data[1], /* skip PCB byte */
+                            frag_len);
+                        instance->chain_len += frag_len;
+                    } else {
+                        FURI_LOG_E(
+                            "Iso14443_4",
+                            "Chaining buffer overflow (>%d)",
+                            ISO14443_4_CHAIN_BUF_SIZE);
+                        break; /* Fail cleanly instead of silently truncating */
+                    }
                 }
                 instance->chain_active = true;
                 /* Caller must send R(ACK) and call decode_response again */
@@ -234,8 +243,7 @@ bool iso14443_4_layer_decode_response(
                 if(instance->chain_active && instance->chain_len > 0) {
                     /* Prepend accumulated chain data before this final fragment */
                     bit_buffer_reset(output_data);
-                    bit_buffer_append_bytes(
-                        output_data, instance->chain_buf, instance->chain_len);
+                    bit_buffer_append_bytes(output_data, instance->chain_buf, instance->chain_len);
                     /* Append final fragment (skip PCB byte) */
                     const size_t final_bytes = bit_buffer_get_size_bytes(block_data);
                     if(final_bytes > 1) {
@@ -355,7 +363,7 @@ Iso14443_4LayerResult iso14443_4_layer_decode_command(
                 instance->chaining_buffer,
                 bit_buffer_get_data(input_data) + prologue_len,
                 bit_buffer_get_size_bytes(input_data) - prologue_len);
-            
+
             bit_buffer_reset(block_data);
             uint8_t r_pcb = ISO14443_4_BLOCK_PCB_R_MASK | ISO14443_4_BLOCK_PCB;
             if(instance->cid != ISO14443_4_LAYER_CID_NOT_SUPPORTED) {
@@ -366,7 +374,7 @@ Iso14443_4LayerResult iso14443_4_layer_decode_command(
             if(instance->cid != ISO14443_4_LAYER_CID_NOT_SUPPORTED) {
                 bit_buffer_append_byte(block_data, instance->cid);
             }
-            
+
             iso14443_4_layer_update_pcb(instance, false);
             return Iso14443_4LayerResultSend;
         }

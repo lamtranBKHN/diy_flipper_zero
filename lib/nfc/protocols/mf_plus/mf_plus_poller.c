@@ -22,15 +22,21 @@ MfPlusPoller* mf_plus_poller_alloc(Iso14443_4aPoller* iso14443_4a_poller) {
     furi_assert(iso14443_4a_poller);
 
     MfPlusPoller* instance = malloc(sizeof(MfPlusPoller));
+    furi_check(instance);
 
     instance->iso14443_4a_poller = iso14443_4a_poller;
 
     instance->data = mf_plus_alloc();
+    furi_check(instance->data);
 
     instance->tx_buffer = bit_buffer_alloc(MF_PLUS_BUF_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(MF_PLUS_BUF_SIZE);
+    furi_check(instance->rx_buffer);
     instance->input_buffer = bit_buffer_alloc(MF_PLUS_BUF_SIZE);
+    furi_check(instance->input_buffer);
     instance->result_buffer = bit_buffer_alloc(MF_PLUS_RESULT_BUF_SIZE);
+    furi_check(instance->result_buffer);
 
     instance->general_event.protocol = NfcProtocolMfPlus;
     instance->general_event.event_data = &instance->mfp_event;

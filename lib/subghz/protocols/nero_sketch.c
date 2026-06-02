@@ -74,6 +74,7 @@ const SubGhzProtocol subghz_protocol_nero_sketch = {
 void* subghz_protocol_encoder_nero_sketch_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderNeroSketch* instance = malloc(sizeof(SubGhzProtocolEncoderNeroSketch));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_nero_sketch;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -203,6 +204,7 @@ LevelDuration subghz_protocol_encoder_nero_sketch_yield(void* context) {
 void* subghz_protocol_decoder_nero_sketch_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderNeroSketch* instance = malloc(sizeof(SubGhzProtocolDecoderNeroSketch));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_nero_sketch;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

@@ -33,8 +33,7 @@
 #define FID_NDEF_LO 0x04
 
 /* NDEF AID (NFC Forum Type 4 Tag v2.0) */
-static const uint8_t NDEF_AID[] = {
-    0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01};
+static const uint8_t NDEF_AID[] = {0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01};
 
 typedef enum {
     FileNone = 0,
@@ -50,16 +49,21 @@ struct NfcT4tEmulation {
 
 /* Capability Container — fixed 15-byte structure per NFC Forum T4T spec */
 static const uint8_t CC_FILE[15] = {
-    0x00, 0x0F,       /* CCLEN = 15 */
-    0x20,             /* Mapping version 2.0 */
-    0x00, 0x3B,       /* MLe: max R-APDU data = 59 bytes */
-    0x00, 0x34,       /* MLc: max C-APDU data = 52 bytes */
-    0x04,             /* NDEF File Control TLV tag */
-    0x06,             /* TLV length */
-    0xE1, 0x04,       /* NDEF File ID */
-    0x00, 0x80,       /* Max NDEF file size = 128 bytes */
-    0x00,             /* Read access: open */
-    0xFF,             /* Write access: proprietary (read-only) */
+    0x00,
+    0x0F, /* CCLEN = 15 */
+    0x20, /* Mapping version 2.0 */
+    0x00,
+    0x3B, /* MLe: max R-APDU data = 59 bytes */
+    0x00,
+    0x34, /* MLc: max C-APDU data = 52 bytes */
+    0x04, /* NDEF File Control TLV tag */
+    0x06, /* TLV length */
+    0xE1,
+    0x04, /* NDEF File ID */
+    0x00,
+    0x80, /* Max NDEF file size = 128 bytes */
+    0x00, /* Read access: open */
+    0xFF, /* Write access: proprietary (read-only) */
 };
 
 static void sw_append(uint8_t* buf, size_t* len, uint8_t hi, uint8_t lo) {
@@ -69,7 +73,8 @@ static void sw_append(uint8_t* buf, size_t* len, uint8_t hi, uint8_t lo) {
 
 NfcT4tEmulation* nfc_t4t_emulation_alloc(void) {
     NfcT4tEmulation* ctx = malloc(sizeof(NfcT4tEmulation));
-    if(ctx) nfc_t4t_emulation_reset(ctx);
+    furi_check(ctx);
+    nfc_t4t_emulation_reset(ctx);
     return ctx;
 }
 
@@ -84,10 +89,7 @@ void nfc_t4t_emulation_reset(NfcT4tEmulation* ctx) {
     memset(ctx->ndef_file, 0, sizeof(ctx->ndef_file));
 }
 
-bool nfc_t4t_emulation_set_ndef(
-    NfcT4tEmulation* ctx,
-    const uint8_t* ndef_data,
-    size_t ndef_len) {
+bool nfc_t4t_emulation_set_ndef(NfcT4tEmulation* ctx, const uint8_t* ndef_data, size_t ndef_len) {
     furi_assert(ctx);
     if(!ndef_data || ndef_len > NFC_T4T_NDEF_MAX_LEN) return false;
 

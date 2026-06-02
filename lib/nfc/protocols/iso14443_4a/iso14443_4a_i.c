@@ -53,6 +53,22 @@ bool iso14443_4a_ats_parse(Iso14443_4aAtsData* data, const BitBuffer* buf) {
     return can_parse;
 }
 
+const char* iso14443_4a_error_str(Iso14443_4aError error) {
+    switch(error) {
+    case Iso14443_4aErrorNone:
+        return "None";
+    case Iso14443_4aErrorNotPresent:
+        return "NotPresent";
+    case Iso14443_4aErrorProtocol:
+        return "Protocol";
+    case Iso14443_4aErrorTimeout:
+        return "Timeout";
+    case Iso14443_4aErrorSendExtra:
+        return "SendExtra";
+    }
+    return "Unknown";
+}
+
 Iso14443_4aError iso14443_4a_process_error(Iso14443_3aError error) {
     switch(error) {
     case Iso14443_3aErrorNone:

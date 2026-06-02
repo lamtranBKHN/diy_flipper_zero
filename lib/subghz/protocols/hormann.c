@@ -78,6 +78,7 @@ const SubGhzProtocol subghz_protocol_hormann = {
 void* subghz_protocol_encoder_hormann_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderHormann* instance = malloc(sizeof(SubGhzProtocolEncoderHormann));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_hormann;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -197,6 +198,7 @@ LevelDuration subghz_protocol_encoder_hormann_yield(void* context) {
 void* subghz_protocol_decoder_hormann_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderHormann* instance = malloc(sizeof(SubGhzProtocolDecoderHormann));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_hormann;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

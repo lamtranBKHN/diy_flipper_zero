@@ -80,6 +80,7 @@ const SubGhzProtocol subghz_protocol_legrand = {
 void* subghz_protocol_encoder_legrand_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderLegrand* instance = malloc(sizeof(SubGhzProtocolEncoderLegrand));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_legrand;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -218,6 +219,7 @@ LevelDuration subghz_protocol_encoder_legrand_yield(void* context) {
 void* subghz_protocol_decoder_legrand_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderLegrand* instance = malloc(sizeof(SubGhzProtocolDecoderLegrand));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_legrand;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

@@ -142,7 +142,7 @@ bool dfu_file_process_targets(const DfuUpdateTask* task, File* dfuf, const uint8
             return UpdateBlockResult_Failed;
         }
 
-        /* TODO FL-3562: look into TargetPrefix and validate/filter?.. */
+        /* TargetPrefix parsed but not validated — defer until multi-target DFU needed */
         for(uint32_t i_element = 0; i_element < target_prefix.dwNbElements; ++i_element) {
             bytes_read = storage_file_read(dfuf, &image_element, sizeof(ImageElementHeader));
             if(bytes_read != sizeof(ImageElementHeader)) {

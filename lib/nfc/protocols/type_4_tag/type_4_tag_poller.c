@@ -14,6 +14,7 @@ static const Type4TagData* type_4_tag_poller_get_data(Type4TagPoller* instance) 
 
 static Type4TagPoller* type_4_tag_poller_alloc(Iso14443_4aPoller* iso14443_4a_poller) {
     Type4TagPoller* instance = malloc(sizeof(Type4TagPoller));
+    furi_check(instance);
     instance->iso14443_4a_poller = iso14443_4a_poller;
     instance->data = type_4_tag_alloc();
     instance->tx_buffer = bit_buffer_alloc(TYPE_4_TAG_BUF_SIZE);
@@ -193,9 +194,10 @@ static NfcCommand type_4_tag_poller_handler_failed(Type4TagPoller* instance) {
                                           Type4TagPollerEventTypeReadFailed :
                                           Type4TagPollerEventTypeWriteFail;
     instance->type_4_tag_event.data->error = instance->error;
-    NfcCommand command = instance->callback(instance->general_event, instance->context);
-    instance->state = Type4TagPollerStateIdle;
-    return command;
+    instance->callback(instance->general_event, instance->context);
+    // Stay in Failed state — returning to Idle on error would restart the
+    // read/write cycle indefinitely (same anti-pattern as other NFC pollers).
+    return NfcCommandStop;
 }
 
 static NfcCommand type_4_tag_poller_handler_success(Type4TagPoller* instance) {

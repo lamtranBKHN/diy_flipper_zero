@@ -110,6 +110,7 @@ typedef enum {
 void* ws_protocol_decoder_solight_te44_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderSolightTE44* instance = malloc(sizeof(WSProtocolDecoderSolightTE44));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_solight_te44;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

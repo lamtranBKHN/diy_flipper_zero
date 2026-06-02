@@ -1,5 +1,5 @@
 entry,status,name,type,params
-Version,+,87.6,,
+Version,+,87.9,,
 Header,+,applications/drivers/subghz/cc1101_ext/cc1101_ext_interconnect.h,,
 Header,+,applications/main/archive/helpers/archive_helpers_ext.h,,
 Header,+,applications/main/subghz/subghz_fap.h,,
@@ -169,9 +169,9 @@ Header,+,lib/nfc/protocols/iso14443_4a/iso14443_4a_listener.h,,
 Header,+,lib/nfc/protocols/iso14443_4a/iso14443_4a_poller.h,,
 Header,+,lib/nfc/protocols/iso14443_4b/iso14443_4b.h,,
 Header,+,lib/nfc/protocols/iso14443_4b/iso14443_4b_poller.h,,
-Header,+,lib/nfc/protocols/iso15693_3/iso15693_3.h,,
-Header,+,lib/nfc/protocols/iso15693_3/iso15693_3_listener.h,,
-Header,+,lib/nfc/protocols/iso15693_3/iso15693_3_poller.h,,
+Header,+,lib/nfc/protocols/jewel/jewel.h,,
+Header,+,lib/nfc/protocols/jewel/jewel_poller.h,,
+Header,+,lib/nfc/protocols/jewel/jewel_poller_sync.h,,
 Header,+,lib/nfc/protocols/mf_classic/mf_classic.h,,
 Header,+,lib/nfc/protocols/mf_classic/mf_classic_listener.h,,
 Header,+,lib/nfc/protocols/mf_classic/mf_classic_poller.h,,
@@ -186,14 +186,8 @@ Header,+,lib/nfc/protocols/mf_ultralight/mf_ultralight_poller.h,,
 Header,+,lib/nfc/protocols/mf_ultralight/mf_ultralight_poller_sync.h,,
 Header,+,lib/nfc/protocols/ntag4xx/ntag4xx.h,,
 Header,+,lib/nfc/protocols/ntag4xx/ntag4xx_poller.h,,
-Header,+,lib/nfc/protocols/slix/slix.h,,
-Header,+,lib/nfc/protocols/slix/slix_listener.h,,
-Header,+,lib/nfc/protocols/slix/slix_poller.h,,
 Header,-,lib/nfc/protocols/srix/srix.h,,
 Header,-,lib/nfc/protocols/srix/srix_poller_sync.h,,
-Header,-,lib/nfc/protocols/st25tb/st25tb.h,,
-Header,-,lib/nfc/protocols/st25tb/st25tb_poller.h,,
-Header,-,lib/nfc/protocols/st25tb/st25tb_poller_sync.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag_listener.h,,
 Header,+,lib/nfc/protocols/type_4_tag/type_4_tag_poller.h,,
@@ -1576,10 +1570,12 @@ Function,+,furi_hal_mpu_protect_no_access,void,"FuriHalMpuRegion, uint32_t, Furi
 Function,+,furi_hal_mpu_protect_read_only,void,"FuriHalMpuRegion, uint32_t, FuriHalMPURegionSize"
 Function,+,furi_hal_nfc_abort,FuriHalNfcError,
 Function,+,furi_hal_nfc_acquire,FuriHalNfcError,
+Function,+,furi_hal_nfc_clear_exchange_deadline,void,
 Function,+,furi_hal_nfc_common_fifo_rx,FuriHalNfcError,"const FuriHalSpiBusHandle*, uint8_t*, size_t, size_t*"
 Function,+,furi_hal_nfc_common_fifo_tx,FuriHalNfcError,"const FuriHalSpiBusHandle*, const uint8_t*, size_t"
 Function,+,furi_hal_nfc_common_listener_rx_start,FuriHalNfcError,const FuriHalSpiBusHandle*
 Function,+,furi_hal_nfc_deinit_gpio_isr,void,
+Function,+,furi_hal_nfc_emu_set_ndef,void,"const uint8_t*, size_t"
 Function,+,furi_hal_nfc_event_init,void,
 Function,+,furi_hal_nfc_event_set,void,FuriHalNfcEventInternalType
 Function,+,furi_hal_nfc_event_start,FuriHalNfcError,
@@ -1610,10 +1606,12 @@ Function,+,furi_hal_nfc_low_power_mode_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_low_power_mode_stop,FuriHalNfcError,
 Function,+,furi_hal_nfc_mf_auth_key_store,void,"const uint8_t*, uint8_t"
 Function,+,furi_hal_nfc_pn532_backend_init,_Bool,
+Function,+,furi_hal_nfc_pn532_emu_set_ndef,void,"const uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_field_detect_start,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_field_detect_stop,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_field_is_present,_Bool,
 Function,+,furi_hal_nfc_pn532_get_sak,uint8_t,
+Function,+,furi_hal_nfc_pn532_get_target_number,uint8_t,
 Function,+,furi_hal_nfc_pn532_is_active,_Bool,
 Function,+,furi_hal_nfc_pn532_last_error_get,FuriHalPn532Error,
 Function,+,furi_hal_nfc_pn532_last_error_str,const char*,
@@ -1623,6 +1621,7 @@ Function,+,furi_hal_nfc_pn532_listener_enable_rx,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_idle,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
 Function,+,furi_hal_nfc_pn532_listener_set_col_res_data,FuriHalNfcError,"const uint8_t*, uint8_t, const uint8_t*, uint8_t"
+Function,+,furi_hal_nfc_pn532_listener_set_felica_params,void,const uint8_t*
 Function,+,furi_hal_nfc_pn532_listener_sleep,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_listener_tx,FuriHalNfcError,"const uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_listener_wait_event,FuriHalNfcEvent,uint32_t
@@ -1636,10 +1635,16 @@ Function,+,furi_hal_nfc_pn532_mf_read_block,FuriHalNfcError,"uint8_t, uint8_t*, 
 Function,+,furi_hal_nfc_pn532_mf_write_block,FuriHalNfcError,"uint8_t, const uint8_t*, size_t"
 Function,+,furi_hal_nfc_pn532_poll_jewel,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_nfc_pn532_poller_field_on,FuriHalNfcError,
+Function,+,furi_hal_nfc_pn532_queue_reset,void,
+Function,+,furi_hal_nfc_pn532_release_if_listed,void,
 Function,+,furi_hal_nfc_pn532_reset,void,
+Function,+,furi_hal_nfc_pn532_reset_keep_target,void,
 Function,+,furi_hal_nfc_pn532_rx,FuriHalNfcError,"uint8_t*, size_t, size_t*"
 Function,+,furi_hal_nfc_pn532_set_mode,FuriHalNfcError,"FuriHalNfcMode, FuriHalNfcTech"
 Function,+,furi_hal_nfc_pn532_target_is_valid,_Bool,
+Function,+,furi_hal_nfc_pn532_test_get_needs_relist,_Bool,
+Function,+,furi_hal_nfc_pn532_test_get_target_tick,uint32_t,
+Function,+,furi_hal_nfc_pn532_test_set_state,void,"_Bool, _Bool, uint32_t"
 Function,+,furi_hal_nfc_pn532_trx_reset,FuriHalNfcError,
 Function,+,furi_hal_nfc_pn532_trx_short_frame,FuriHalNfcError,FuriHalNfcaShortFrame
 Function,+,furi_hal_nfc_pn532_tx,FuriHalNfcError,"const uint8_t*, size_t"
@@ -1652,7 +1657,9 @@ Function,+,furi_hal_nfc_poller_tx_common,FuriHalNfcError,"const FuriHalSpiBusHan
 Function,+,furi_hal_nfc_poller_wait_event,FuriHalNfcEvent,uint32_t
 Function,+,furi_hal_nfc_quick_poll,_Bool,
 Function,+,furi_hal_nfc_release,FuriHalNfcError,
+Function,+,furi_hal_nfc_release_active_target,void,
 Function,+,furi_hal_nfc_reset_mode,FuriHalNfcError,
+Function,+,furi_hal_nfc_set_exchange_deadline,void,uint32_t
 Function,+,furi_hal_nfc_set_mode,FuriHalNfcError,"FuriHalNfcMode, FuriHalNfcTech"
 Function,+,furi_hal_nfc_timer_block_tx_is_running,_Bool,
 Function,+,furi_hal_nfc_timer_block_tx_start,void,uint32_t
@@ -1672,10 +1679,13 @@ Function,+,furi_hal_pcf8574_init,_Bool,
 Function,+,furi_hal_pcf8574_read,_Bool,uint8_t*
 Function,+,furi_hal_pcf8574_write,_Bool,uint8_t
 Function,+,furi_hal_pcf8574_write_pin,_Bool,"uint8_t, _Bool"
+Function,+,furi_hal_pn532_clear_exchange_deadline,void,
+Function,+,furi_hal_pn532_error_str,const char*,FuriHalPn532Error
+Function,+,furi_hal_pn532_force_reinit,void,
 Function,+,furi_hal_pn532_in_communicate_thru,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*"
-Function,+,furi_hal_pn532_in_communicate_thru_bits,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_in_communicate_thru_timeout,FuriHalPn532Error,"const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_in_data_exchange,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*"
+Function,+,furi_hal_pn532_in_data_exchange_ex,FuriHalPn532Error,"uint8_t, const uint8_t*, size_t, uint8_t*, size_t, size_t*, uint8_t*"
 Function,+,furi_hal_pn532_in_release,void,
 Function,+,furi_hal_pn532_init,_Bool,
 Function,+,furi_hal_pn532_irq_start,void,
@@ -1688,10 +1698,12 @@ Function,+,furi_hal_pn532_poll_felica,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_iso14443a,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_iso14443a_timeout,_Bool,"FuriHalPn532Target*, uint32_t"
 Function,+,furi_hal_pn532_poll_iso14443b,_Bool,FuriHalPn532Target*
+Function,+,furi_hal_pn532_poll_iso15693,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_poll_jewel,_Bool,FuriHalPn532Target*
 Function,+,furi_hal_pn532_read_response,FuriHalPn532Error,"uint8_t*, size_t, size_t*, uint32_t"
 Function,+,furi_hal_pn532_read_status,_Bool,
 Function,+,furi_hal_pn532_send_command,FuriHalPn532Error,"const uint8_t*, size_t"
+Function,+,furi_hal_pn532_set_exchange_deadline,void,uint32_t
 Function,+,furi_hal_pn532_srix_detect,_Bool,uint8_t*
 Function,+,furi_hal_pn532_srix_get_uid,_Bool,"uint8_t*, size_t*"
 Function,+,furi_hal_pn532_srix_read_block,_Bool,"uint8_t, uint8_t*"
@@ -2364,6 +2376,7 @@ Function,+,iso14443_3b_supports_iso14443_4,_Bool,const Iso14443_3bData*
 Function,+,iso14443_3b_verify,_Bool,"Iso14443_3bData*, const FuriString*"
 Function,+,iso14443_4a_alloc,Iso14443_4aData*,
 Function,+,iso14443_4a_copy,void,"Iso14443_4aData*, const Iso14443_4aData*"
+Function,+,iso14443_4a_error_str,const char*,Iso14443_4aError
 Function,+,iso14443_4a_free,void,Iso14443_4aData*
 Function,+,iso14443_4a_get_base_data,Iso14443_3aData*,const Iso14443_4aData*
 Function,+,iso14443_4a_get_device_name,const char*,"const Iso14443_4aData*, NfcDeviceNameType"
@@ -2378,6 +2391,7 @@ Function,+,iso14443_4a_poller_halt,Iso14443_4aError,Iso14443_4aPoller*
 Function,+,iso14443_4a_poller_read_ats,Iso14443_4aError,"Iso14443_4aPoller*, Iso14443_4aAtsData*"
 Function,+,iso14443_4a_poller_send_block,Iso14443_4aError,"Iso14443_4aPoller*, const BitBuffer*, BitBuffer*"
 Function,+,iso14443_4a_poller_send_block_pwt_ext,Iso14443_4aError,"Iso14443_4aPoller*, const BitBuffer*, BitBuffer*"
+Function,+,iso14443_4a_poller_send_blocks_chained,Iso14443_4aError,"Iso14443_4aPoller*, const BitBuffer*, BitBuffer*"
 Function,+,iso14443_4a_poller_send_chain_block,Iso14443_4aError,"Iso14443_4aPoller*, const BitBuffer*, BitBuffer*"
 Function,+,iso14443_4a_poller_send_receive_ready_block,Iso14443_4aError,"Iso14443_4aPoller*, _Bool, const BitBuffer*, BitBuffer*"
 Function,+,iso14443_4a_poller_send_supervisory_block,Iso14443_4aError,"Iso14443_4aPoller*, _Bool, const BitBuffer*, BitBuffer*"
@@ -2404,30 +2418,6 @@ Function,+,iso14443_4b_verify,_Bool,"Iso14443_4bData*, const FuriString*"
 Function,+,iso14443_crc_append,void,"Iso14443CrcType, BitBuffer*"
 Function,+,iso14443_crc_check,_Bool,"Iso14443CrcType, const BitBuffer*"
 Function,+,iso14443_crc_trim,void,BitBuffer*
-Function,+,iso15693_3_alloc,Iso15693_3Data*,
-Function,+,iso15693_3_copy,void,"Iso15693_3Data*, const Iso15693_3Data*"
-Function,+,iso15693_3_free,void,Iso15693_3Data*
-Function,+,iso15693_3_get_base_data,Iso15693_3Data*,const Iso15693_3Data*
-Function,+,iso15693_3_get_block_count,uint16_t,const Iso15693_3Data*
-Function,+,iso15693_3_get_block_data,const uint8_t*,"const Iso15693_3Data*, uint8_t"
-Function,+,iso15693_3_get_block_size,uint8_t,const Iso15693_3Data*
-Function,+,iso15693_3_get_device_name,const char*,"const Iso15693_3Data*, NfcDeviceNameType"
-Function,+,iso15693_3_get_manufacturer_id,uint8_t,const Iso15693_3Data*
-Function,+,iso15693_3_get_uid,const uint8_t*,"const Iso15693_3Data*, size_t*"
-Function,+,iso15693_3_is_block_locked,_Bool,"const Iso15693_3Data*, uint8_t"
-Function,+,iso15693_3_is_equal,_Bool,"const Iso15693_3Data*, const Iso15693_3Data*"
-Function,+,iso15693_3_load,_Bool,"Iso15693_3Data*, FlipperFormat*, uint32_t"
-Function,+,iso15693_3_poller_activate,Iso15693_3Error,"Iso15693_3Poller*, Iso15693_3Data*"
-Function,+,iso15693_3_poller_get_blocks_security,Iso15693_3Error,"Iso15693_3Poller*, uint8_t*, uint16_t"
-Function,+,iso15693_3_poller_get_system_info,Iso15693_3Error,"Iso15693_3Poller*, Iso15693_3SystemInfo*"
-Function,+,iso15693_3_poller_inventory,Iso15693_3Error,"Iso15693_3Poller*, uint8_t*"
-Function,+,iso15693_3_poller_read_block,Iso15693_3Error,"Iso15693_3Poller*, uint8_t*, uint8_t, uint8_t"
-Function,+,iso15693_3_poller_read_blocks,Iso15693_3Error,"Iso15693_3Poller*, uint8_t*, uint16_t, uint8_t"
-Function,+,iso15693_3_poller_send_frame,Iso15693_3Error,"Iso15693_3Poller*, const BitBuffer*, BitBuffer*, uint32_t"
-Function,+,iso15693_3_reset,void,Iso15693_3Data*
-Function,+,iso15693_3_save,_Bool,"const Iso15693_3Data*, FlipperFormat*"
-Function,+,iso15693_3_set_uid,_Bool,"Iso15693_3Data*, const uint8_t*, size_t"
-Function,+,iso15693_3_verify,_Bool,"Iso15693_3Data*, const FuriString*"
 Function,-,isprint,int,int
 Function,-,isprint_l,int,"int, locale_t"
 Function,-,ispunct,int,int
@@ -2443,11 +2433,27 @@ Function,-,j0,double,double
 Function,-,j0f,float,float
 Function,-,j1,double,double
 Function,-,j1f,float,float
+Function,+,jewel_alloc,JewelData*,
+Function,+,jewel_copy,void,"JewelData*, const JewelData*"
+Function,+,jewel_free,void,JewelData*
+Function,+,jewel_get_base_data,JewelData*,const JewelData*
+Function,+,jewel_get_device_name,const char*,"const JewelData*, NfcDeviceNameType"
+Function,+,jewel_get_uid,const uint8_t*,"const JewelData*, size_t*"
+Function,+,jewel_is_equal,_Bool,"const JewelData*, const JewelData*"
+Function,+,jewel_load,_Bool,"JewelData*, FlipperFormat*, uint32_t"
+Function,+,jewel_poller_activate,JewelError,"JewelPoller*, JewelData*"
+Function,+,jewel_poller_sync_read,JewelError,"Nfc*, JewelData*"
+Function,+,jewel_poller_sync_write,JewelError,"Nfc*, const JewelData*"
+Function,+,jewel_reset,void,JewelData*
+Function,+,jewel_save,_Bool,"const JewelData*, FlipperFormat*"
+Function,+,jewel_set_uid,_Bool,"JewelData*, const uint8_t*, size_t"
+Function,+,jewel_verify,_Bool,"JewelData*, const FuriString*"
 Function,-,jn,double,"int, double"
 Function,-,jnf,float,"int, float"
 Function,-,jrand48,long,unsigned short[3]
 Function,+,keys_dict_add_key,_Bool,"KeysDict*, const uint8_t*, size_t"
 Function,+,keys_dict_alloc,KeysDict*,"const char*, KeysDictMode, size_t"
+Function,+,keys_dict_check_available_ram,_Bool,"const char*, size_t"
 Function,+,keys_dict_check_presence,_Bool,const char*
 Function,+,keys_dict_delete_key,_Bool,"KeysDict*, const uint8_t*, size_t"
 Function,+,keys_dict_free,void,KeysDict*
@@ -2801,6 +2807,7 @@ Function,+,mf_classic_get_first_block_num_of_sector,uint8_t,uint8_t
 Function,+,mf_classic_get_key,MfClassicKey,"const MfClassicData*, uint8_t, MfClassicKeyType"
 Function,+,mf_classic_get_read_sectors_and_keys,void,"const MfClassicData*, uint8_t*, uint8_t*"
 Function,+,mf_classic_get_sector_by_block,uint8_t,uint8_t
+Function,+,mf_classic_get_sector_state,MfClassicSectorState,"const MfClassicData*, uint8_t"
 Function,+,mf_classic_get_sector_trailer_by_sector,MfClassicSectorTrailer*,"const MfClassicData*, uint8_t"
 Function,+,mf_classic_get_sector_trailer_num_by_block,uint8_t,uint8_t
 Function,+,mf_classic_get_sector_trailer_num_by_sector,uint8_t,uint8_t
@@ -2817,6 +2824,7 @@ Function,+,mf_classic_is_sector_read,_Bool,"const MfClassicData*, uint8_t"
 Function,+,mf_classic_is_sector_trailer,_Bool,uint8_t
 Function,+,mf_classic_is_value_block,_Bool,"MfClassicSectorTrailer*, uint8_t"
 Function,+,mf_classic_load,_Bool,"MfClassicData*, FlipperFormat*, uint32_t"
+Function,+,mf_classic_parse_mad,_Bool,"const MfClassicData*, MfClassicMad*"
 Function,+,mf_classic_poller_auth,MfClassicError,"MfClassicPoller*, uint8_t, MfClassicKey*, MfClassicKeyType, MfClassicAuthContext*, _Bool"
 Function,+,mf_classic_poller_auth_nested,MfClassicError,"MfClassicPoller*, uint8_t, MfClassicKey*, MfClassicKeyType, MfClassicAuthContext*, _Bool, _Bool"
 Function,+,mf_classic_poller_get_nt,MfClassicError,"MfClassicPoller*, uint8_t, MfClassicKeyType, MfClassicNt*, _Bool"
@@ -3101,6 +3109,7 @@ Function,+,nfc_felica_listener_set_sensf_res_data,NfcError,"Nfc*, const uint8_t*
 Function,+,nfc_felica_listener_timer_anticol_start,void,"Nfc*, uint8_t"
 Function,+,nfc_felica_listener_timer_anticol_stop,void,Nfc*
 Function,+,nfc_free,void,Nfc*
+Function,+,nfc_is_config_done,_Bool,Nfc*
 Function,+,nfc_iso14443a_listener_set_col_res_data,NfcError,"Nfc*, uint8_t*, uint8_t, uint8_t*, uint8_t"
 Function,+,nfc_iso14443a_listener_tx_custom_parity,NfcError,"Nfc*, const BitBuffer*"
 Function,+,nfc_iso14443a_poller_trx_custom_parity,NfcError,"Nfc*, const BitBuffer*, BitBuffer*, uint32_t"
@@ -3119,6 +3128,7 @@ Function,+,nfc_poller_detect,_Bool,NfcPoller*
 Function,+,nfc_poller_free,void,NfcPoller*
 Function,+,nfc_poller_get_data,const NfcDeviceData*,const NfcPoller*
 Function,+,nfc_poller_get_protocol,NfcProtocol,const NfcPoller*
+Function,+,nfc_poller_ready_drain,void,Nfc*
 Function,+,nfc_poller_start,void,"NfcPoller*, NfcGenericCallback, void*"
 Function,+,nfc_poller_start_ex,void,"NfcPoller*, NfcGenericCallbackEx, void*"
 Function,+,nfc_poller_stop,void,NfcPoller*
@@ -3129,6 +3139,7 @@ Function,+,nfc_scanner_alloc,NfcScanner*,Nfc*
 Function,+,nfc_scanner_free,void,NfcScanner*
 Function,+,nfc_scanner_start,void,"NfcScanner*, NfcScannerCallback, void*"
 Function,+,nfc_scanner_stop,void,NfcScanner*
+Function,+,nfc_set_detect_sem,void,"Nfc*, FuriSemaphore*"
 Function,+,nfc_set_fdt_listen_fc,void,"Nfc*, uint32_t"
 Function,+,nfc_set_fdt_poll_fc,void,"Nfc*, uint32_t"
 Function,+,nfc_set_fdt_poll_poll_us,void,"Nfc*, uint32_t"
@@ -3472,31 +3483,6 @@ Function,-,sinhl,long double,long double
 Function,-,sinl,long double,long double
 Function,-,siprintf,int,"char*, const char*, ..."
 Function,-,siscanf,int,"const char*, const char*, ..."
-Function,+,slix_alloc,SlixData*,
-Function,+,slix_copy,void,"SlixData*, const SlixData*"
-Function,+,slix_free,void,SlixData*
-Function,+,slix_get_base_data,const Iso15693_3Data*,const SlixData*
-Function,+,slix_get_counter,uint16_t,const SlixData*
-Function,+,slix_get_device_name,const char*,"const SlixData*, NfcDeviceNameType"
-Function,+,slix_get_password,SlixPassword,"const SlixData*, SlixPasswordType"
-Function,+,slix_get_type,SlixType,const SlixData*
-Function,+,slix_get_uid,const uint8_t*,"const SlixData*, size_t*"
-Function,+,slix_is_block_protected,_Bool,"const SlixData*, SlixPasswordType, uint8_t"
-Function,+,slix_is_counter_increment_protected,_Bool,const SlixData*
-Function,+,slix_is_equal,_Bool,"const SlixData*, const SlixData*"
-Function,+,slix_is_privacy_mode,_Bool,const SlixData*
-Function,+,slix_load,_Bool,"SlixData*, FlipperFormat*, uint32_t"
-Function,+,slix_poller_get_nxp_system_info,SlixError,"SlixPoller*, SlixSystemInfo*"
-Function,+,slix_poller_get_random_number,SlixError,"SlixPoller*, SlixRandomNumber*"
-Function,+,slix_poller_read_signature,SlixError,"SlixPoller*, SlixSignature*"
-Function,+,slix_poller_send_frame,SlixError,"SlixPoller*, const BitBuffer*, BitBuffer*, uint32_t"
-Function,+,slix_poller_set_password,SlixError,"SlixPoller*, SlixPasswordType, SlixPassword, SlixRandomNumber"
-Function,+,slix_reset,void,SlixData*
-Function,+,slix_save,_Bool,"const SlixData*, FlipperFormat*"
-Function,+,slix_set_uid,_Bool,"SlixData*, const uint8_t*, size_t"
-Function,+,slix_type_has_features,_Bool,"SlixType, SlixTypeFeatures"
-Function,+,slix_type_supports_password,_Bool,"SlixType, SlixPasswordType"
-Function,+,slix_verify,_Bool,"SlixData*, const FuriString*"
 Function,+,snep_receive,int16_t,"uint8_t*, uint16_t, uint16_t"
 Function,+,snep_send,int8_t,"const uint8_t*, uint8_t, uint16_t"
 Function,-,sniprintf,int,"char*, size_t, const char*, ..."
@@ -3545,31 +3531,6 @@ Function,-,st25r3916_write_ptf_mem,void,"const FuriHalSpiBusHandle*, const uint8
 Function,-,st25r3916_write_pttsn_mem,void,"const FuriHalSpiBusHandle*, uint8_t*, size_t"
 Function,-,st25r3916_write_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
 Function,-,st25r3916_write_test_reg,void,"const FuriHalSpiBusHandle*, uint8_t, uint8_t"
-Function,-,st25tb_alloc,St25tbData*,
-Function,-,st25tb_copy,void,"St25tbData*, const St25tbData*"
-Function,-,st25tb_free,void,St25tbData*
-Function,-,st25tb_get_base_data,St25tbData*,const St25tbData*
-Function,-,st25tb_get_block_count,uint8_t,St25tbType
-Function,-,st25tb_get_device_name,const char*,"const St25tbData*, NfcDeviceNameType"
-Function,-,st25tb_get_type_from_uid,St25tbType,const uint8_t*
-Function,-,st25tb_get_uid,const uint8_t*,"const St25tbData*, size_t*"
-Function,-,st25tb_is_equal,_Bool,"const St25tbData*, const St25tbData*"
-Function,-,st25tb_load,_Bool,"St25tbData*, FlipperFormat*, uint32_t"
-Function,-,st25tb_poller_get_uid,St25tbError,"St25tbPoller*, uint8_t*"
-Function,-,st25tb_poller_halt,St25tbError,St25tbPoller*
-Function,-,st25tb_poller_initiate,St25tbError,"St25tbPoller*, uint8_t*"
-Function,-,st25tb_poller_read_block,St25tbError,"St25tbPoller*, uint32_t*, uint8_t"
-Function,-,st25tb_poller_select,St25tbError,"St25tbPoller*, uint8_t*"
-Function,-,st25tb_poller_send_frame,St25tbError,"St25tbPoller*, const BitBuffer*, BitBuffer*, uint32_t"
-Function,-,st25tb_poller_sync_detect_type,St25tbError,"Nfc*, St25tbType*"
-Function,-,st25tb_poller_sync_read,St25tbError,"Nfc*, St25tbData*"
-Function,-,st25tb_poller_sync_read_block,St25tbError,"Nfc*, uint8_t, uint32_t*"
-Function,-,st25tb_poller_sync_write_block,St25tbError,"Nfc*, uint8_t, uint32_t"
-Function,-,st25tb_poller_write_block,St25tbError,"St25tbPoller*, uint32_t, uint8_t"
-Function,-,st25tb_reset,void,St25tbData*
-Function,-,st25tb_save,_Bool,"const St25tbData*, FlipperFormat*"
-Function,-,st25tb_set_uid,_Bool,"St25tbData*, const uint8_t*, size_t"
-Function,-,st25tb_verify,_Bool,"St25tbData*, const FuriString*"
 Function,+,storage_common_copy,FS_Error,"Storage*, const char*, const char*"
 Function,+,storage_common_equivalent_path,_Bool,"Storage*, const char*, const char*"
 Function,+,storage_common_exists,_Bool,"Storage*, const char*"
@@ -4693,13 +4654,13 @@ Variable,+,message_vibro_on,const NotificationMessage,
 Variable,+,momentum_settings,MomentumSettings,
 Variable,-,nfc_device_emv,const NfcDeviceBase,
 Variable,-,nfc_device_felica,const NfcDeviceBase,
+Variable,+,nfc_device_jewel,const NfcDeviceBase,
 Variable,-,nfc_device_mf_classic,const NfcDeviceBase,
 Variable,-,nfc_device_mf_desfire,const NfcDeviceBase,
 Variable,-,nfc_device_mf_plus,const NfcDeviceBase,
 Variable,-,nfc_device_mf_ultralight,const NfcDeviceBase,
 Variable,-,nfc_device_ntag4xx,const NfcDeviceBase,
 Variable,-,nfc_device_srix,const NfcDeviceBase,
-Variable,-,nfc_device_st25tb,const NfcDeviceBase,
 Variable,-,nfc_device_type_4_tag,const NfcDeviceBase,
 Variable,+,sequence_audiovisual_alert,const NotificationSequence,
 Variable,+,sequence_blink_blue_10,const NotificationSequence,

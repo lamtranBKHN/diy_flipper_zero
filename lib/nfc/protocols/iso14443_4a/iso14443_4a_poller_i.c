@@ -6,12 +6,13 @@
 
 #define TAG "Iso14443_4aPoller"
 
-#define ISO14443_4A_FSDI_256                (0x8U)
-#define ISO14443_4A_SEND_BLOCK_MAX_ATTEMPTS (20)
-#define ISO14443_4A_FWT_MAX                 (4096UL << 14)
-#define ISO14443_4A_WTXM_MASK               (0x3FU)
-#define ISO14443_4A_WTXM_MAX                (0x3BU)
-#define ISO14443_4A_SWTX                    (0xF2U)
+#define ISO14443_4A_FSDI_256                 (0x8U)
+#define ISO14443_4A_SEND_BLOCK_MAX_ATTEMPTS  (20)
+#define ISO14443_4A_FWT_MAX                  (4096UL << 14)
+#define ISO14443_4A_WTXM_MASK                (0x3FU)
+#define ISO14443_4A_WTXM_MAX                 (0x3BU)
+#define ISO14443_4A_SWTX                     (0xF2U)
+#define ISO14443_4A_POLLER_INTERNAL_BUF_SIZE (256U)
 
 Iso14443_4aError iso14443_4a_poller_halt(Iso14443_4aPoller* instance) {
     furi_check(instance);
@@ -93,6 +94,14 @@ Iso14443_4aError iso14443_4a_poller_send_block(
                 if(wtxm > ISO14443_4A_WTXM_MAX) {
                     return Iso14443_4aErrorProtocol;
                 }
+                /* Per ISO/IEC 14443-4:2016 §7.1.5: WTXM=0 is reserved.
+                 * Some PICCs send it as "request minimum extension"; clamp
+                 * to 1 so the echoed S(WTX) response gives the card a real
+                 * timeout extension instead of FWT (which would hard-timeout
+                 * the card mid-operation). */
+                if(wtxm == 0) {
+                    wtxm = 1;
+                }
 
                 bit_buffer_reset(instance->tx_buffer);
                 bit_buffer_copy_left(instance->tx_buffer, instance->rx_buffer, 1);
@@ -161,6 +170,64 @@ Iso14443_4aError iso14443_4a_poller_send_chain_block(
     BitBuffer* rx_buffer) {
     iso14443_4_layer_set_i_block(instance->iso14443_4_layer, true, false);
     Iso14443_4aError error = iso14443_4a_poller_send_block(instance, tx_buffer, rx_buffer);
+    return error;
+}
+
+Iso14443_4aError iso14443_4a_poller_send_blocks_chained(
+    Iso14443_4aPoller* instance,
+    const BitBuffer* tx_buffer,
+    BitBuffer* rx_buffer) {
+    furi_check(instance);
+    furi_check(tx_buffer);
+    furi_check(rx_buffer);
+
+    const uint8_t* data = bit_buffer_get_data(tx_buffer);
+    const size_t total_len = bit_buffer_get_size_bytes(tx_buffer);
+
+    if(total_len == 0) {
+        return Iso14443_4aErrorNone;
+    }
+
+    /* FSC (Frame Size Card) includes the 1-byte PCB.
+     * Maximum INF per I-block = FSC - 1. */
+    const uint16_t fsc = iso14443_4a_get_frame_size_max(instance->data);
+    const uint16_t max_inf = (fsc > 1) ? (fsc - 1) : 16;
+
+    /* Payload fits in a single I-block — no chaining needed. */
+    if(total_len <= max_inf) {
+        return iso14443_4a_poller_send_block(instance, tx_buffer, rx_buffer);
+    }
+
+    /* Payload exceeds FSC — split across chained I-blocks.
+     * send_block() internally resets instance->tx_buffer before reading
+     * from the tx_buffer parameter, so we need a separate fragment buffer. */
+    Iso14443_4aError error = Iso14443_4aErrorNone;
+    BitBuffer* frag_buffer = bit_buffer_alloc(ISO14443_4A_POLLER_INTERNAL_BUF_SIZE);
+    size_t offset = 0;
+
+    while(offset < total_len) {
+        const size_t chunk_size = MIN(total_len - offset, max_inf);
+        const bool is_last = (offset + chunk_size >= total_len);
+
+        bit_buffer_reset(frag_buffer);
+        bit_buffer_append_bytes(frag_buffer, &data[offset], chunk_size);
+
+        if(!is_last) {
+            /* Send chained I-block with chaining bit set.
+             * Card responds with R(ACK) — handled by decode_response. */
+            error =
+                iso14443_4a_poller_send_chain_block(instance, frag_buffer, instance->rx_buffer);
+            if(error != Iso14443_4aErrorNone) break;
+        } else {
+            /* Send final (unchained) I-block — card responds with actual data. */
+            error = iso14443_4a_poller_send_block(instance, frag_buffer, rx_buffer);
+            if(error != Iso14443_4aErrorNone) break;
+        }
+
+        offset += chunk_size;
+    }
+
+    bit_buffer_free(frag_buffer);
     return error;
 }
 

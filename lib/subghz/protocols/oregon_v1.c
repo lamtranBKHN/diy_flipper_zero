@@ -109,6 +109,7 @@ const SubGhzProtocol ws_protocol_oregon_v1 = {
 void* ws_protocol_decoder_oregon_v1_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderOregon_V1* instance = malloc(sizeof(WSProtocolDecoderOregon_V1));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_oregon_v1;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

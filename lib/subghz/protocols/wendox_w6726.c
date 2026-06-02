@@ -98,6 +98,7 @@ const SubGhzProtocol ws_protocol_wendox_w6726 = {
 void* ws_protocol_decoder_wendox_w6726_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderWendoxW6726* instance = malloc(sizeof(WSProtocolDecoderWendoxW6726));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_wendox_w6726;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

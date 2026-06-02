@@ -10,9 +10,13 @@ extern "C" {
 
 typedef enum {
     Ntag4xxPollerStateIdle,
+    Ntag4xxPollerStateRequestMode,
     Ntag4xxPollerStateReadVersion,
+    Ntag4xxPollerStateWriteVersion,
     Ntag4xxPollerStateReadFailed,
     Ntag4xxPollerStateReadSuccess,
+    Ntag4xxPollerStateWriteFailed,
+    Ntag4xxPollerStateWriteSuccess,
 
     Ntag4xxPollerStateNum,
 } Ntag4xxPollerState;
@@ -20,6 +24,8 @@ typedef enum {
 struct Ntag4xxPoller {
     Iso14443_4aPoller* iso14443_4a_poller;
     Ntag4xxPollerState state;
+    Ntag4xxPollerMode mode;
+    const Ntag4xxData* write_data;
     Ntag4xxError error;
     Ntag4xxData* data;
     BitBuffer* tx_buffer;

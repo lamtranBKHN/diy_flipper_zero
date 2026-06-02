@@ -22,6 +22,7 @@ struct SubGhzReceiver {
 
 SubGhzReceiver* subghz_receiver_alloc_init(SubGhzEnvironment* environment) {
     SubGhzReceiver* instance = malloc(sizeof(SubGhzReceiver));
+    furi_check(instance);
     SubGhzReceiverSlotArray_init(instance->slots);
     const SubGhzProtocolRegistry* protocol_registry_items =
         subghz_environment_get_protocol_registry(environment);

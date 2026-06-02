@@ -150,6 +150,13 @@ bool nfc_scene_mf_classic_detect_reader_on_event(void* context, SceneManagerEven
 void nfc_scene_mf_classic_detect_reader_on_exit(void* context) {
     NfcApp* instance = context;
 
+    // Defensive: stop listener if still running (e.g. if scene popped without on_event handling Back)
+    if(instance->listener) {
+        nfc_listener_stop(instance->listener);
+        nfc_listener_free(instance->listener);
+        instance->listener = NULL;
+    }
+
     // Clear view
     detect_reader_reset(instance->detect_reader);
 

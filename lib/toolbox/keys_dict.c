@@ -5,8 +5,10 @@
 #include <toolbox/stream/file_stream.h>
 #include <toolbox/stream/buffered_file_stream.h>
 #include <toolbox/args.h>
+#include <core/memmgr.h>
 
-#define TAG "KeysDict"
+#define TAG                      "KeysDict"
+#define KEYS_DICT_YIELD_INTERVAL 50 /**< Yield thread every N keys during long SD reads */
 
 struct KeysDict {
     Stream* stream;
@@ -68,6 +70,51 @@ bool keys_dict_check_presence(const char* path) {
     return dict_present;
 }
 
+bool keys_dict_check_available_ram(const char* path, size_t key_size) {
+    furi_check(path);
+    furi_check(key_size > 0);
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+
+    FileInfo fileinfo;
+    FS_Error error = storage_common_stat(storage, path, &fileinfo);
+    furi_record_close(RECORD_STORAGE);
+
+    if(error != FSE_OK || file_info_is_dir(&fileinfo)) {
+        return false;
+    }
+
+    const uint64_t file_size = fileinfo.size;
+
+    /* Estimate max keys: each key is stored as hex string (key_size * 2 chars)
+     * + newline = key_size * 2 + 1 bytes per line.  Divide file by minimum
+     * line length to get a conservative upper bound (overestimates when
+     * comments are present, which is safe). */
+    const size_t min_bytes_per_key = key_size * 2 + 1;
+    const size_t max_possible_keys = file_size > 0 ? (size_t)(file_size / min_bytes_per_key) : 0;
+
+    /* Estimated cache: keys + small overhead for KeysDict struct + stream */
+    const size_t cache_needed = max_possible_keys * key_size + 256;
+
+    /* Safety margin: keep at least 4KB free after allocation to avoid
+     * starving other subsystems (display, GUI, etc.) */
+    const size_t safety_margin = 4096;
+
+    const size_t free_heap = memmgr_get_free_heap();
+    const bool enough_ram = free_heap > cache_needed + safety_margin;
+
+    FURI_LOG_I(
+        "KeysDict",
+        "RAM check: file=%lluB est_cache=%zuB free=%zuB margin=%zuB %s",
+        file_size,
+        cache_needed,
+        free_heap,
+        safety_margin,
+        enough_ram ? "OK" : "INSUFFICIENT");
+
+    return enough_ram;
+}
+
 KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) {
     furi_check(path);
     furi_check(key_size > 0);
@@ -103,10 +150,15 @@ KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) 
     bool is_endfile = false;
 
     // In this loop we only count the entries in the file
+    size_t key_idx = 0;
     while(file_exists && !is_endfile) {
         bool read_key = keys_dict_read_key_line(instance, line, &is_endfile);
         if(read_key) {
             instance->total_keys++;
+        }
+        if(++key_idx % KEYS_DICT_YIELD_INTERVAL == 0) {
+            // Yield to let display thread refresh during long SD reads
+            furi_thread_yield();
         }
     }
     stream_rewind(instance->stream);
@@ -116,14 +168,16 @@ KeysDict* keys_dict_alloc(const char* path, KeysDictMode mode, size_t key_size) 
         if(instance->cached_keys != NULL) {
             is_endfile = false;
             size_t cached_count = 0;
+            key_idx = 0;
             while(file_exists && !is_endfile && cached_count < instance->total_keys) {
                 bool read_key = keys_dict_read_key_line(instance, line, &is_endfile);
                 if(read_key) {
                     keys_dict_str_to_int(
-                        instance,
-                        line,
-                        &instance->cached_keys[cached_count * instance->key_size]);
+                        instance, line, &instance->cached_keys[cached_count * instance->key_size]);
                     cached_count++;
+                }
+                if(++key_idx % KEYS_DICT_YIELD_INTERVAL == 0) {
+                    furi_thread_yield();
                 }
             }
             stream_rewind(instance->stream);
@@ -194,6 +248,13 @@ bool keys_dict_rewind(KeysDict* instance) {
     furi_check(instance->stream);
 
     instance->current_key_idx = 0;
+    // When keys are cached in RAM, no need to seek the SD stream.
+    // The get_next_key() path reads from cached_keys, not the stream.
+    // Skipping stream_rewind() avoids unnecessary SPI1 contention with
+    // the display thread during dict attack sector switches.
+    if(instance->cached_keys != NULL) {
+        return true;
+    }
     return stream_rewind(instance->stream);
 }
 
@@ -328,7 +389,8 @@ bool keys_dict_add_key(KeysDict* instance, const uint8_t* key, size_t key_size) 
     furi_string_free(temp_key);
 
     if(key_added && instance->cached_keys) {
-        uint8_t* new_cache = realloc(instance->cached_keys, instance->total_keys * instance->key_size);
+        uint8_t* new_cache =
+            realloc(instance->cached_keys, instance->total_keys * instance->key_size);
         if(new_cache) {
             instance->cached_keys = new_cache;
             memcpy(
@@ -404,9 +466,7 @@ bool keys_dict_delete_key(KeysDict* instance, const uint8_t* key, size_t key_siz
                 while(!is_end && idx < instance->total_keys) {
                     if(keys_dict_read_key_line(instance, temp_line, &is_end)) {
                         keys_dict_str_to_int(
-                            instance,
-                            temp_line,
-                            &instance->cached_keys[idx * instance->key_size]);
+                            instance, temp_line, &instance->cached_keys[idx * instance->key_size]);
                         idx++;
                     }
                 }

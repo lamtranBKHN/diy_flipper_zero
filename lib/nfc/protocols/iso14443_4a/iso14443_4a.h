@@ -83,6 +83,17 @@ bool iso14443_4a_supports_bit_rate(const Iso14443_4aData* data, Iso14443_4aBitRa
 
 bool iso14443_4a_supports_frame_option(const Iso14443_4aData* data, Iso14443_4aFrameOption option);
 
+/**
+ * @brief Return a human-readable string representation of an Iso14443_4aError value.
+ *
+ * Use this instead of raw \%u / \%d / \%i format specifiers when logging Iso14443_4aError values.
+ * Every Iso14443_4aError enumerator has a corresponding string.
+ *
+ * @param[in] error  The Iso14443_4aError value to describe.
+ * @return A pointer to a null-terminated string describing the error (e.g. "None", "Timeout").
+ */
+const char* iso14443_4a_error_str(Iso14443_4aError error);
+
 #ifdef __cplusplus
 }
 #endif

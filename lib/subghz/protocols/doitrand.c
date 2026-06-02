@@ -80,6 +80,7 @@ const SubGhzProtocol subghz_protocol_doitrand = {
 void* subghz_protocol_encoder_doitrand_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderDoitrand* instance = malloc(sizeof(SubGhzProtocolEncoderDoitrand));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_doitrand;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -191,6 +192,7 @@ LevelDuration subghz_protocol_encoder_doitrand_yield(void* context) {
 void* subghz_protocol_decoder_doitrand_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderDoitrand* instance = malloc(sizeof(SubGhzProtocolDecoderDoitrand));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_doitrand;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

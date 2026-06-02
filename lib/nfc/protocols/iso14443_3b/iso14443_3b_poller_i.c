@@ -21,7 +21,7 @@ static Iso14443_3bError iso14443_3b_poller_prepare_trx(Iso14443_3bPoller* instan
     furi_assert(instance);
 
     if(instance->state == Iso14443_3bPollerStateIdle) {
-        return iso14443_3b_poller_activate(instance, NULL);
+        return iso14443_3b_poller_activate(instance, instance->data);
     }
 
     return Iso14443_3bErrorNone;
@@ -66,6 +66,9 @@ static Iso14443_3bError iso14443_3b_poller_frame_exchange(
 Iso14443_3bError iso14443_3b_poller_activate(Iso14443_3bPoller* instance, Iso14443_3bData* data) {
     furi_check(instance);
     furi_check(instance->nfc);
+    if(!data) {
+        data = instance->data;
+    }
     furi_check(data);
 
     iso14443_3b_reset(data);

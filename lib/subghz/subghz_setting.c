@@ -112,9 +112,11 @@ struct SubGhzSetting {
 
 SubGhzSetting* subghz_setting_alloc(void) {
     SubGhzSetting* instance = malloc(sizeof(SubGhzSetting));
+    furi_check(instance);
     FrequencyList_init(instance->frequencies);
     FrequencyList_init(instance->hopper_frequencies);
     instance->preset = malloc(sizeof(SubGhzSettingCustomPresetStruct));
+    furi_check(instance->preset);
     SubGhzSettingCustomPresetItemArray_init(instance->preset->data);
     return instance;
 }
@@ -161,6 +163,7 @@ static void subghz_setting_load_default_preset(
     preset_data_count += 2;
     item->custom_preset_data_size = sizeof(uint8_t) * preset_data_count + sizeof(uint8_t) * 8;
     item->custom_preset_data = malloc(item->custom_preset_data_size);
+    furi_check(item->custom_preset_data);
     //load preset register + pa table
     memcpy(&item->custom_preset_data[0], &preset_data[0], item->custom_preset_data_size);
 }
@@ -377,6 +380,7 @@ bool subghz_setting_load_custom_preset(
         }
         item->custom_preset_data_size = sizeof(uint8_t) * temp_data32;
         item->custom_preset_data = malloc(item->custom_preset_data_size);
+        furi_check(item->custom_preset_data);
         if(!flipper_format_read_hex(
                fff_data_file,
                "Custom_preset_data",

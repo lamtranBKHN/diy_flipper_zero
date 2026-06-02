@@ -8,6 +8,8 @@
 #include "../nfc_protocol_support_common.h"
 #include "../nfc_protocol_support_gui_common.h"
 
+#include <furi_hal_nfc_pn532.h>
+
 #define TAG "MfClassicApp"
 
 enum {
@@ -103,11 +105,11 @@ static void nfc_scene_read_on_enter_mf_classic(NfcApp* instance) {
 }
 
 static bool nfc_scene_read_on_event_mf_classic(NfcApp* instance, SceneManagerEvent event) {
-    if(event.type == SceneManagerEventTypeCustom &&
-       event.event == NfcCustomEventPollerIncomplete) {
-        scene_manager_next_scene(instance->scene_manager, NfcSceneMfClassicDictAttack);
-    }
-
+    UNUSED(instance);
+    UNUSED(event);
+    // PollerIncomplete is now handled by the common read handler
+    // (NfcCustomEventPollerReadFailed) to avoid stack overflow from
+    // nfc_protocol_support_get SD I/O in the deep callback chain.
     return true;
 }
 
@@ -204,6 +206,28 @@ static void nfc_scene_saved_menu_on_enter_mf_classic(NfcApp* instance) {
 }
 
 static void nfc_scene_emulate_on_enter_mf_classic(NfcApp* instance) {
+    if(furi_hal_nfc_pn532_is_active()) {
+        // MF Classic emulation requires Crypto1 listener support which PN532 cannot provide.
+        // Show error message and do not allocate listener or attempt I2C communication.
+        widget_reset(instance->widget);
+        widget_add_icon_element(instance->widget, 0, 0, &I_NFC_dolphin_emulation_51x64);
+        widget_add_string_element(
+            instance->widget, 90, 26, AlignCenter, AlignCenter, FontPrimary, "Not Supported");
+        widget_add_text_box_element(
+            instance->widget,
+            50,
+            33,
+            78,
+            31,
+            AlignCenter,
+            AlignTop,
+            "MF Classic emulation\nnot supported\non PN532 hardware",
+            false);
+        instance->listener = NULL;
+        FURI_LOG_W(TAG, "MF Classic emulation blocked: PN532 active");
+        return;
+    }
+
     const MfClassicData* data = nfc_device_get_data(instance->nfc_device, NfcProtocolMfClassic);
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolMfClassic, data);
     nfc_listener_start(instance->listener, NULL, NULL);
@@ -343,8 +367,7 @@ static void nfc_scene_write_on_enter_mf_classic(NfcApp* instance) {
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_mf_classic = {
-    .features = NfcProtocolFeatureEmulateFull | NfcProtocolFeatureMoreInfo |
-                NfcProtocolFeatureWrite,
+    .features = NfcProtocolFeatureMoreInfo | NfcProtocolFeatureWrite,
 
     .scene_info =
         {

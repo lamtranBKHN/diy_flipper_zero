@@ -170,6 +170,7 @@ const NfcDeviceBase nfc_device_mf_ultralight = {
 
 MfUltralightData* mf_ultralight_alloc(void) {
     MfUltralightData* data = malloc(sizeof(MfUltralightData));
+    furi_check(data);
     data->iso14443_3a_data = iso14443_3a_alloc();
     return data;
 }
@@ -198,7 +199,8 @@ void mf_ultralight_copy(MfUltralightData* data, const MfUltralightData* other) {
     for(size_t i = 0; i < COUNT_OF(data->tearing_flag); i++) {
         data->tearing_flag[i] = other->tearing_flag[i];
     }
-    for(size_t i = 0; i < COUNT_OF(data->page); i++) {
+    const size_t pages_to_copy = MIN(other->pages_total, MF_ULTRALIGHT_MAX_PAGE_NUM);
+    for(size_t i = 0; i < pages_to_copy; i++) {
         data->page[i] = other->page[i];
     }
 
@@ -457,7 +459,8 @@ bool mf_ultralight_is_equal(const MfUltralightData* data, const MfUltralightData
         }
         if(!data_array_is_equal) break;
 
-        for(size_t i = 0; i < COUNT_OF(data->page); i++) {
+        const size_t pages_to_check = MIN(data->pages_total, MF_ULTRALIGHT_MAX_PAGE_NUM);
+        for(size_t i = 0; i < pages_to_check; i++) {
             if(memcmp(&data->page[i], &other->page[i], sizeof(data->page[i])) != 0) {
                 data_array_is_equal = false;
                 break;
@@ -688,12 +691,24 @@ bool mf_ultralight_3des_key_valid(const MfUltralightData* data) {
     furi_check(data);
     furi_check(data->type == MfUltralightTypeMfulC);
 
-    return !(data->pages_read == data->pages_total - 4);
+    /* The 3DES key is on page 44. It is "valid" (programmed by the user)
+     * if any of its 16 bytes is non-zero and non-0xFF.  A factory-fresh
+     * card has all-zero key, and an erased card has all-0xFF — both must
+     * be rejected. The previous pages_read vs pages_total-4 check was
+     * a heuristic that did not detect these cases. */
+    const uint8_t* key = data->page[44].data;
+    for(size_t i = 0; i < 16; i++) {
+        if(key[i] != 0x00 && key[i] != 0xFF) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const uint8_t* mf_ultralight_3des_get_key(const MfUltralightData* data) {
     furi_check(data);
     furi_check(data->type == MfUltralightTypeMfulC);
+    furi_check(data->pages_total > 44);
 
     return data->page[44].data;
 }
@@ -711,8 +726,12 @@ void mf_ultralight_3des_encrypt(
     furi_check(input);
     furi_check(out);
 
+    /* mbedtls updates IV for CBC chaining — make a local copy so the
+     * caller's const IV is not modified. */
+    uint8_t iv_local[8];
+    memcpy(iv_local, iv, sizeof(iv_local));
     mbedtls_des3_set2key_enc(ctx, ck);
-    mbedtls_des3_crypt_cbc(ctx, MBEDTLS_DES_ENCRYPT, length, (uint8_t*)iv, input, out);
+    mbedtls_des3_crypt_cbc(ctx, MBEDTLS_DES_ENCRYPT, length, iv_local, input, out);
 }
 
 void mf_ultralight_3des_decrypt(
@@ -728,6 +747,10 @@ void mf_ultralight_3des_decrypt(
     furi_check(input);
     furi_check(out);
 
+    /* mbedtls updates IV for CBC chaining — make a local copy so the
+     * caller's const IV is not modified. */
+    uint8_t iv_local[8];
+    memcpy(iv_local, iv, sizeof(iv_local));
     mbedtls_des3_set2key_dec(ctx, ck);
-    mbedtls_des3_crypt_cbc(ctx, MBEDTLS_DES_DECRYPT, length, (uint8_t*)iv, input, out);
+    mbedtls_des3_crypt_cbc(ctx, MBEDTLS_DES_DECRYPT, length, iv_local, input, out);
 }

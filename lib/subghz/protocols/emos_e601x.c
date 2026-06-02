@@ -95,6 +95,7 @@ const SubGhzProtocol ws_protocol_emose601x = {
 void* ws_protocol_decoder_emose601x_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderEmosE601x* instance = malloc(sizeof(WSProtocolDecoderEmosE601x));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_emose601x;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

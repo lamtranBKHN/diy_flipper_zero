@@ -26,10 +26,21 @@ FelicaListener* felica_listener_alloc(Nfc* nfc, FelicaData* data) {
     furi_assert(data);
 
     FelicaListener* instance = malloc(sizeof(FelicaListener));
+    furi_check(instance);
+
     instance->nfc = nfc;
     instance->data = data;
     instance->tx_buffer = bit_buffer_alloc(FELICA_LISTENER_MAX_BUFFER_SIZE);
     instance->rx_buffer = bit_buffer_alloc(FELICA_LISTENER_MAX_BUFFER_SIZE);
+    instance->state = Felica_ListenerStateIdle;
+    instance->block_list_size = 0;
+    instance->request_size_buf = 0;
+    instance->rc_written = false;
+    instance->mac_calc_start = 0;
+    memset(instance->requested_blocks, 0, sizeof(instance->requested_blocks));
+    instance->callback = NULL;
+    instance->context = NULL;
+    memset(&instance->auth, 0, sizeof(instance->auth));
 
     mbedtls_des3_init(&instance->auth.des_context);
     nfc_set_fdt_listen_fc(instance->nfc, FELICA_FDT_LISTEN_FC);
@@ -46,7 +57,9 @@ FelicaListener* felica_listener_alloc(Nfc* nfc, FelicaData* data) {
 
 void felica_listener_free(FelicaListener* instance) {
     furi_assert(instance);
+    furi_assert(instance->data);
     furi_assert(instance->tx_buffer);
+    furi_assert(instance->rx_buffer);
 
     bit_buffer_free(instance->tx_buffer);
     bit_buffer_free(instance->rx_buffer);

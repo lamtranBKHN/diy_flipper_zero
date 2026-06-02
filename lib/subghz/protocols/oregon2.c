@@ -92,6 +92,7 @@ typedef enum {
 void* ws_protocol_decoder_oregon2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderOregon2* instance = malloc(sizeof(WSProtocolDecoderOregon2));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_oregon2;
     instance->generic.protocol_name = instance->base.protocol->name;
     instance->generic.humidity = WS_NO_HUMIDITY;

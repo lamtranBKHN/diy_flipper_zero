@@ -17,15 +17,20 @@ static Iso14443_3bPoller* iso14443_3b_poller_alloc(Nfc* nfc) {
     furi_assert(nfc);
 
     Iso14443_3bPoller* instance = malloc(sizeof(Iso14443_3bPoller));
+    furi_check(instance);
     instance->nfc = nfc;
+    instance->state = Iso14443_3bPollerStateIdle;
     instance->tx_buffer = bit_buffer_alloc(ISO14443_3B_POLLER_MAX_BUFFER_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(ISO14443_3B_POLLER_MAX_BUFFER_SIZE);
+    furi_check(instance->rx_buffer);
 
     nfc_config(instance->nfc, NfcModePoller, NfcTechIso14443b);
     nfc_set_guard_time_us(instance->nfc, ISO14443_3B_GUARD_TIME_US);
     nfc_set_fdt_poll_fc(instance->nfc, ISO14443_3B_FDT_POLL_FC);
     nfc_set_fdt_poll_poll_us(instance->nfc, ISO14443_3B_POLL_POLL_MIN_US);
     instance->data = iso14443_3b_alloc();
+    furi_check(instance->data);
 
     instance->iso14443_3b_event.data = &instance->iso14443_3b_event_data;
     instance->general_event.protocol = NfcProtocolIso14443_3b;
@@ -106,6 +111,26 @@ static bool iso14443_3b_poller_detect(NfcGenericEvent event, void* context) {
     if(nfc_event->type == NfcEventTypePollerReady) {
         Iso14443_3bError error = iso14443_3b_poller_activate(instance, instance->data);
         protocol_detected = (error == Iso14443_3bErrorNone);
+        if(protocol_detected) {
+            char uid_str[32] = {0};
+            for(size_t i = 0; i < ISO14443_3B_UID_SIZE; i++) {
+                char byte_buf[4];
+                snprintf(byte_buf, sizeof(byte_buf), "%02X", instance->data->uid[i]);
+                strcat(uid_str, byte_buf);
+                if(i < ISO14443_3B_UID_SIZE - 1) strcat(uid_str, " ");
+            }
+            FURI_LOG_I(
+                TAG,
+                "Type B card detected: UID=%s, AppData=%02X%02X%02X%02X, ProtoType=%u",
+                uid_str,
+                instance->data->app_data[0],
+                instance->data->app_data[1],
+                instance->data->app_data[2],
+                instance->data->app_data[3],
+                instance->data->protocol_info.protocol_type);
+        } else {
+            FURI_LOG_D(TAG, "No Type B card detected");
+        }
     }
 
     return protocol_detected;

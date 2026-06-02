@@ -73,6 +73,7 @@ const SubGhzProtocol subghz_protocol_revers_rb2 = {
 void* subghz_protocol_encoder_revers_rb2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderRevers_RB2* instance = malloc(sizeof(SubGhzProtocolEncoderRevers_RB2));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_revers_rb2;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -218,6 +219,7 @@ LevelDuration subghz_protocol_encoder_revers_rb2_yield(void* context) {
 void* subghz_protocol_decoder_revers_rb2_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderRevers_RB2* instance = malloc(sizeof(SubGhzProtocolDecoderRevers_RB2));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_revers_rb2;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

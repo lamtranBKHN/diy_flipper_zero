@@ -20,6 +20,7 @@ const NfcDeviceBase nfc_device_type_4_tag = {
 
 Type4TagData* type_4_tag_alloc(void) {
     Type4TagData* data = malloc(sizeof(Type4TagData));
+    furi_check(data);
     data->iso14443_4a_data = iso14443_4a_alloc();
     data->device_name = furi_string_alloc();
     data->platform_name = furi_string_alloc();

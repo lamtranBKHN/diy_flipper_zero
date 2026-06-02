@@ -127,7 +127,7 @@ bool bip_verify(Nfc* nfc) {
         MfClassicError error =
             mf_classic_poller_sync_auth(nfc, block_num, &key, MfClassicKeyTypeA, &auth_ctx);
 
-        if(error == MfClassicErrorNone) {
+        if(error != MfClassicErrorNone) {
             FURI_LOG_D(TAG, "Failed to read block %u: %d", block_num, error);
             break;
         }

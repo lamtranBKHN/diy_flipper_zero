@@ -44,7 +44,7 @@ Type4TagError type_4_tag_apdu_trx(Type4TagPoller* instance, BitBuffer* tx_buf, B
     bit_buffer_reset(rx_buf);
 
     Iso14443_4aError iso14443_4a_error =
-        iso14443_4a_poller_send_block(instance->iso14443_4a_poller, tx_buf, rx_buf);
+        iso14443_4a_poller_send_blocks_chained(instance->iso14443_4a_poller, tx_buf, rx_buf);
 
     bit_buffer_reset(tx_buf);
 
@@ -126,7 +126,9 @@ static Type4TagError type_4_tag_poller_iso_read(
     const uint8_t chunk_max = instance->data->is_tag_specific ?
                                   MIN(instance->data->chunk_max_read, TYPE_4_TAG_CHUNK_LEN) :
                                   TYPE_4_TAG_CHUNK_LEN;
-    if(offset + length > TYPE_4_TAG_ISO_READ_P_OFFSET_MAX + chunk_max - sizeof(length)) {
+    /* Use size_t arithmetic to avoid uint16 overflow on offset+length. */
+    if((size_t)offset + length >
+       (size_t)TYPE_4_TAG_ISO_READ_P_OFFSET_MAX + chunk_max - sizeof(length)) {
         FURI_LOG_E(TAG, "File too large: %zu bytes", length);
         return Type4TagErrorNotSupported;
     }
@@ -176,7 +178,9 @@ static Type4TagError type_4_tag_poller_iso_write(
     const uint8_t chunk_max = instance->data->is_tag_specific ?
                                   MIN(instance->data->chunk_max_write, TYPE_4_TAG_CHUNK_LEN) :
                                   TYPE_4_TAG_CHUNK_LEN;
-    if(offset + length > TYPE_4_TAG_ISO_READ_P_OFFSET_MAX + chunk_max - sizeof(length)) {
+    /* Use size_t arithmetic to avoid uint16 overflow on offset+length. */
+    if((size_t)offset + length >
+       (size_t)TYPE_4_TAG_ISO_READ_P_OFFSET_MAX + chunk_max - sizeof(length)) {
         FURI_LOG_E(TAG, "File too large: %zu bytes", length);
         return Type4TagErrorNotSupported;
     }
@@ -290,11 +294,16 @@ Type4TagError type_4_tag_poller_read_cc(Type4TagPoller* instance) {
         cc_len = bit_lib_bytes_to_num_be(cc_len_be, sizeof(cc_len_be));
 
         FURI_LOG_D(TAG, "Read CC");
-        uint8_t cc_buf[cc_len];
-        error = type_4_tag_poller_iso_read(instance, 0, sizeof(cc_buf), cc_buf);
+        if(cc_len > TYPE_4_TAG_BUF_SIZE) {
+            FURI_LOG_E(TAG, "CC length %u exceeds max %u", cc_len, TYPE_4_TAG_BUF_SIZE);
+            error = Type4TagErrorProtocol;
+            break;
+        }
+        uint8_t cc_buf[TYPE_4_TAG_BUF_SIZE];
+        error = type_4_tag_poller_iso_read(instance, 0, cc_len, cc_buf);
         if(error != Type4TagErrorNone) break;
 
-        error = type_4_tag_cc_parse(instance->data, cc_buf, sizeof(cc_buf));
+        error = type_4_tag_cc_parse(instance->data, cc_buf, cc_len);
         if(error != Type4TagErrorNone) break;
         instance->data->is_tag_specific = true;
 

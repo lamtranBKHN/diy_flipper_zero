@@ -7,6 +7,11 @@
 extern "C" {
 #endif
 
+/** Maximum ISO-DEP APDU payload size (reassembled from chained I-blocks).
+ * 1024 bytes covers EMV, DESFire, and large NDEF operations.
+ * Fits comfortably in STM32WB55's 256 KB RAM. */
+#define ISO14443_4_MAX_APDU_SIZE 1024
+
 typedef struct Iso14443_4Layer Iso14443_4Layer;
 
 Iso14443_4Layer* iso14443_4_layer_alloc(void);

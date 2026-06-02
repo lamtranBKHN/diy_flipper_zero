@@ -71,6 +71,7 @@ const SubGhzProtocol subghz_protocol_elplast = {
 void* subghz_protocol_encoder_elplast_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderElplast* instance = malloc(sizeof(SubGhzProtocolEncoderElplast));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_elplast;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -180,6 +181,7 @@ LevelDuration subghz_protocol_encoder_elplast_yield(void* context) {
 void* subghz_protocol_decoder_elplast_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderElplast* instance = malloc(sizeof(SubGhzProtocolDecoderElplast));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_elplast;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

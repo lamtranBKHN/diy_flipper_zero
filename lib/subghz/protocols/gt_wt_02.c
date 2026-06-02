@@ -97,6 +97,7 @@ const SubGhzProtocol ws_protocol_gt_wt_02 = {
 void* ws_protocol_decoder_gt_wt_02_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     WSProtocolDecoderGT_WT02* instance = malloc(sizeof(WSProtocolDecoderGT_WT02));
+    furi_check(instance);
     instance->base.protocol = &ws_protocol_gt_wt_02;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

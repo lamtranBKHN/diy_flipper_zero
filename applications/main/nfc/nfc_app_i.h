@@ -34,7 +34,6 @@
 #include "helpers/protocol_support/nfc_protocol_support.h"
 #include "helpers/nfc_supported_cards.h"
 #include "helpers/felica_auth.h"
-#include "helpers/slix_unlock.h"
 
 #include <flipper_application/plugins/composite_resolver.h>
 #include <loader/loader.h>
@@ -159,10 +158,10 @@ struct NfcApp {
     NfcPoller* poller;
     NfcScanner* scanner;
     NfcListener* listener;
+    uint32_t poller_epoch;
 
     FelicaAuthenticationContext* felica_auth;
     MfUltralightAuth* mf_ul_auth;
-    SlixUnlock* slix_unlock;
     NfcMfClassicDictAttackContext nfc_dict_context;
     NfcMfUltralightCDictContext mf_ultralight_c_dict_context;
     Mfkey32Logger* mfkey32_logger;

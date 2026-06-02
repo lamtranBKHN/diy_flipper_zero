@@ -1,5 +1,7 @@
 #include "../nfc_app_i.h"
 
+#define TAG "NfcRetryConfirm"
+
 void nfc_scene_retry_confirm_dialog_callback(DialogExResult result, void* context) {
     NfcApp* nfc = context;
 
@@ -28,13 +30,19 @@ bool nfc_scene_retry_confirm_on_event(void* context, SceneManagerEvent event) {
         if(event.event == DialogExResultRight) {
             consumed = scene_manager_previous_scene(nfc->scene_manager);
         } else if(event.event == DialogExResultLeft) {
-            if(scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneSlixUnlock)) {
-                consumed = scene_manager_search_and_switch_to_previous_scene(
-                    nfc->scene_manager, NfcSceneSlixUnlock);
-            } else if(
-                scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneMfClassicDictAttack) &&
-                (scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneReadMenu) ||
-                 scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneSavedMenu))) {
+            // Cleanup intermediate scene resources that
+            // search_and_switch_to_previous_scene pops without on_exit.
+            if(nfc->poller) {
+                nfc_poller_stop(nfc->poller);
+                nfc_poller_free(nfc->poller);
+                nfc->poller = NULL;
+            }
+            nfc_blink_stop(nfc);
+            widget_reset(nfc->widget);
+
+            if(scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneMfClassicDictAttack) &&
+               (scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneReadMenu) ||
+                scene_manager_has_previous_scene(nfc->scene_manager, NfcSceneSavedMenu))) {
                 consumed = scene_manager_search_and_switch_to_previous_scene(
                     nfc->scene_manager, NfcSceneMfClassicDictAttack);
             } else if(scene_manager_has_previous_scene(

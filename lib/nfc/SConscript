@@ -1,3 +1,5 @@
+import fnmatch
+
 Import("env")
 
 # PN532-only NFC: exclude unsupported protocols
@@ -22,49 +24,43 @@ env.Append(
         File("protocols/iso14443_3b/iso14443_3b.h"),
         File("protocols/iso14443_4a/iso14443_4a.h"),
         File("protocols/iso14443_4b/iso14443_4b.h"),
-        File("protocols/iso15693_3/iso15693_3.h"),
         File("protocols/felica/felica.h"),
         File("protocols/mf_ultralight/mf_ultralight.h"),
         File("protocols/mf_classic/mf_classic.h"),
         File("protocols/mf_plus/mf_plus.h"),
         File("protocols/mf_desfire/mf_desfire.h"),
-        File("protocols/slix/slix.h"),
-        File("protocols/st25tb/st25tb.h"),
         File("protocols/ntag4xx/ntag4xx.h"),
         File("protocols/type_4_tag/type_4_tag.h"),
         File("protocols/emv/emv.h"),
         File("protocols/srix/srix.h"),
+        File("protocols/jewel/jewel.h"),
         # Pollers
         File("protocols/iso14443_3a/iso14443_3a_poller.h"),
         File("protocols/iso14443_3b/iso14443_3b_poller.h"),
         File("protocols/iso14443_4a/iso14443_4a_poller.h"),
         File("protocols/iso14443_4b/iso14443_4b_poller.h"),
-        File("protocols/iso15693_3/iso15693_3_poller.h"),
         File("protocols/felica/felica_poller.h"),
         File("protocols/mf_ultralight/mf_ultralight_poller.h"),
         File("protocols/mf_classic/mf_classic_poller.h"),
         File("protocols/mf_plus/mf_plus_poller.h"),
         File("protocols/mf_desfire/mf_desfire_poller.h"),
-        File("protocols/slix/slix_poller.h"),
-        File("protocols/st25tb/st25tb_poller.h"),
         File("protocols/ntag4xx/ntag4xx_poller.h"),
         File("protocols/type_4_tag/type_4_tag_poller.h"),
         File("protocols/emv/emv_poller.h"),
+        File("protocols/jewel/jewel_poller.h"),
         # Listeners
         File("protocols/iso14443_3a/iso14443_3a_listener.h"),
         File("protocols/iso14443_4a/iso14443_4a_listener.h"),
-        File("protocols/iso15693_3/iso15693_3_listener.h"),
         File("protocols/felica/felica_listener.h"),
         File("protocols/mf_ultralight/mf_ultralight_listener.h"),
         File("protocols/mf_classic/mf_classic_listener.h"),
-        File("protocols/slix/slix_listener.h"),
         File("protocols/type_4_tag/type_4_tag_listener.h"),
         # Sync API
         File("protocols/iso14443_3a/iso14443_3a_poller_sync.h"),
         File("protocols/felica/felica_poller_sync.h"),
         File("protocols/mf_ultralight/mf_ultralight_poller_sync.h"),
         File("protocols/mf_classic/mf_classic_poller_sync.h"),
-        File("protocols/st25tb/st25tb_poller_sync.h"),
+        File("protocols/jewel/jewel_poller_sync.h"),
         File("protocols/srix/srix_poller_sync.h"),
         # Misc
         File("helpers/nfc_util.h"),
@@ -88,17 +84,18 @@ libenv.ApplyLibFlags()
 
 sources = libenv.GlobRecursive("*.c*")
 
-# Exclude PN532-unsupported protocol sources to save flash
+# Exclude PN532-unsupported protocol sources to save flash.
+# ISO15693-3, Slix, ST25TB fully removed (no PN532 native support).
 cppdefs = env.get("CPPDEFINES", [])
 if "FURI_HAL_NFC_PN532_ONLY" in cppdefs:
-    excluded_dirs = [
-        "protocols/st25tb",
-        "protocols/srix",
-        "protocols/emv",
-    ]
+    excluded_patterns = []
     sources = [
-        s for s in sources
-        if not any(excl in str(s).replace("\\", "/") for excl in excluded_dirs)
+        s
+        for s in sources
+        if not any(
+            fnmatch.fnmatch(str(s).replace("\\", "/"), "*/" + pat)
+            for pat in excluded_patterns
+        )
     ]
 
 lib = libenv.StaticLibrary("${FW_LIB_NAME}", sources)

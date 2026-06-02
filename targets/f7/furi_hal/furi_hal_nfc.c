@@ -185,7 +185,11 @@ FuriHalNfcError furi_hal_nfc_reset_mode(void) {
 
     FuriHalNfcError error = FuriHalNfcErrorCommunication;
     if(furi_hal_nfc_pn532_is_active()) {
-        furi_hal_nfc_pn532_reset();
+        /* Lightweight reset: clear mode/tech/volatile state but preserve
+         * target activation cache. Full reset (InRelease + cache wipe)
+         * happens in set_mode() on tech change or low_power_mode_start()
+         * when RF turns off. */
+        furi_hal_nfc_pn532_reset_keep_target();
         furi_hal_nfc_event_stop();
         error = FuriHalNfcErrorNone;
     }
@@ -389,6 +393,18 @@ void furi_hal_nfc_emu_set_ndef(const uint8_t* msg, size_t len) {
     if(furi_hal_nfc_pn532_is_active()) {
         furi_hal_nfc_pn532_emu_set_ndef(msg, len);
     }
+}
+
+void furi_hal_nfc_set_exchange_deadline(uint32_t deadline_tick) {
+    furi_hal_pn532_set_exchange_deadline(deadline_tick);
+}
+
+void furi_hal_nfc_clear_exchange_deadline(void) {
+    furi_hal_pn532_clear_exchange_deadline();
+}
+
+void furi_hal_nfc_release_active_target(void) {
+    furi_hal_nfc_pn532_release_if_listed();
 }
 
 FuriHalNfcError furi_hal_nfc_common_listener_rx_start(const FuriHalSpiBusHandle* handle) {

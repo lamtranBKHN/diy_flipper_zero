@@ -12,12 +12,18 @@ static Iso14443_4aListener*
     furi_assert(iso14443_3a_listener);
 
     Iso14443_4aListener* instance = malloc(sizeof(Iso14443_4aListener));
+    furi_check(instance);
+
     instance->iso14443_3a_listener = iso14443_3a_listener;
     instance->data = data;
     instance->iso14443_4_layer = iso14443_4_layer_alloc();
 
     instance->rx_buffer = bit_buffer_alloc(ISO14443_4A_LISTENER_BUF_SIZE);
     instance->tx_buffer = bit_buffer_alloc(ISO14443_4A_LISTENER_BUF_SIZE);
+
+    instance->state = Iso14443_4aListenerStateIdle;
+    instance->callback = NULL;
+    instance->context = NULL;
 
     instance->iso14443_4a_event.data = &instance->iso14443_4a_event_data;
     instance->generic_event.protocol = NfcProtocolIso14443_4a;

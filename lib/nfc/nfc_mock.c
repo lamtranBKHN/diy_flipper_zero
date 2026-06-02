@@ -74,6 +74,7 @@ typedef struct {
 
 struct Nfc {
     NfcState state;
+    bool config_done;
 
     Iso14443_3aColResStatus col_res_status;
     Iso14443_3aColResData col_res_data;
@@ -141,6 +142,8 @@ static void nfc_prepare_col_res_data(
 
 Nfc* nfc_alloc(void) {
     Nfc* instance = malloc(sizeof(Nfc));
+    furi_check(instance);
+    memset(instance, 0, sizeof(Nfc));
 
     return instance;
 }
@@ -156,6 +159,7 @@ void nfc_config(Nfc* instance, NfcMode mode, NfcTech tech) {
     UNUSED(tech);
 
     instance->mode = mode;
+    instance->config_done = true;
 }
 
 void nfc_set_fdt_poll_fc(Nfc* instance, uint32_t fdt_poll_fc) {
@@ -181,6 +185,12 @@ void nfc_set_fdt_poll_poll_us(Nfc* instance, uint32_t fdt_poll_poll_us) {
 void nfc_set_guard_time_us(Nfc* instance, uint32_t guard_time_us) {
     UNUSED(instance);
     UNUSED(guard_time_us);
+}
+
+bool nfc_is_config_done(Nfc* instance) {
+    furi_check(instance);
+
+    return instance->config_done;
 }
 
 NfcError nfc_iso14443a_listener_set_col_res_data(
@@ -339,6 +349,7 @@ static int32_t nfc_worker_listener(void* context) {
 void nfc_start(Nfc* instance, NfcEventCallback callback, void* context) {
     furi_check(instance);
     furi_check(instance->worker_thread == NULL);
+    furi_check(instance->config_done);
 
     if(instance->mode == NfcModeListener) {
         furi_check(listener_queue == NULL);
@@ -398,12 +409,23 @@ void nfc_stop(Nfc* instance) {
         furi_thread_free(instance->worker_thread);
         instance->worker_thread = NULL;
     }
+
+    instance->config_done = false;
 }
 
 FuriStatus nfc_wait_for_poller_ready(Nfc* instance, uint32_t timeout_ms) {
     UNUSED(instance);
     UNUSED(timeout_ms);
     return FuriStatusOk;
+}
+
+void nfc_set_detect_sem(Nfc* instance, FuriSemaphore* sem) {
+    UNUSED(instance);
+    UNUSED(sem);
+}
+
+void nfc_poller_ready_drain(Nfc* instance) {
+    UNUSED(instance);
 }
 
 // Called from worker thread

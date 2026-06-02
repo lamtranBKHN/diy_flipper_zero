@@ -10,7 +10,6 @@ App(
         "nfc",
         "subghz",
         "bad_kb",
-        "u2f",
         "momentum_app",
         "archive",
         "main_apps_on_start",

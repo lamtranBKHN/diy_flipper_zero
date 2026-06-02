@@ -89,6 +89,19 @@ static NfcCommand
     return NfcCommandContinue;
 }
 
+static void nfc_scene_more_info_on_enter_iso14443_3a(NfcApp* instance) {
+    const NfcDevice* device = instance->nfc_device;
+    const Iso14443_3aData* data = nfc_device_get_data(device, NfcProtocolIso14443_3a);
+
+    FuriString* temp_str = furi_string_alloc();
+    nfc_render_iso14443_3a_dump(data, temp_str);
+
+    widget_add_text_scroll_element(
+        instance->widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
+
+    furi_string_free(temp_str);
+}
+
 static void nfc_scene_emulate_on_enter_iso14443_3a(NfcApp* instance) {
     const Iso14443_3aData* data =
         nfc_device_get_data(instance->nfc_device, NfcProtocolIso14443_3a);
@@ -99,7 +112,8 @@ static void nfc_scene_emulate_on_enter_iso14443_3a(NfcApp* instance) {
 }
 
 const NfcProtocolSupportBase nfc_protocol_support_iso14443_3a = {
-    .features = NfcProtocolFeatureEmulateUid | NfcProtocolFeatureEditUid,
+    .features = NfcProtocolFeatureEmulateUid | NfcProtocolFeatureEditUid |
+                NfcProtocolFeatureMoreInfo,
 
     .scene_info =
         {
@@ -129,6 +143,11 @@ const NfcProtocolSupportBase nfc_protocol_support_iso14443_3a = {
     .scene_save_name =
         {
             .on_enter = nfc_protocol_support_common_on_enter_empty,
+            .on_event = nfc_protocol_support_common_on_event_empty,
+        },
+    .scene_more_info =
+        {
+            .on_enter = nfc_scene_more_info_on_enter_iso14443_3a,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
     .scene_emulate =

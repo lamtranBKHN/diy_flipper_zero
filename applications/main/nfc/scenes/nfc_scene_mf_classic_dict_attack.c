@@ -5,7 +5,7 @@
 
 #define TAG "NfcMfClassicDictAttack"
 
-#define NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS 20
+#define NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS 100
 
 /* Bail out of dict attack after this many keys with zero success.
  * With 80ms auth timeout: 20 keys × 2 (A+B) × ~150ms = ~6s.
@@ -13,6 +13,83 @@
  * Most MIFARE Classic cards with dictionary keys match within the
  * first 10-15 common keys (FFFFFFFFFFFF, A0A1A2A3A4A5, etc.). */
 #define NFC_DICT_ATTACK_BAIL_OUT_KEYS 20
+
+/* Chunk size for throttled file copy: 512 bytes matches internal SD buffer size */
+#define NFC_DICT_COPY_CHUNK_SIZE 512
+
+/* Yield every 8 chunks (~4KB) during file copy to let display thread refresh.
+ * Without this, storage_common_copy() holds SPI1 continuously for 200ms+ on
+ * large dictionary files, starving the display and triggering the watchdog. */
+#define NFC_DICT_COPY_YIELD_INTERVAL 8
+
+/**
+ * Throttled file copy that yields the CPU periodically during the transfer
+ * to allow the display thread to refresh on SPI1-shared hardware.
+ *
+ * Like storage_common_copy() but yields every NFC_DICT_COPY_YIELD_INTERVAL
+ * chunks, preventing watchdog timeouts during large dictionary copies.
+ * Only handles regular files (not directories).
+ */
+static FS_Error
+    nfc_dict_storage_copy_throttled(Storage* storage, const char* old_path, const char* new_path) {
+    furi_check(storage);
+
+    FS_Error error;
+    FileInfo fileinfo;
+    error = storage_common_stat(storage, old_path, &fileinfo);
+
+    if(error != FSE_OK || file_info_is_dir(&fileinfo)) {
+        return error;
+    }
+
+    File* source = storage_file_alloc(storage);
+    File* dest = storage_file_alloc(storage);
+    uint8_t* buffer = malloc(NFC_DICT_COPY_CHUNK_SIZE);
+    size_t chunks_since_yield = 0;
+
+    do {
+        if(!storage_file_open(source, old_path, FSAM_READ, FSOM_OPEN_EXISTING)) {
+            error = storage_file_get_error(source);
+            break;
+        }
+        if(!storage_file_open(dest, new_path, FSAM_WRITE, FSOM_CREATE_NEW)) {
+            error = storage_file_get_error(dest);
+            break;
+        }
+
+        uint64_t remaining = storage_file_size(source);
+        while(remaining > 0) {
+            const size_t read_size = remaining > NFC_DICT_COPY_CHUNK_SIZE ?
+                                         NFC_DICT_COPY_CHUNK_SIZE :
+                                         (size_t)remaining;
+
+            if(storage_file_read(source, buffer, read_size) != read_size) {
+                error = storage_file_get_error(source);
+                break;
+            }
+            if(storage_file_write(dest, buffer, read_size) != read_size) {
+                error = storage_file_get_error(dest);
+                break;
+            }
+            remaining -= read_size;
+
+            /* Yield every N chunks to let display thread refresh.
+             * On SPI1-shared hardware (display + SD card), a continuous
+             * copy holds the bus for 200ms+.  Yielding periodically breaks
+             * this into shorter intervals. */
+            if(++chunks_since_yield >= NFC_DICT_COPY_YIELD_INTERVAL) {
+                furi_thread_yield();
+                chunks_since_yield = 0;
+            }
+        }
+        if(error != FSE_OK) break;
+    } while(false);
+
+    free(buffer);
+    storage_file_free(source);
+    storage_file_free(dest);
+    return error;
+}
 
 static void nfc_scene_mf_classic_dict_attack_update_view(NfcApp* instance);
 static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance);
@@ -46,6 +123,9 @@ NfcCommand nfc_dict_attack_worker_callback(NfcGenericEvent event, void* context)
                                                 MfClassicPollerModeDictAttackEnhanced :
                                                 MfClassicPollerModeDictAttackStandard;
         mfc_event->data->poller_mode.data = mfc_data;
+        mfc_event->data->poller_mode.nested_phase = instance->nfc_dict_context.nested_phase;
+        mfc_event->data->poller_mode.prng_type = instance->nfc_dict_context.prng_type;
+        mfc_event->data->poller_mode.backdoor = instance->nfc_dict_context.backdoor;
         instance->nfc_dict_context.sectors_total =
             mf_classic_get_total_sectors_num(mfc_data->type);
         mf_classic_get_read_sectors_and_keys(
@@ -66,9 +146,7 @@ NfcCommand nfc_dict_attack_worker_callback(NfcGenericEvent event, void* context)
                 instance->nfc_dict_context.dict_keys_current);
             mfc_event->data->key_request_data.key_provided = false;
         } else if(keys_dict_get_next_key(
-                      instance->nfc_dict_context.dict,
-                      key.data,
-                      sizeof(MfClassicKey))) {
+                      instance->nfc_dict_context.dict, key.data, sizeof(MfClassicKey))) {
             mfc_event->data->key_request_data.key = key;
             mfc_event->data->key_request_data.key_provided = true;
             instance->nfc_dict_context.dict_keys_current++;
@@ -137,11 +215,7 @@ void nfc_dict_attack_dict_attack_result_callback(DictAttackEvent event, void* co
 }
 
 static void nfc_scene_mf_classic_dict_attack_stop_poller_bounded(NfcApp* instance) {
-    uint32_t deadline = furi_get_tick() + NFC_DICT_ATTACK_POLLER_STOP_TIMEOUT_MS;
     nfc_poller_stop(instance->poller);
-    while(furi_get_tick() < deadline) {
-        furi_thread_yield();
-    }
     nfc_poller_free(instance->poller);
     instance->poller = NULL;
 }
@@ -166,7 +240,10 @@ static void nfc_scene_mf_classic_dict_attack_transition_phase(
     nfc_scene_mf_classic_dict_attack_save_backdoor_state(instance);
 
     nfc_scene_mf_classic_dict_attack_stop_poller_bounded(instance);
-    keys_dict_free(instance->nfc_dict_context.dict);
+    if(instance->nfc_dict_context.dict) {
+        keys_dict_free(instance->nfc_dict_context.dict);
+        instance->nfc_dict_context.dict = NULL;
+    }
 
     scene_manager_set_scene_state(
         instance->scene_manager, NfcSceneMfClassicDictAttack, next_state);
@@ -205,45 +282,74 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
     uint32_t state =
         scene_manager_get_scene_state(instance->scene_manager, NfcSceneMfClassicDictAttack);
     if(state == DictAttackStateCUIDDictInProgress) {
-        size_t cuid_len = 0;
-        const uint8_t* cuid = nfc_device_get_uid(instance->nfc_device, &cuid_len);
-        FuriString* cuid_dict_path = furi_string_alloc_printf(
-            "%s/mf_classic_dict_%08lx.nfc",
-            EXT_PATH("nfc/assets"),
-            (uint32_t)bit_lib_bytes_to_num_be(cuid + (cuid_len - 4), 4));
+        /* Guard: nfc_device_get_uid() furi_check-crashes if protocol is invalid.
+         * After plugin verification timeouts the PN532 may have been reinitialised,
+         * leaving nfc_device in an inconsistent state.  Skip CUID dict if the
+         * device does not hold valid MF Classic data. */
+        NfcProtocol dev_protocol = nfc_device_get_protocol(instance->nfc_device);
+        if(dev_protocol != NfcProtocolMfClassic) {
+            FURI_LOG_W(
+                TAG, "Device protocol %d != MfClassic, skipping CUID dict", (int)dev_protocol);
+            state = DictAttackStateUserDictInProgress;
+        } else {
+            size_t cuid_len = 0;
+            const uint8_t* cuid = nfc_device_get_uid(instance->nfc_device, &cuid_len);
 
-        do {
-            if(!keys_dict_check_presence(furi_string_get_cstr(cuid_dict_path))) {
+            if(cuid_len < 4) {
+                FURI_LOG_W(TAG, "UID length %zu invalid, skipping CUID dictionary", cuid_len);
                 state = DictAttackStateUserDictInProgress;
-                break;
+            } else {
+                FuriString* cuid_dict_path = furi_string_alloc_printf(
+                    "%s/mf_classic_dict_%08lx.nfc",
+                    EXT_PATH("nfc/assets"),
+                    (uint32_t)bit_lib_bytes_to_num_be(cuid + (cuid_len - 4), 4));
+
+                do {
+                    if(!keys_dict_check_presence(furi_string_get_cstr(cuid_dict_path))) {
+                        furi_thread_yield();
+                        state = DictAttackStateUserDictInProgress;
+                        break;
+                    }
+
+                    /* Pre-scan: skip if dict file is too large for available RAM */
+                    if(!keys_dict_check_available_ram(
+                           furi_string_get_cstr(cuid_dict_path), sizeof(MfClassicKey))) {
+                        FURI_LOG_W(TAG, "CUID dict too large for RAM, skipping");
+                        state = DictAttackStateUserDictInProgress;
+                        break;
+                    }
+
+                    instance->nfc_dict_context.dict = keys_dict_alloc(
+                        furi_string_get_cstr(cuid_dict_path),
+                        KeysDictModeOpenExisting,
+                        sizeof(MfClassicKey));
+                    furi_thread_yield();
+
+                    if(keys_dict_get_total_keys(instance->nfc_dict_context.dict) == 0) {
+                        keys_dict_free(instance->nfc_dict_context.dict);
+                        state = DictAttackStateUserDictInProgress;
+                        break;
+                    }
+
+                    dict_attack_set_header(instance->dict_attack, "MF Classic CUID Dictionary");
+                } while(false);
+
+                furi_string_free(cuid_dict_path);
             }
-
-            instance->nfc_dict_context.dict = keys_dict_alloc(
-                furi_string_get_cstr(cuid_dict_path),
-                KeysDictModeOpenExisting,
-                sizeof(MfClassicKey));
-
-            if(keys_dict_get_total_keys(instance->nfc_dict_context.dict) == 0) {
-                keys_dict_free(instance->nfc_dict_context.dict);
-                state = DictAttackStateUserDictInProgress;
-                break;
-            }
-
-            dict_attack_set_header(instance->dict_attack, "MF Classic CUID Dictionary");
-        } while(false);
-
-        furi_string_free(cuid_dict_path);
+        }
     }
     if(state == DictAttackStateUserDictInProgress) {
         do {
             instance->nfc_dict_context.enhanced_dict = true;
 
-            if(keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH)) {
-                storage_common_remove(
-                    instance->storage, NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
-            }
+            // Remove is idempotent — no need to check presence first.
+            storage_common_remove(instance->storage, NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
+            /* Yield between SD operations to allow the display thread to run.
+             * storage_common_copy() holds SPI1 for up to 234ms per call on large
+             * dictionary files, blocking the display and triggering the watchdog. */
+            furi_thread_yield();
             if(keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH)) {
-                FS_Error copy_result = storage_common_copy(
+                FS_Error copy_result = nfc_dict_storage_copy_throttled(
                     instance->storage,
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH,
                     NFC_APP_MF_CLASSIC_DICT_SYSTEM_NESTED_PATH);
@@ -253,15 +359,15 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
                 }
             }
 
+            furi_thread_yield();
             if(!keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_USER_PATH)) {
                 state = DictAttackStateSystemDictInProgress;
                 break;
             }
 
-            if(keys_dict_check_presence(NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH)) {
-                storage_common_remove(instance->storage, NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
-            }
-            FS_Error copy_result = storage_common_copy(
+            storage_common_remove(instance->storage, NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
+            furi_thread_yield();
+            FS_Error copy_result = nfc_dict_storage_copy_throttled(
                 instance->storage,
                 NFC_APP_MF_CLASSIC_DICT_USER_PATH,
                 NFC_APP_MF_CLASSIC_DICT_USER_NESTED_PATH);
@@ -270,8 +376,20 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
                 notification_message(instance->notifications, &sequence_error);
             }
 
+            furi_thread_yield();
+
+            /* Pre-scan: skip user dict if too large for available RAM */
+            if(!keys_dict_check_available_ram(
+                   NFC_APP_MF_CLASSIC_DICT_USER_PATH, sizeof(MfClassicKey))) {
+                FURI_LOG_W(TAG, "User dict too large for RAM, skipping to system dict");
+                furi_thread_yield();
+                state = DictAttackStateSystemDictInProgress;
+                break;
+            }
+
             instance->nfc_dict_context.dict = keys_dict_alloc(
                 NFC_APP_MF_CLASSIC_DICT_USER_PATH, KeysDictModeOpenAlways, sizeof(MfClassicKey));
+            furi_thread_yield();
             if(keys_dict_get_total_keys(instance->nfc_dict_context.dict) == 0) {
                 keys_dict_free(instance->nfc_dict_context.dict);
                 state = DictAttackStateSystemDictInProgress;
@@ -282,8 +400,13 @@ static void nfc_scene_mf_classic_dict_attack_prepare_view(NfcApp* instance) {
         } while(false);
     }
     if(state == DictAttackStateSystemDictInProgress) {
+        /* System dict is the last resort — no fallback dict tier available.
+         * keys_dict_alloc() already handles OOM gracefully (falls back to
+         * stream-based key iteration), so we always attempt the alloc even
+         * if a RAM pre-scan suggests tight memory. */
         instance->nfc_dict_context.dict = keys_dict_alloc(
             NFC_APP_MF_CLASSIC_DICT_SYSTEM_PATH, KeysDictModeOpenExisting, sizeof(MfClassicKey));
+        furi_thread_yield();
         dict_attack_set_header(instance->dict_attack, "MF Classic System Dictionary");
     }
 
@@ -318,6 +441,10 @@ void nfc_scene_mf_classic_dict_attack_on_enter(void* context) {
 }
 
 static void nfc_scene_mf_classic_dict_attack_notify_read(NfcApp* instance) {
+    if(!instance->poller) {
+        FURI_LOG_W(TAG, "notify_read: stale event, poller NULL");
+        return;
+    }
     const MfClassicData* mfc_data = nfc_poller_get_data(instance->poller);
     bool is_card_fully_read = mf_classic_is_card_read(mfc_data);
     if(is_card_fully_read) {
@@ -335,6 +462,11 @@ bool nfc_scene_mf_classic_dict_attack_on_event(void* context, SceneManagerEvent 
         scene_manager_get_scene_state(instance->scene_manager, NfcSceneMfClassicDictAttack);
     if(event.type == SceneManagerEventTypeCustom) {
         if(event.event == NfcCustomEventDictAttackComplete) {
+            if(!instance->poller) {
+                FURI_LOG_W(TAG, "Stale DictAttackComplete ignored: poller NULL");
+                consumed = true;
+                return consumed;
+            }
             bool ran_nested_dict = instance->nfc_dict_context.nested_phase !=
                                    MfClassicNestedPhaseNone;
             if(state == DictAttackStateCUIDDictInProgress) {
@@ -360,6 +492,11 @@ bool nfc_scene_mf_classic_dict_attack_on_event(void* context, SceneManagerEvent 
         } else if(event.event == NfcCustomEventDictAttackDataUpdate) {
             nfc_scene_mf_classic_dict_attack_update_view(instance);
         } else if(event.event == NfcCustomEventDictAttackSkip) {
+            if(!instance->poller) {
+                FURI_LOG_W(TAG, "Stale DictAttackSkip ignored: poller NULL");
+                consumed = true;
+                return consumed;
+            }
             const MfClassicData* mfc_data = nfc_poller_get_data(instance->poller);
             nfc_device_set_data(instance->nfc_device, NfcProtocolMfClassic, mfc_data);
             bool ran_nested_dict = instance->nfc_dict_context.nested_phase !=
@@ -407,7 +544,10 @@ void nfc_scene_mf_classic_dict_attack_on_exit(void* context) {
     scene_manager_set_scene_state(
         instance->scene_manager, NfcSceneMfClassicDictAttack, DictAttackStateCUIDDictInProgress);
 
-    keys_dict_free(instance->nfc_dict_context.dict);
+    if(instance->nfc_dict_context.dict) {
+        keys_dict_free(instance->nfc_dict_context.dict);
+        instance->nfc_dict_context.dict = NULL;
+    }
 
     instance->nfc_dict_context.current_sector = 0;
     instance->nfc_dict_context.sectors_total = 0;

@@ -15,6 +15,7 @@
 
 Crypto1* crypto1_alloc(void) {
     Crypto1* instance = malloc(sizeof(Crypto1));
+    furi_check(instance);
 
     return instance;
 }

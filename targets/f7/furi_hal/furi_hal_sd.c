@@ -379,8 +379,15 @@ static SdSpiCmdAnswer
         sd_spi_deselect_card();
 
         // and wait for it to be ready
-        while(sd_spi_read_byte() != 0xFF) {
-        };
+        {
+            uint32_t r1b_deadline = furi_get_tick() + SD_TIMEOUT_MS;
+            while(sd_spi_read_byte() != 0xFF) {
+                if(furi_get_tick() >= r1b_deadline) {
+                    FURI_LOG_E("FuriHalSd", "R1B busy-wait timeout (%dms)", SD_TIMEOUT_MS);
+                    break;
+                }
+            }
+        }
 
         break;
     case SdSpiCmdAnswerTypeR2:

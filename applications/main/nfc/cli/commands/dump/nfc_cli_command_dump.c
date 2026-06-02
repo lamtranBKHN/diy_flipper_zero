@@ -8,14 +8,12 @@
 #include "protocols/iso14443_3b/nfc_cli_dump_iso14443_3b.h"
 #include "protocols/iso14443_4a/nfc_cli_dump_iso14443_4a.h"
 #include "protocols/iso14443_4b/nfc_cli_dump_iso14443_4b.h"
-#include "protocols/iso15693_3/nfc_cli_dump_iso15693_3.h"
 #include "protocols/mf_classic/nfc_cli_dump_mf_classic.h"
 #include "protocols/mf_desfire/nfc_cli_dump_mf_desfire.h"
 #include "protocols/mf_plus/nfc_cli_dump_mf_plus.h"
 #include "protocols/mf_ultralight/nfc_cli_dump_mf_ultralight.h"
-#include "protocols/slix/nfc_cli_dump_slix.h"
-#include "protocols/st25tb/nfc_cli_dump_st25tb.h"
 #include "protocols/felica/nfc_cli_dump_felica.h"
+#include "protocols/jewel/nfc_cli_dump_jewel.h"
 
 #include <datetime.h>
 #include <furi_hal_rtc.h>
@@ -88,11 +86,12 @@ NfcGenericCallback protocol_poller_callbacks[NfcProtocolNum] = {
     [NfcProtocolIso14443_3b] = nfc_cli_dump_poller_callback_iso14443_3b,
     [NfcProtocolIso14443_4a] = nfc_cli_dump_poller_callback_iso14443_4a,
     [NfcProtocolIso14443_4b] = nfc_cli_dump_poller_callback_iso14443_4b,
-    [NfcProtocolIso15693_3] = nfc_cli_dump_poller_callback_iso15693_3,
-    [NfcProtocolSlix] = nfc_cli_dump_poller_callback_slix,
+    [NfcProtocolIso15693_3] = NULL,
+    [NfcProtocolSlix] = NULL,
     [NfcProtocolMfDesfire] = nfc_cli_dump_poller_callback_mf_desfire,
     [NfcProtocolMfPlus] = nfc_cli_dump_poller_callback_mf_plus,
-    [NfcProtocolSt25tb] = nfc_cli_dump_poller_callback_st25tb,
+    [NfcProtocolSt25tb] = NULL,
+    [NfcProtocolJewel] = nfc_cli_dump_poller_callback_jewel,
 };
 
 static void nfc_cli_dump_generate_filename(FuriString* file_path) {
@@ -211,14 +210,12 @@ static const NfcProtocolNameValuePair supported_protocols[] = {
     {.name = "14_3b", .value = NfcProtocolIso14443_3b},
     {.name = "14_4a", .value = NfcProtocolIso14443_4a},
     {.name = "14_4b", .value = NfcProtocolIso14443_4b},
-    {.name = "15", .value = NfcProtocolIso15693_3},
     {.name = "felica", .value = NfcProtocolFelica},
     {.name = "mfu", .value = NfcProtocolMfUltralight},
     {.name = "mfc", .value = NfcProtocolMfClassic},
     {.name = "mfp", .value = NfcProtocolMfPlus},
     {.name = "des", .value = NfcProtocolMfDesfire},
-    {.name = "slix", .value = NfcProtocolSlix},
-    {.name = "st25", .value = NfcProtocolSt25tb},
+    {.name = "jewel", .value = NfcProtocolJewel},
 };
 
 static bool nfc_cli_dump_parse_protocol(FuriString* value, void* output) {

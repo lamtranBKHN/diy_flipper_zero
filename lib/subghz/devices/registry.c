@@ -17,6 +17,7 @@ static SubGhzDeviceRegistry* subghz_device_registry = NULL;
 void subghz_device_registry_init(void) {
     SubGhzDeviceRegistry* subghz_device =
         (SubGhzDeviceRegistry*)malloc(sizeof(SubGhzDeviceRegistry));
+    furi_check(subghz_device);
     subghz_device->manager = plugin_manager_alloc(
         SUBGHZ_RADIO_DEVICE_PLUGIN_APP_ID,
         SUBGHZ_RADIO_DEVICE_PLUGIN_API_VERSION,
@@ -32,6 +33,7 @@ void subghz_device_registry_init(void) {
     subghz_device->size = plugin_manager_get_count(subghz_device->manager) + 1;
     subghz_device->items =
         (const SubGhzDevice**)malloc(sizeof(SubGhzDevice*) * subghz_device->size);
+    furi_check(subghz_device->items);
     subghz_device->items[0] = &subghz_device_cc1101_int;
     for(uint32_t i = 1; i < subghz_device->size; i++) {
         const SubGhzDevice* plugin = plugin_manager_get_ep(subghz_device->manager, i - 1);

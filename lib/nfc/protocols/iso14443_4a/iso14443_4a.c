@@ -1,6 +1,7 @@
 #include "iso14443_4a_i.h"
 
 #include <furi.h>
+#include <string.h>
 
 #define ISO14443_4A_PROTOCOL_NAME "ISO14443-4A"
 #define ISO14443_4A_DEVICE_NAME   "ISO14443-4A (Unknown)"
@@ -37,6 +38,7 @@ const NfcDeviceBase nfc_device_iso14443_4a = {
 
 Iso14443_4aData* iso14443_4a_alloc(void) {
     Iso14443_4aData* data = malloc(sizeof(Iso14443_4aData));
+    furi_check(data);
 
     data->iso14443_3a_data = iso14443_3a_alloc();
     data->ats_data.t1_tk = simple_array_alloc(&simple_array_config_uint8_t);
@@ -191,7 +193,23 @@ bool iso14443_4a_is_equal(const Iso14443_4aData* data, const Iso14443_4aData* ot
     furi_check(data);
     furi_check(other);
 
-    return iso14443_3a_is_equal(data->iso14443_3a_data, other->iso14443_3a_data);
+    if(!iso14443_3a_is_equal(data->iso14443_3a_data, other->iso14443_3a_data)) {
+        return false;
+    }
+
+    if(data->ats_data.tl != other->ats_data.tl) return false;
+    if(data->ats_data.t0 != other->ats_data.t0) return false;
+    if(data->ats_data.ta_1 != other->ats_data.ta_1) return false;
+    if(data->ats_data.tb_1 != other->ats_data.tb_1) return false;
+    if(data->ats_data.tc_1 != other->ats_data.tc_1) return false;
+    if(simple_array_get_count(data->ats_data.t1_tk) !=
+       simple_array_get_count(other->ats_data.t1_tk)) {
+        return false;
+    }
+    return memcmp(
+               simple_array_cget_data(data->ats_data.t1_tk),
+               simple_array_cget_data(other->ats_data.t1_tk),
+               simple_array_get_count(data->ats_data.t1_tk)) == 0;
 }
 
 const char* iso14443_4a_get_device_name(const Iso14443_4aData* data, NfcDeviceNameType name_type) {

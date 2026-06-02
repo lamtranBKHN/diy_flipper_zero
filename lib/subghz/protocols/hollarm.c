@@ -75,6 +75,7 @@ const SubGhzProtocol subghz_protocol_hollarm = {
 void* subghz_protocol_encoder_hollarm_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderHollarm* instance = malloc(sizeof(SubGhzProtocolEncoderHollarm));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_hollarm;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -311,6 +312,7 @@ LevelDuration subghz_protocol_encoder_hollarm_yield(void* context) {
 void* subghz_protocol_decoder_hollarm_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderHollarm* instance = malloc(sizeof(SubGhzProtocolDecoderHollarm));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_hollarm;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

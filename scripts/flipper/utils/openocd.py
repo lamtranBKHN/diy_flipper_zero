@@ -1,6 +1,7 @@
 import socket
 import subprocess
 import logging
+import time
 
 
 class OpenOCD:
@@ -76,10 +77,15 @@ class OpenOCD:
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect(("127.0.0.1", self.tcl_port))
 
-    def _wait_for_openocd_tcl(self):
-        """Wait for OpenOCD to start"""
-        # TODO Fl-3538: timeout
+    def _wait_for_openocd_tcl(self, timeout: float = 30.0):
+        """Wait for OpenOCD to start. Raises TimeoutError after `timeout` seconds."""
+        start = time.monotonic()
         while True:
+            if time.monotonic() - start > timeout:
+                self.logger.error("OpenOCD TCL startup timed out")
+                raise TimeoutError(
+                    "OpenOCD TCL did not start within %.0f seconds" % timeout
+                )
             stderr = self.process.stderr
             if not stderr:
                 break
@@ -126,15 +132,28 @@ class OpenOCD:
             self.postmortem()
             raise
 
-    def _recv(self):
-        """Read from the stream until the token (\x1a) was received."""
-        # TODO FL-3538: timeout
+    def _recv(self, timeout: float = 10.0):
+        """Read from the stream until the token (\x1a) was received.
+
+        Sets a socket timeout so that recv() does not block forever.  If the
+        timeout expires the socket is restored to blocking mode before raising.
+        """
+        old_timeout = self.socket.gettimeout()
+        self.socket.settimeout(timeout)
         data = bytes()
-        while True:
-            chunk = self.socket.recv(4096)
-            data += chunk
-            if bytes(OpenOCD.COMMAND_TOKEN, encoding="utf-8") in chunk:
-                break
+        try:
+            while True:
+                chunk = self.socket.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
+                if bytes(OpenOCD.COMMAND_TOKEN, encoding="utf-8") in chunk:
+                    break
+        except socket.timeout as e:
+            self.logger.error(f"TCL recv timed out after {timeout}s")
+            raise TimeoutError("OpenOCD TCL recv timed out") from e
+        finally:
+            self.socket.settimeout(old_timeout)
 
         self.logger.debug(f"-> {data}")
 

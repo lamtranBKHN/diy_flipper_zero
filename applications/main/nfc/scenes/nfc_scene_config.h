@@ -68,12 +68,8 @@ ADD_SCENE(nfc, set_sak, SetSak)
 ADD_SCENE(nfc, set_atqa, SetAtqa)
 ADD_SCENE(nfc, set_uid, SetUid)
 
-ADD_SCENE(nfc, slix_unlock_menu, SlixUnlockMenu)
-ADD_SCENE(nfc, slix_key_input, SlixKeyInput)
-ADD_SCENE(nfc, slix_unlock, SlixUnlock)
-ADD_SCENE(nfc, slix_unlock_success, SlixUnlockSuccess)
-
 ADD_SCENE(nfc, felica_more_info, FelicaMoreInfo)
+ADD_SCENE(nfc, felica_system, FelicaSystem)
 
 ADD_SCENE(nfc, generate_info, GenerateInfo)
 ADD_SCENE(nfc, p2p, P2p)

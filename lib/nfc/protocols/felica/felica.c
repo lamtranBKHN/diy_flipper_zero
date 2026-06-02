@@ -538,7 +538,7 @@ static bool felica_calculate_mac(
             error = true;
             break;
         }
-    } while(i <= length);
+    } while(i < length);
 
     if(!error) {
         felica_reverse_copy_block(out, mac);
@@ -663,6 +663,7 @@ void felica_write_directory_tree(const FelicaData* data, FuriString* str) {
             furi_string_cat_printf(str, depth ? "|" : "");
             furi_string_cat_printf(str, "- AREA_%04X/\n", next_area->code >> 6);
 
+            if(depth >= 8) break;
             area_last_stack[depth++] = next_area->last_idx;
             area_iter++;
         }

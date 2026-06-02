@@ -53,7 +53,9 @@ void nfc_render_type_4_tag_dump(const Type4TagData* data, FuriString* str) {
     for(size_t i = 0; i < ndef_len; i += TYPE_4_TAG_RENDER_BYTES_PER_LINE) {
         const uint8_t* line_data = &ndef_data[i];
         for(size_t j = 0; j < TYPE_4_TAG_RENDER_BYTES_PER_LINE; j += 2) {
-            furi_string_cat_printf(str, " %02X%02X", line_data[j], line_data[j + 1]);
+            if(i + j + 1 < ndef_len) {
+                furi_string_cat_printf(str, " %02X%02X", line_data[j], line_data[j + 1]);
+            }
         }
     }
 }

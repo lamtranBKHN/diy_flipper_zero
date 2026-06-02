@@ -26,9 +26,12 @@ static FelicaPoller* felica_poller_alloc(Nfc* nfc) {
     furi_assert(nfc);
 
     FelicaPoller* instance = malloc(sizeof(FelicaPoller));
+    furi_check(instance);
     instance->nfc = nfc;
     instance->tx_buffer = bit_buffer_alloc(FELICA_POLLER_MAX_BUFFER_SIZE);
+    furi_check(instance->tx_buffer);
     instance->rx_buffer = bit_buffer_alloc(FELICA_POLLER_MAX_BUFFER_SIZE);
+    furi_check(instance->rx_buffer);
 
     nfc_config(instance->nfc, NfcModePoller, NfcTechFelica);
     nfc_set_guard_time_us(instance->nfc, FELICA_GUARD_TIME_US);
@@ -37,7 +40,11 @@ static FelicaPoller* felica_poller_alloc(Nfc* nfc) {
 
     mbedtls_des3_init(&instance->auth.des_context);
     instance->data = felica_alloc();
+    furi_check(instance->data);
 
+    instance->state = FelicaPollerStateIdle;
+    instance->block_index = 0;
+    instance->activate_retry_count = 0;
     instance->felica_event.data = &instance->felica_event_data;
     instance->general_event.protocol = NfcProtocolFelica;
     instance->general_event.event_data = &instance->felica_event;
@@ -84,6 +91,7 @@ NfcCommand felica_poller_state_handler_activate(FelicaPoller* instance) {
 
     FelicaError error = felica_poller_activate(instance, instance->data);
     if(error == FelicaErrorNone) {
+        instance->activate_retry_count = 0;
         furi_hal_random_fill_buf(instance->data->data.fs.rc.data, FELICA_DATA_BLOCK_SIZE);
         felica_get_workflow_type(instance->data);
 
@@ -113,6 +121,18 @@ NfcCommand felica_poller_state_handler_activate(FelicaPoller* instance) {
         instance->felica_event.type = FelicaPollerEventTypeError;
         instance->felica_event_data.error = error;
         instance->state = FelicaPollerStateReadFailed;
+    } else {
+        /* Activation timeout: bound the retry loop to avoid an infinite
+         * hang on a stuck or absent card. After 5 consecutive timeouts,
+         * give up and report an error. */
+        instance->activate_retry_count++;
+        if(instance->activate_retry_count >= 5) {
+            FURI_LOG_W(
+                TAG, "Activate: giving up after %u timeouts", instance->activate_retry_count);
+            instance->felica_event.type = FelicaPollerEventTypeError;
+            instance->felica_event_data.error = FelicaErrorTimeout;
+            instance->state = FelicaPollerStateReadFailed;
+        }
     }
     return command;
 }
@@ -241,8 +261,19 @@ NfcCommand felica_poller_state_handler_traverse_standard_system(FelicaPoller* in
     felica_area_array_t area_buffer;
     felica_area_array_init(area_buffer);
 
-    for(uint16_t cursor = 0; cursor < 0xFFFF; cursor++) {
+    /* Cap at 1024 services to prevent I2C storm on cards with 
+     * hundreds of thousands of reported services (0xFFFF max).
+     * Real cards have at most ~200 services; 1024 is generous.
+     * Each iteration calls felica_poller_list_service_by_cursor()
+     * which does an I2C exchange (~10ms), so 0xFFFF iterations
+     * would block the bus for ~10 minutes. */
+    const uint16_t max_services = 1024;
+    for(uint16_t cursor = 0; cursor < 0xFFFF && cursor < max_services; cursor++) {
         FelicaError error = felica_poller_list_service_by_cursor(instance, cursor, &response);
+        if(cursor >= max_services - 1) {
+            FURI_LOG_W(TAG, "Service traversal limit reached (%u), stopping", max_services);
+            break;
+        }
         if(error != FelicaErrorNone) {
             FURI_LOG_E(TAG, "Error %d at cursor %04X", error, cursor);
             break;
@@ -386,6 +417,15 @@ NfcCommand felica_poller_state_handler_read_standard_blocks(FelicaPoller* instan
 NfcCommand felica_poller_state_handler_read_lite_blocks(FelicaPoller* instance) {
     FURI_LOG_D(TAG, "Read Lite Blocks");
 
+    /* Bounds guard: prevent overflow of dump buffer if called unexpectedly.
+     * blocks_total increments from 0; the max index is FELICA_BLOCKS_TOTAL_COUNT-1.
+     * If we somehow reach the limit, transition to success and bail out. */
+    if(instance->data->blocks_total >= FELICA_BLOCKS_TOTAL_COUNT) {
+        FURI_LOG_W(TAG, "Blocks total at limit (%u), marking success", FELICA_BLOCKS_TOTAL_COUNT);
+        instance->state = FelicaPollerStateReadSuccess;
+        return NfcCommandContinue;
+    }
+
     uint8_t block_count = 1;
     uint8_t block_list[4] = {0, 0, 0, 0};
     block_list[0] = instance->block_index;
@@ -436,7 +476,7 @@ NfcCommand felica_poller_state_handler_read_success(FelicaPoller* instance) {
 
     if(!instance->auth.context.auth_status.internal ||
        !instance->auth.context.auth_status.external) {
-        instance->data->blocks_read--;
+        if(instance->data->blocks_read > 0) instance->data->blocks_read--;
         instance->felica_event.type = FelicaPollerEventTypeIncomplete;
     } else {
         memcpy(

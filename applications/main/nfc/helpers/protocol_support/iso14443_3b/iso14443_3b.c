@@ -60,12 +60,30 @@ static void nfc_scene_read_success_on_enter_iso14443_3b(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
+static void nfc_scene_more_info_on_enter_iso14443_3b(NfcApp* instance) {
+    const NfcDevice* device = instance->nfc_device;
+    const Iso14443_3bData* data = nfc_device_get_data(device, NfcProtocolIso14443_3b);
+
+    FuriString* temp_str = furi_string_alloc();
+    nfc_render_iso14443_3b_dump(data, temp_str);
+
+    widget_add_text_scroll_element(
+        instance->widget, 0, 0, 128, 64, furi_string_get_cstr(temp_str));
+
+    furi_string_free(temp_str);
+}
+
 const NfcProtocolSupportBase nfc_protocol_support_iso14443_3b = {
-    .features = NfcProtocolFeatureNone,
+    .features = NfcProtocolFeatureMoreInfo,
 
     .scene_info =
         {
             .on_enter = nfc_scene_info_on_enter_iso14443_3b,
+            .on_event = nfc_protocol_support_common_on_event_empty,
+        },
+    .scene_more_info =
+        {
+            .on_enter = nfc_scene_more_info_on_enter_iso14443_3b,
             .on_event = nfc_protocol_support_common_on_event_empty,
         },
     .scene_read =

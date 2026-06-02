@@ -67,7 +67,10 @@ static void furi_hal_i2c_bus_external_event(FuriHalI2cBus* bus, FuriHalI2cBusEve
          * silently corrupting SPI transfers. */
         furi_crash("I2C3 is disabled on this board (PA7/SPI_MOSI conflict)");
     } else if(event == FuriHalI2cBusEventDeactivate) {
-        furi_hal_bus_disable(FuriHalBusI2C3);
+        /* I2C3 was never activated (crash guard at line 68), so Deactivate
+         * should never be reached. If it is, something bypassed the guard.
+         * Crash to prevent silent SPI corruption from PA7 reconfiguration. */
+        furi_crash("I2C3 Deactivate: should never reach here (never activated)");
     }
 }
 
@@ -125,34 +128,7 @@ void furi_hal_i2c_bus_handle_external_event(
     const FuriHalI2cBusHandle* handle,
     FuriHalI2cBusHandleEvent event) {
     if(event == FuriHalI2cBusHandleEventActivate) {
-        furi_hal_gpio_init_ex(
-            &gpio_i2c_3_scl,
-            GpioModeAltFunctionOpenDrain,
-            GpioPullNo,
-            GpioSpeedHigh,
-            GpioAltFn4I2C3);
-        furi_hal_gpio_init_ex(
-            &gpio_i2c_3_sda,
-            GpioModeAltFunctionOpenDrain,
-            GpioPullNo,
-            GpioSpeedHigh,
-            GpioAltFn4I2C3);
-
-        LL_I2C_InitTypeDef I2C_InitStruct;
-        I2C_InitStruct.PeripheralMode = LL_I2C_MODE_I2C;
-        I2C_InitStruct.AnalogFilter = LL_I2C_ANALOGFILTER_ENABLE;
-        I2C_InitStruct.DigitalFilter = 0;
-        I2C_InitStruct.OwnAddress1 = 0;
-        I2C_InitStruct.TypeAcknowledge = LL_I2C_ACK;
-        I2C_InitStruct.OwnAddrSize = LL_I2C_OWNADDRESS1_7BIT;
-        I2C_InitStruct.Timing = FURI_HAL_I2C_CONFIG_POWER_I2C_TIMINGS_400;
-        LL_I2C_Init(handle->bus->i2c, &I2C_InitStruct);
-        LL_I2C_Enable(handle->bus->i2c);
-        LL_I2C_EnableAutoEndMode(handle->bus->i2c);
-        LL_I2C_SetOwnAddress2(handle->bus->i2c, 0, LL_I2C_OWNADDRESS2_NOMASK);
-        LL_I2C_DisableOwnAddress2(handle->bus->i2c);
-        LL_I2C_DisableGeneralCall(handle->bus->i2c);
-        LL_I2C_EnableClockStretching(handle->bus->i2c);
+        furi_crash("I2C3 handle is disabled; PN532 must use I2C1 SCL/SDA");
     } else if(event == FuriHalI2cBusHandleEventDeactivate) {
         LL_I2C_Disable(handle->bus->i2c);
         furi_hal_gpio_write(&gpio_i2c_3_scl, 1);

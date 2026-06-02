@@ -81,6 +81,26 @@ Iso14443_4aError iso14443_4a_poller_send_chain_block(
     BitBuffer* rx_buffer);
 
 /**
+ * @brief Transmit a payload across chained I-blocks, automatically splitting
+ *        data that exceeds FSC (Frame Size Card) into multiple fragments.
+ *
+ * Sends all but the last fragment with the chaining bit set. Intermediate
+ * blocks receive R(ACK) responses from the card. The final (unchained) block
+ * receives the actual response, which is written to rx_buffer.
+ *
+ * Must ONLY be used inside the callback function.
+ *
+ * @param[in, out] instance pointer to the instance to be used in the transaction.
+ * @param[in] tx_buffer pointer to the buffer containing the full payload to transmit.
+ * @param[out] rx_buffer pointer to the buffer to be filled with the final received data.
+ * @return Iso14443_4aErrorNone on success, an error code on failure.
+ */
+Iso14443_4aError iso14443_4a_poller_send_blocks_chained(
+    Iso14443_4aPoller* instance,
+    const BitBuffer* tx_buffer,
+    BitBuffer* rx_buffer);
+
+/**
  * @brief Transmit Iso14443_4a R-block in poller mode. This block never contains
  * data, but can contain CID and NAD, therefore in tx_buffer only two bytes can be added.
  * The first one will represent CID, the second one will represent NAD.

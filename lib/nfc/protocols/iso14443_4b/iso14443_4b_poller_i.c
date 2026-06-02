@@ -48,9 +48,7 @@ Iso14443_4bError iso14443_4b_poller_send_block(
                         instance->iso14443_4_layer, rx_pcb, instance->tx_buffer);
 
                     iso14443_3b_error = iso14443_3b_poller_send_frame(
-                        instance->iso14443_3b_poller,
-                        instance->tx_buffer,
-                        instance->rx_buffer);
+                        instance->iso14443_3b_poller, instance->tx_buffer, instance->rx_buffer);
 
                     if(iso14443_3b_error != Iso14443_3bErrorNone) {
                         error = iso14443_4b_process_error(iso14443_3b_error);

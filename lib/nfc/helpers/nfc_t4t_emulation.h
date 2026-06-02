@@ -27,10 +27,7 @@ void nfc_t4t_emulation_reset(NfcT4tEmulation* ctx);
  *  @param ndef_data  Raw NDEF message bytes (not TLV-wrapped).
  *  @param ndef_len   Length in bytes. Must be <= NFC_T4T_NDEF_MAX_LEN.
  *  @return true on success. */
-bool nfc_t4t_emulation_set_ndef(
-    NfcT4tEmulation* ctx,
-    const uint8_t* ndef_data,
-    size_t ndef_len);
+bool nfc_t4t_emulation_set_ndef(NfcT4tEmulation* ctx, const uint8_t* ndef_data, size_t ndef_len);
 
 /** Process one APDU command received from the reader.
  *  @param cmd      Raw APDU bytes (no I-block header, no CRC).

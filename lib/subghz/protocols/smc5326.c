@@ -99,6 +99,7 @@ const SubGhzProtocol subghz_protocol_smc5326 = {
 void* subghz_protocol_encoder_smc5326_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderSMC5326* instance = malloc(sizeof(SubGhzProtocolEncoderSMC5326));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_smc5326;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -220,6 +221,7 @@ LevelDuration subghz_protocol_encoder_smc5326_yield(void* context) {
 void* subghz_protocol_decoder_smc5326_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderSMC5326* instance = malloc(sizeof(SubGhzProtocolDecoderSMC5326));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_smc5326;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;

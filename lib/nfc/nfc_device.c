@@ -16,6 +16,7 @@
 
 NfcDevice* nfc_device_alloc(void) {
     NfcDevice* instance = malloc(sizeof(NfcDevice));
+    furi_check(instance);
     instance->protocol = NfcProtocolNum;
 
     return instance;

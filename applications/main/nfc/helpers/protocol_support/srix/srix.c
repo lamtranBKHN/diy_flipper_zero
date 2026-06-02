@@ -69,8 +69,7 @@ static NfcCommand nfc_scene_write_poller_callback_srix(NfcGenericEvent event, vo
     SrixPollerEvent* srix_event = event.event_data;
 
     if(srix_event->type == SrixPollerEventTypeRequestMode) {
-        const SrixData* write_data =
-            nfc_device_get_data(instance->nfc_device, NfcProtocolSrix);
+        const SrixData* write_data = nfc_device_get_data(instance->nfc_device, NfcProtocolSrix);
         srix_event->data->mode_request.mode = SrixPollerModeWrite;
         srix_event->data->mode_request.write_data = write_data;
         return NfcCommandContinue;

@@ -155,12 +155,16 @@ static void loader_menu_apps_callback(void* context, uint32_t index) {
     }
 
     const MenuApp* menu_app = MenuAppList_get(app->apps_list, index);
-    const char* name = menu_app->path ? menu_app->path : menu_app->name;
 
-    if(menu_app->path && !strstr(menu_app->path, ".fap")) {
-        run_with_default_app(menu_app->path);
+    if(menu_app->path) {
+        const size_t path_len = strlen(menu_app->path);
+        if(path_len < 4 || memcmp(menu_app->path + path_len - 4, ".fap", 4) != 0) {
+            run_with_default_app(menu_app->path);
+        } else {
+            loader_menu_start(menu_app->path);
+        }
     } else {
-        loader_menu_start(name);
+        loader_menu_start(menu_app->name);
     }
 }
 
@@ -264,6 +268,7 @@ bool loader_menu_load_fap_meta(
     const Icon** icon) {
     *icon = NULL;
     uint8_t* icon_buf = malloc(CUSTOM_ICON_MAX_SIZE);
+    if(!icon_buf) return false;
     if(!flipper_application_load_name_and_icon(path, storage, &icon_buf, name)) {
         free(icon_buf);
         icon_buf = NULL;

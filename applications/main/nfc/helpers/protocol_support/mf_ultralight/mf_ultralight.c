@@ -264,9 +264,83 @@ static void nfc_scene_read_success_on_enter_mf_ultralight(NfcApp* instance) {
     furi_string_free(temp_str);
 }
 
+#include <furi_hal_nfc.h>
+
+static void nfc_mf_ultralight_arm_ndef_emulation(const MfUltralightData* data) {
+    furi_hal_nfc_emu_set_ndef(NULL, 0);
+    if(data == NULL) {
+        FURI_LOG_W("NfcEmu", "arm_ndef: data == NULL");
+        return;
+    }
+
+    const uint8_t* cc = data->page[3].data;
+    FURI_LOG_I(
+        "NfcEmu",
+        "arm_ndef: type=%d pages_read=%u/%u CC=%02X %02X %02X %02X",
+        (int)data->type,
+        (unsigned)data->pages_read,
+        (unsigned)data->pages_total,
+        cc[0],
+        cc[1],
+        cc[2],
+        cc[3]);
+    if(cc[0] != 0xE1) {
+        FURI_LOG_W("NfcEmu", "arm_ndef: CC[0]=0x%02X != 0xE1 (not NFC-Forum)", cc[0]);
+        return; /* no NFC-Forum capability container */
+    }
+
+    size_t area = (size_t)cc[2] * 8;
+    size_t total_bytes = mf_ultralight_get_pages_total(data->type) * MF_ULTRALIGHT_PAGE_SIZE;
+    size_t avail = (total_bytes > 16) ? (total_bytes - 16) : 0; /* pages 4.. */
+    if(area > 0 && area < avail) avail = area;
+    FURI_LOG_I(
+        "NfcEmu",
+        "arm_ndef: area=%u total=%u avail=%u",
+        (unsigned)area,
+        (unsigned)total_bytes,
+        (unsigned)avail);
+
+    if(avail == 0) return;
+    uint8_t* ud = malloc(avail);
+    if(ud == NULL) return;
+
+    size_t num_pages = (avail + MF_ULTRALIGHT_PAGE_SIZE - 1) / MF_ULTRALIGHT_PAGE_SIZE;
+    for(size_t p = 0; p < num_pages; p++) {
+        size_t page_idx = 4 + p;
+        if(page_idx >= data->pages_read) break;
+        size_t copy_len = avail - (p * MF_ULTRALIGHT_PAGE_SIZE);
+        if(copy_len > MF_ULTRALIGHT_PAGE_SIZE) copy_len = MF_ULTRALIGHT_PAGE_SIZE;
+        memcpy(ud + (p * MF_ULTRALIGHT_PAGE_SIZE), data->page[page_idx].data, copy_len);
+    }
+
+    size_t i = 0;
+    while(i < avail) {
+        uint8_t t = ud[i++];
+        if(t == 0x00) continue; /* NULL TLV */
+        if(t == 0xFE) break; /* terminator */
+        if(i >= avail) break;
+        uint32_t l = ud[i++];
+        if(l == 0xFF) { /* 3-byte length */
+            if(i + 1 >= avail) break;
+            l = ((uint32_t)ud[i] << 8) | ud[i + 1];
+            i += 2;
+        }
+        if(t == 0x03) { /* NDEF message TLV */
+            if(l > 0 && i + l <= avail) {
+                furi_hal_nfc_emu_set_ndef(&ud[i], l);
+            }
+            break;
+        }
+        i += l; /* skip lock/memory-control TLVs */
+    }
+
+    free(ud);
+}
+
 static void nfc_scene_emulate_on_enter_mf_ultralight(NfcApp* instance) {
     const MfUltralightData* data =
         nfc_device_get_data(instance->nfc_device, NfcProtocolMfUltralight);
+    nfc_mf_ultralight_arm_ndef_emulation(data);
     instance->listener = nfc_listener_alloc(instance->nfc, NfcProtocolMfUltralight, data);
     nfc_listener_start(instance->listener, NULL, NULL);
 }

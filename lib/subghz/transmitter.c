@@ -19,6 +19,7 @@ SubGhzTransmitter*
 
     if(protocol && protocol->encoder && protocol->encoder->alloc) {
         instance = malloc(sizeof(SubGhzTransmitter));
+        furi_check(instance);
         instance->protocol = protocol;
         instance->protocol_instance = instance->protocol->encoder->alloc(environment);
     }

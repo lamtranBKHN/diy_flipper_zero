@@ -208,6 +208,7 @@ void subghz_protocol_decoder_honeywell_get_string(void* context, FuriString* out
 void* subghz_protocol_decoder_honeywell_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderHoneywell* instance = malloc(sizeof(SubGhzProtocolDecoderHoneywell));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_honeywell;
     instance->generic.protocol_name = instance->base.protocol->name;
     return instance;
@@ -216,6 +217,7 @@ void* subghz_protocol_decoder_honeywell_alloc(SubGhzEnvironment* environment) {
 void* subghz_protocol_encoder_honeywell_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderHoneywell* instance = malloc(sizeof(SubGhzProtocolEncoderHoneywell));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_honeywell;
     instance->generic.protocol_name = instance->base.protocol->name;

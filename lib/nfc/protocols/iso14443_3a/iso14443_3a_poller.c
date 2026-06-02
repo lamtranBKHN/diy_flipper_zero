@@ -25,7 +25,7 @@ static Iso14443_3aPoller* iso14443_3a_poller_alloc(Nfc* nfc) {
     furi_check(instance->rx_buffer);
     instance->data = iso14443_3a_alloc();
     furi_check(instance->data);
-    
+
     instance->state = Iso14443_3aPollerStateIdle;
     instance->consecutive_no_target = 0;
     nfc_config(instance->nfc, NfcModePoller, NfcTechIso14443a);
@@ -121,6 +121,25 @@ static bool iso14443_3a_poller_detect(NfcGenericEvent event, void* context) {
     if(nfc_event->type == NfcEventTypePollerReady) {
         Iso14443_3aError error = iso14443_3a_poller_activate(instance, NULL);
         protocol_detected = (error == Iso14443_3aErrorNone);
+        if(protocol_detected) {
+            char uid_str[32] = {0};
+            const uint8_t uid_len = instance->data->uid_len;
+            for(uint8_t i = 0; i < uid_len && i < ISO14443_3A_MAX_UID_SIZE; i++) {
+                char byte_buf[4];
+                snprintf(byte_buf, sizeof(byte_buf), "%02X", instance->data->uid[i]);
+                strcat(uid_str, byte_buf);
+                if(i < uid_len - 1) strcat(uid_str, " ");
+            }
+            FURI_LOG_I(
+                TAG,
+                "Type A card detected: UID=%s, SAK=0x%02X, ATQA=%02X%02X",
+                uid_str,
+                instance->data->sak,
+                instance->data->atqa[0],
+                instance->data->atqa[1]);
+        } else {
+            FURI_LOG_D(TAG, "No Type A card detected");
+        }
     }
 
     return protocol_detected;

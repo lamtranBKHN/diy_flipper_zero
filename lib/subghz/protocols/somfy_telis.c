@@ -80,6 +80,7 @@ const SubGhzProtocol subghz_protocol_somfy_telis = {
 void* subghz_protocol_encoder_somfy_telis_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolEncoderSomfyTelis* instance = malloc(sizeof(SubGhzProtocolEncoderSomfyTelis));
+    furi_check(instance);
 
     instance->base.protocol = &subghz_protocol_somfy_telis;
     instance->generic.protocol_name = instance->base.protocol->name;
@@ -385,6 +386,7 @@ LevelDuration subghz_protocol_encoder_somfy_telis_yield(void* context) {
 void* subghz_protocol_decoder_somfy_telis_alloc(SubGhzEnvironment* environment) {
     UNUSED(environment);
     SubGhzProtocolDecoderSomfyTelis* instance = malloc(sizeof(SubGhzProtocolDecoderSomfyTelis));
+    furi_check(instance);
     instance->base.protocol = &subghz_protocol_somfy_telis;
     instance->generic.protocol_name = instance->base.protocol->name;
 

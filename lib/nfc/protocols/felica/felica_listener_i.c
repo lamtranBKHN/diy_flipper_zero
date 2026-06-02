@@ -1,6 +1,7 @@
 #include "felica_listener_i.h"
 
 #include <nfc/helpers/felica_crc.h>
+#include <bit_lib/bit_lib.h>
 
 #define FELICA_WCNT_MC2_FF_MAX_VALUE           (0x00FFFFFFU)
 #define FELICA_WCNT_MC2_00_MAX_VALUE           (0x00FFFE00U)
@@ -25,33 +26,34 @@ static uint32_t felica_wcnt_get_max_value(const FelicaData* data) {
 }
 
 static bool felica_wcnt_check_warning_boundary(const FelicaData* data) {
-    const uint32_t* wcnt_ptr = (uint32_t*)data->data.fs.wcnt.data;
+    const uint32_t wcnt_val = bit_lib_bytes_to_num_be(data->data.fs.wcnt.data, 4);
     return FELICA_SYSTEM_BLOCK_RO_ACCESS(data) &&
-           ((*wcnt_ptr > FELICA_WCNT_MC2_00_WARNING_BEGIN_VALUE) &&
-            (*wcnt_ptr < FELICA_WCNT_MC2_00_WARNING_END_VALUE));
+           ((wcnt_val > FELICA_WCNT_MC2_00_WARNING_BEGIN_VALUE) &&
+            (wcnt_val < FELICA_WCNT_MC2_00_WARNING_END_VALUE));
 }
 
 static bool felica_wcnt_check_error_boundary(const FelicaData* data) {
     const uint32_t wcnt_max = felica_wcnt_get_max_value(data);
-    const uint32_t* wcnt_ptr = (const uint32_t*)data->data.fs.wcnt.data;
-    return *wcnt_ptr != wcnt_max;
+    const uint32_t wcnt_val = bit_lib_bytes_to_num_be(data->data.fs.wcnt.data, 4);
+    return wcnt_val != wcnt_max;
 }
 
 void felica_wcnt_increment(FelicaData* data) {
     furi_assert(data);
 
     const uint32_t wcnt_max = felica_wcnt_get_max_value(data);
-    uint32_t* wcnt_ptr = (uint32_t*)data->data.fs.wcnt.data;
-    if(*wcnt_ptr < wcnt_max) {
-        *wcnt_ptr += 1;
+    uint32_t wcnt_val = bit_lib_bytes_to_num_be(data->data.fs.wcnt.data, 4);
+    if(wcnt_val < wcnt_max) {
+        wcnt_val += 1;
+        bit_lib_num_to_bytes_be(wcnt_val, 4, data->data.fs.wcnt.data);
     }
 }
 
 static void felica_wcnt_post_process(FelicaData* data) {
-    uint32_t* wcnt_ptr = (uint32_t*)data->data.fs.wcnt.data;
+    uint32_t wcnt_val = bit_lib_bytes_to_num_be(data->data.fs.wcnt.data, 4);
 
-    if(FELICA_SYSTEM_BLOCK_RO_ACCESS(data) && (*wcnt_ptr > FELICA_WCNT_MC2_00_MAX_VALUE)) {
-        *wcnt_ptr = 0;
+    if(FELICA_SYSTEM_BLOCK_RO_ACCESS(data) && (wcnt_val > FELICA_WCNT_MC2_00_MAX_VALUE)) {
+        bit_lib_num_to_bytes_be(0, 4, data->data.fs.wcnt.data);
     }
 }
 
