@@ -1887,6 +1887,7 @@ Function,-,furi_hal_spi_config_init_early,void,
 Function,-,furi_hal_spi_dma_init,void,
 Function,+,furi_hal_spi_release,void,const FuriHalSpiBusHandle*
 Function,+,furi_hal_subghz_async_rx_hop,void,uint32_t
+Function,+,furi_hal_subghz_check_rx_fifo_overflow,_Bool,
 Function,+,furi_hal_subghz_check_tx,SubGhzTx,uint32_t
 Function,-,furi_hal_subghz_dump_state,void,
 Function,+,furi_hal_subghz_flush_rx,void,

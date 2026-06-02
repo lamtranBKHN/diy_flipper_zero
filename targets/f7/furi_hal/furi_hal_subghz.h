@@ -92,6 +92,17 @@ void furi_hal_subghz_write_packet(const uint8_t* data, uint8_t size);
  */
 bool furi_hal_subghz_rx_pipe_not_empty(void);
 
+/** Check RXFIFO overflow via MARCSTATE
+ *
+ * CC1101 errata SWRZ012: RXBYTES.RXFIFO_OVERFLOW bit is unreliable.
+ * MARCSTATE == 0b110 (CC1101StateRXFIFO_OVERFLOW) is the recommended detector.
+ * On true, the RX FIFO is automatically flushed (SFRX) and must be re-armed by
+ * the caller (e.g. cc1101_switch_to_rx()).
+ *
+ * @return     true if RXFIFO has overflowed
+ */
+bool furi_hal_subghz_check_rx_fifo_overflow(void);
+
 /** Check if received data crc is valid
  *
  * @return     true if valid

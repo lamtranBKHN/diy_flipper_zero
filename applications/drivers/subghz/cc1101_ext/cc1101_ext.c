@@ -396,12 +396,30 @@ bool subghz_device_cc1101_ext_rx_pipe_not_empty(void) {
         (CC1101_STATUS_RXBYTES) | CC1101_BURST,
         (uint8_t*)status);
     furi_hal_spi_release(subghz_device_cc1101_ext->spi_bus_handle);
-    // TODO: Find reason why RXFIFO_OVERFLOW doesnt work correctly
     if(status->NUM_RXBYTES > 0) {
         return true;
     } else {
         return false;
     }
+}
+
+bool subghz_device_cc1101_ext_check_rx_fifo_overflow(void) {
+    // CC1101 errata SWRZ012: RXBYTES.RXFIFO_OVERFLOW bit is unreliable.
+    // MARCSTATE (status byte from SNOP) == 0b110 is the recommended detector.
+    furi_hal_spi_acquire(subghz_device_cc1101_ext->spi_bus_handle);
+    CC1101Status status = cc1101_get_status(subghz_device_cc1101_ext->spi_bus_handle);
+    furi_hal_spi_release(subghz_device_cc1101_ext->spi_bus_handle);
+    if(status.STATE == CC1101StateRXFIFO_OVERFLOW) {
+        FURI_LOG_W(
+            TAG,
+            "SubGhz ext RXFIFO overflow (MARCSTATE=0x%02X); flushing",
+            (unsigned)status.STATE);
+        furi_hal_spi_acquire(subghz_device_cc1101_ext->spi_bus_handle);
+        cc1101_flush_rx(subghz_device_cc1101_ext->spi_bus_handle);
+        furi_hal_spi_release(subghz_device_cc1101_ext->spi_bus_handle);
+        return true;
+    }
+    return false;
 }
 
 bool subghz_device_cc1101_ext_is_rx_data_crc_valid(void) {

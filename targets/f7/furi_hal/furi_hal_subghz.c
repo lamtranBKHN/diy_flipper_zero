@@ -273,12 +273,28 @@ bool furi_hal_subghz_rx_pipe_not_empty(void) {
     cc1101_read_reg(
         &furi_hal_spi_bus_handle_subghz, (CC1101_STATUS_RXBYTES) | CC1101_BURST, (uint8_t*)status);
     furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
-    // TODO: Find reason why RXFIFO_OVERFLOW doesnt work correctly
     if(status->NUM_RXBYTES > 0) {
         return true;
     } else {
         return false;
     }
+}
+
+bool furi_hal_subghz_check_rx_fifo_overflow(void) {
+    // CC1101 errata SWRZ012: RXBYTES.RXFIFO_OVERFLOW bit is unreliable.
+    // MARCSTATE (status byte from SNOP) == 0b110 is the recommended detector.
+    furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
+    CC1101Status status = cc1101_get_status(&furi_hal_spi_bus_handle_subghz);
+    furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
+    if(status.STATE == CC1101StateRXFIFO_OVERFLOW) {
+        FURI_LOG_W(
+            TAG, "SubGhz RXFIFO overflow (MARCSTATE=0x%02X); flushing", (unsigned)status.STATE);
+        furi_hal_spi_acquire(&furi_hal_spi_bus_handle_subghz);
+        cc1101_flush_rx(&furi_hal_spi_bus_handle_subghz);
+        furi_hal_spi_release(&furi_hal_spi_bus_handle_subghz);
+        return true;
+    }
+    return false;
 }
 
 bool furi_hal_subghz_is_rx_data_crc_valid(void) {
