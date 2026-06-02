@@ -359,10 +359,23 @@ Iso14443_4LayerResult iso14443_4_layer_decode_command(
             if(!instance->chaining_buffer) {
                 instance->chaining_buffer = bit_buffer_alloc(ISO14443_4_CHAIN_BUF_SIZE * 4);
             }
+            const size_t current_len = bit_buffer_get_size_bytes(instance->chaining_buffer);
+            const size_t incoming_len =
+                bit_buffer_get_size_bytes(input_data) - prologue_len;
+            if(current_len + incoming_len > (size_t)(ISO14443_4_CHAIN_BUF_SIZE * 4)) {
+                FURI_LOG_E(
+                    "Iso14443_4",
+                    "Listener chaining buffer overflow (%zu + %zu > %u)",
+                    current_len,
+                    incoming_len,
+                    (unsigned)(ISO14443_4_CHAIN_BUF_SIZE * 4));
+                iso14443_4_layer_reset(instance);
+                return Iso14443_4LayerResultError;
+            }
             bit_buffer_append_bytes(
                 instance->chaining_buffer,
                 bit_buffer_get_data(input_data) + prologue_len,
-                bit_buffer_get_size_bytes(input_data) - prologue_len);
+                incoming_len);
 
             bit_buffer_reset(block_data);
             uint8_t r_pcb = ISO14443_4_BLOCK_PCB_R_MASK | ISO14443_4_BLOCK_PCB;

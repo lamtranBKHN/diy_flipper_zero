@@ -120,6 +120,15 @@ static NfcCommand iso14443_4a_listener_run(NfcGenericEvent event, void* context)
                 }
                 command = NfcCommandSleep;
             }
+            if(status & Iso14443_4LayerResultError) {
+                FURI_LOG_E(TAG, "ISO-DEP protocol error; resetting listener");
+                iso14443_4a_listener_reset(instance);
+                if(instance->callback) {
+                    instance->iso14443_4a_event.type = Iso14443_4aListenerEventTypeHalted;
+                    instance->callback(instance->generic_event, instance->context);
+                }
+                command = NfcCommandSleep;
+            }
             if(status & Iso14443_4LayerResultData) {
                 instance->iso14443_4a_event.type = Iso14443_4aListenerEventTypeReceivedData;
                 instance->iso14443_4a_event.data->buffer = instance->rx_buffer;

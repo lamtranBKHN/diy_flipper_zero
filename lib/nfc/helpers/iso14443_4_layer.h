@@ -50,6 +50,7 @@ typedef enum {
     Iso14443_4LayerResultData = (1 << 1),
     Iso14443_4LayerResultSend = (1 << 2),
     Iso14443_4LayerResultHalt = (1 << 3),
+    Iso14443_4LayerResultError = (1 << 4), /**< protocol-level error (e.g. overflow); listener must reset. */
 } Iso14443_4LayerResult;
 
 Iso14443_4LayerResult iso14443_4_layer_decode_command(
