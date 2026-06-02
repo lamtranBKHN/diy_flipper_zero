@@ -63,7 +63,8 @@ class ImageLint(App):
                     if self.is_file_an_icon(filename):
                         filepath = os.path.join(dirpath, filename)
                         if exclude:
-                            images.remove(filepath)
+                            if filepath in images:
+                                images.remove(filepath)
                         else:
                             images.append(filepath)
         return images
