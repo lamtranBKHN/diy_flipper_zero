@@ -1216,10 +1216,15 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
                  * R(ACK) PCB per ISO14443-4 §7.5.5 = 0xA2 | (block_num & 1). The
                  * Flipper-side iso_dep_block_num must NOT be toggled per fragment
                  * (the upper layer expects exactly one block-number toggle per
-                 * complete response); the bit is just used to build the R(ACK). */
+                 * complete response); the bit is just used to build the R(ACK).
+                 * On a failed fragment, retry with R(NAK) = 0xB2 | bit0 per
+                 * ISO/IEC 14443-4:2016 §7.1.6.2; abandon after 3 failed attempts. */
+                    size_t fragment_retry_count = 0;
                     while(err == FuriHalPn532ErrorNone && assembled_len > 0 &&
                           (pn532_status & PN532_STATUS_CHAINING)) {
-                        const uint8_t r_ack =
+                        const uint8_t r_pcb = (fragment_retry_count > 0) ?
+                            (uint8_t)(0xA2U | 0x10U |
+                                      (furi_hal_nfc_pn532.iso_dep_block_num & 1U)) :
                             (uint8_t)(0xA2U | (furi_hal_nfc_pn532.iso_dep_block_num & 1U));
 
                         uint8_t frag[PN532_MAX_FRAME_SIZE];
@@ -1228,14 +1233,24 @@ static FuriHalNfcError furi_hal_nfc_pn532_exchange_internal(
 
                         err = furi_hal_pn532_in_data_exchange_ex(
                             furi_hal_nfc_pn532.target.target_number,
-                            &r_ack,
+                            &r_pcb,
                             1,
                             frag,
                             sizeof(frag),
                             &frag_len,
                             &pn532_status);
 
-                        if(err != FuriHalPn532ErrorNone || frag_len == 0) break;
+                        if(err != FuriHalPn532ErrorNone || frag_len == 0) {
+                            fragment_retry_count++;
+                            if(fragment_retry_count > 2) {
+                                FURI_LOG_E(TAG, "Chained TX: fragment failed after 3 retries");
+                                err_ret = FuriHalNfcErrorCommunicationTimeout;
+                                goto release;
+                            }
+                            err = FuriHalPn532ErrorNone;
+                            continue;
+                        }
+                        fragment_retry_count = 0;
 
                         /* Overflow guard: assembled buffer cannot exceed max APDU size. */
                         if(assembled_len + frag_len > ISO14443_4_MAX_APDU_SIZE) {

@@ -491,6 +491,22 @@ void iso14443_4_layer_encode_r_ack(
     bit_buffer_append_byte(block_data, r_pcb);
 }
 
+void iso14443_4_layer_encode_r_nack(
+    Iso14443_4Layer* instance,
+    uint8_t rx_pcb,
+    BitBuffer* block_data) {
+    furi_assert(instance);
+    furi_assert(block_data);
+
+    /* Construct R(NAK): R-block type, NACK set, PCB bit from received I-block
+     * Per ISO/IEC 14443-4:2016 §7.1.6.2, R(NAK) requests card to retransmit last block. */
+    uint8_t r_pcb = ISO14443_4_BLOCK_PCB_R_MASK | ISO14443_4_BLOCK_PCB |
+                    ISO14443_4_BLOCK_PCB_R_NACK_MASK | (rx_pcb & 0x01);
+    UNUSED(instance); /* instance reserved for future CID support */
+    bit_buffer_reset(block_data);
+    bit_buffer_append_byte(block_data, r_pcb);
+}
+
 bool iso14443_4_layer_is_chaining(const Iso14443_4Layer* instance) {
     furi_assert(instance);
     return instance->chain_active;

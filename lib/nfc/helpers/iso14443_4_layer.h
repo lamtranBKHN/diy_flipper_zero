@@ -81,6 +81,17 @@ void iso14443_4_layer_encode_r_ack(
     uint8_t rx_pcb,
     BitBuffer* block_data);
 
+/** Encode an R(NAK) block requesting retransmission of the last chained I-block fragment.
+ *
+ * @param      instance    ISO14443-4 layer instance.
+ * @param      rx_pcb      PCB byte from the received I-block (used to extract sequence bit).
+ * @param[out] block_data  Buffer to write the R(NAK) block into (1 byte).
+ */
+void iso14443_4_layer_encode_r_nack(
+    Iso14443_4Layer* instance,
+    uint8_t rx_pcb,
+    BitBuffer* block_data);
+
 #ifdef __cplusplus
 }
 #endif
