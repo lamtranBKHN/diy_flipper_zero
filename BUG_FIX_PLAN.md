@@ -2,8 +2,10 @@
 
 **Date:** 2026-05-17
 **Updated:** 2026-05-18
-**Status:** All 23 bugs resolved. H7 (ISO14443-4 chaining) is partially implemented
-            (R-block ACK/NACK in PWT decode). Full chaining is deferred.
+**Status:** All 23 bugs resolved. H7 (ISO14443-4 chaining) fully implemented.
+            Residual gaps G1 (poller R(NAK)) + G4 (listener overflow guard) landed 2026-06-02.
+            G3 (iso14443_4b chain+WTX) and G5 (last_tx_data lifecycle) deferred —
+            G3 needs 4B test card, G5 verified non-bug (null guard already present).
 
 ---
 
@@ -967,7 +969,7 @@ Phase 2.6 (H6: NFC dict lag) — high user impact ✓
     ↓
 Phase 2.8 (H8+M5: Sub-GHz write checks) ✓
     ↓
-Phase 2.7 (H7: ISO14443-4 chaining) ✓  ← partial: R-block ACK/NACK in PWT decode only
+Phase 2.7 (H7: ISO14443-4 chaining) ✓
     ↓
 Phase 3.1 (M1: CI label) ✓
     ↓
@@ -983,8 +985,10 @@ Phase 4 (L1-L5: low cleanup) ✓
 ```
 
 **All phases complete.** Build verified: `firmware.elf` links successfully.
-H7 full chaining (I-block chain accumulation, R-block retransmit, S-block WTX) deferred
-as low-risk. R-block ACK/NACK in PWT extension is implemented and correct.
+H7 residual gaps G1, G4 landed 2026-06-02 (commits 8b191e91b, 0c128d8ef).
+G3 (4B chain support) and G5 (last_tx_data lifecycle) closed:
+- G3: deferred pending 4B test card.
+- G5: verified non-bug — null guard at `iso14443_4_layer.c:432` and `reset()` lifecycle correct.
 
 ---
 
